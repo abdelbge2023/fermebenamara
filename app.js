@@ -2,14 +2,15 @@ class SamarcheApp {
     constructor() {
         // ==================== CONFIGURATION FIREBASE ====================
         // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET FIREBASE ⚠️
-        this.firebaseConfig = {
-            apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            authDomain: "samarche-app.firebaseapp.com",
-            projectId: "samarche-app-12345",
-            storageBucket: "samarche-app-12345.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef123456789"
+        const firebaseConfig = {
+          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+          authDomain: "gestion-fermebenamara.firebaseapp.com",
+          projectId: "gestion-fermebenamara",
+          storageBucket: "gestion-fermebenamara.firebasestorage.app",
+          messagingSenderId: "668129137491",
+          appId: "1:668129137491:web:b56522302ea789044507a6"
         };
+
 
         // Variables de synchronisation
         this.db = null;
@@ -59,10 +60,15 @@ class SamarcheApp {
 
     init() {
         this.setupEventListeners();
-        this.initializeFirebase(); // Initialiser Firebase
-        this.loadFromLocalStorage();
-        this.showView('global');
-        this.updateStats();
+        this.initializeFirebase();
+        this.loadFromLocalStorage().then(() => {
+            // Démarrer la synchro temps réel après le chargement
+            if (this.syncEnabled) {
+                this.setupRealtimeSync();
+            }
+            this.showView('global');
+            this.updateStats();
+        });
     }
 
     setupEventListeners() {
@@ -164,7 +170,64 @@ class SamarcheApp {
                 console.warn('Firebase non disponible, utilisation du stockage local');
             }
         }
+           setupRealtimeSync() {
+        if (!this.syncEnabled || !this.db) {
+            console.log('Synchronisation temps réel désactivée');
+            return;
+        }
         
+        console.log('🔄 Activation synchronisation temps réel...');
+        
+        // Écouter les changements en temps réel
+        this.unsubscribe = this.db.collection('sauvegardes').doc('donnees_principales')
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const firebaseData = doc.data();
+                    const remoteOperations = firebaseData.data.operations || [];
+                    const remoteTime = new Date(firebaseData.lastSync);
+                    
+                    console.log('📡 Données reçues de Firebase:', remoteOperations.length, 'opérations');
+                    
+                    // Vérifier si les données distantes sont plus récentes
+                    const localData = localStorage.getItem('samarche_data');
+                    let shouldUpdate = false;
+                    
+                    if (!localData) {
+                        shouldUpdate = true;
+                        console.log('🆕 Première synchronisation depuis Firebase');
+                    } else {
+                        const localParsed = JSON.parse(localData);
+                        const localTime = new Date(localParsed.lastUpdate);
+                        shouldUpdate = remoteTime > localTime;
+                        
+                        if (shouldUpdate) {
+                            console.log('🔄 Données Firebase plus récentes, mise à jour...');
+                        }
+                    }
+                    
+                    // Mettre à jour si nécessaire
+                    if (shouldUpdate) {
+                        this.operations = remoteOperations;
+                        this.lastSyncTime = remoteTime;
+                        
+                        // Sauvegarder localement
+                        localStorage.setItem('samarche_data', JSON.stringify({
+                            operations: remoteOperations,
+                            lastUpdate: remoteTime.toISOString()
+                        }));
+                        
+                        // Mettre à jour l'interface
+                        this.showView(this.currentView);
+                        this.updateStats();
+                        
+                        this.afficherMessageSucces('🔄 Données mises à jour depuis le cloud');
+                        console.log('✅ Synchronisation terminée');
+                    }
+                }
+            }, (error) => {
+                console.error('❌ Erreur synchronisation temps réel:', error);
+            });
+    } 
         // Fallback sur le stockage local (ORIGINAL)
         const saved = localStorage.getItem('samarche_data');
         if (saved) {
@@ -690,3 +753,4 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
