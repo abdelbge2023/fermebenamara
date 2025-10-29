@@ -1,3 +1,5 @@
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 class SamarcheApp {
     constructor() {
         // Configuration Firebase - À MODIFIER AVEC VOS CLÉS
@@ -579,5 +581,6 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
 
