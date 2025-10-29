@@ -1,14 +1,22 @@
 class SamarcheApp {
     constructor() {
         // Configuration Firebase
-        this.firebaseConfig = {
-            apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            authDomain: "votre-projet.firebaseapp.com",
-            projectId: "votre-projet-id",
-            storageBucket: "votre-projet.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
+        const firebaseConfig = {
+
+          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+        
+          authDomain: "gestion-fermebenamara.firebaseapp.com",
+        
+          projectId: "gestion-fermebenamara",
+        
+          storageBucket: "gestion-fermebenamara.firebasestorage.app",
+        
+          messagingSenderId: "668129137491",
+        
+          appId: "1:668129137491:web:b56522302ea789044507a6"
+        
         };
+
 
         this.db = null;
         this.syncEnabled = false;
@@ -139,3 +147,4 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
