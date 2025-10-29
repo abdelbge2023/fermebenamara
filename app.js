@@ -388,55 +388,64 @@ class SamarcheApp {
         this.afficherDonnees(viewName);
     }
 
-    afficherDonnees(viewName) {
-        const container = document.getElementById('dataDisplay');
-        let operationsFiltrees = [];
+   afficherDonnees(viewName) {
+    const container = document.getElementById('dataDisplay');
+    let operationsFiltrees = [];
 
-        if (viewName === 'global') {
-            operationsFiltrees = this.operations;
-        } else {
-            const filter = this.sheetsConfig[viewName].filter;
-            operationsFiltrees = this.operations.filter(filter);
-        }
-
-        if (operationsFiltrees.length === 0) {
-            container.innerHTML = '<div class="empty-message"><h3>Aucune donnee</h3><p>Aucune operation trouvee pour cette vue</p></div>';
-            return;
-        }
-
-        const total = operationsFiltrees.reduce((sum, op) => sum + op.montant, 0);
-
-        let tableHTML = '<div class="fade-in"><h3>' + (viewName === 'global' ? 'Toutes les operations' : this.sheetsConfig[viewName].name) + '</h3><p><strong>Total: ' + total.toFixed(2) + ' DH</strong> (' + operationsFiltrees.length + ' operations)</p><table class="data-table"><thead><tr>';
-        
-        if (this.editMode) tableHTML += '<th></th>';
-        tableHTML += '<th>Date</th><th>Operateur</th><th>Groupe</th><th>Type</th><th>Description</th><th>Montant (DH)</th>';
-        if (!this.editMode) tableHTML += '<th>Actions</th>';
-        tableHTML += '</tr></thead><tbody>';
-
-        operationsFiltrees.forEach(op => {
-            tableHTML += '<tr class="' + (this.selectedOperations.has(op.id) ? 'selected' : '') + '">';
-            
-            if (this.editMode) {
-                tableHTML += '<td><input type="checkbox" class="operation-checkbox" ' + (this.selectedOperations.has(op.id) ? 'checked' : '') + ' onchange="app.selectionnerOperation(' + op.id + ', this.checked)"></td>';
-            }
-            
-            tableHTML += '<td>' + this.formaterDate(op.date) + '</td>';
-            tableHTML += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
-            tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
-            tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
-            tableHTML += '<td>' + op.description + '</td>';
-            tableHTML += '<td style="font-weight: bold; color: #27ae60;">${(op.montant || 0).toFixed(2)}</td>';
-            
-            if (!this.editMode) {
-                tableHTML += '<td><div class="operation-actions"><button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">Modifier</button><button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">Supprimer</button></div></td>';
-            }
-            
-            tableHTML += '</tr>';
-        });
-
-        tableHTML += '</tbody></table></div>';
-        container.innerHTML = tableHTML;
+    if (viewName === 'global') {
+        operationsFiltrees = this.operations;
+    } else {
+        const filter = this.sheetsConfig[viewName].filter;
+        operationsFiltrees = this.operations.filter(filter);
     }
+
+    if (operationsFiltrees.length === 0) {
+        container.innerHTML = '<div class="empty-message"><h3>📭 Aucune donnée</h3><p>Aucune opération trouvée pour cette vue</p></div>';
+        return;
+    }
+
+    const total = operationsFiltrees.reduce((sum, op) => sum + (op.montant || 0), 0);
+
+    // Construction du HTML avec concaténation classique
+    let tableHTML = '<div class="fade-in">';
+    tableHTML += '<h3>' + (viewName === 'global' ? '🌍 Toutes les opérations' : this.sheetsConfig[viewName].name) + '</h3>';
+    tableHTML += '<p><strong>Total: ' + total.toFixed(2) + ' DH</strong> (' + operationsFiltrees.length + ' opérations)</p>';
+    tableHTML += '<table class="data-table"><thead><tr>';
+    
+    if (this.editMode) tableHTML += '<th></th>';
+    tableHTML += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type</th><th>Description</th><th>Montant (DH)</th>';
+    if (!this.editMode) tableHTML += '<th>Actions</th>';
+    tableHTML += '</tr></thead><tbody>';
+
+    operationsFiltrees.forEach(op => {
+        tableHTML += '<tr class="' + (this.selectedOperations.has(op.id) ? 'selected' : '') + '">';
+        
+        if (this.editMode) {
+            tableHTML += '<td><input type="checkbox" class="operation-checkbox" ' + 
+                (this.selectedOperations.has(op.id) ? 'checked' : '') + 
+                ' onchange="app.selectionnerOperation(' + op.id + ', this.checked)"></td>';
+        }
+        
+        tableHTML += '<td>' + this.formaterDate(op.date) + '</td>';
+        tableHTML += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
+        tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
+        tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
+        tableHTML += '<td>' + (op.description || '') + '</td>';
+        tableHTML += '<td style="font-weight: bold; color: #27ae60;">' + (op.montant || 0).toFixed(2) + '</td>';
+        
+        if (!this.editMode) {
+            tableHTML += '<td><div class="operation-actions">';
+            tableHTML += '<button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">✏️</button>';
+            tableHTML += '<button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">🗑️</button>';
+            tableHTML += '</div></td>';
+        }
+        
+        tableHTML += '</tr>';
+    });
+
+    tableHTML += '</tbody></table></div>';
+    container.innerHTML = tableHTML;
+}
 
     formaterDate(dateStr) {
         const date = new Date(dateStr);
@@ -464,18 +473,26 @@ class SamarcheApp {
     }
 
     updateStats() {
-        const container = document.getElementById('statsContainer');
-        
-        const totalGeneral = this.operations.reduce((sum, op) => sum + op.montant, 0);
-        const totalZaitoun = this.operations.filter(op => op.groupe === 'zaitoun').reduce((sum, op) => sum + op.montant, 0);
-        const total3Commain = this.operations.filter(op => op.groupe === '3commain').reduce((sum, op) => sum + op.montant, 0);
-        
-        const totalAbdel = this.operations.filter(op => op.operateur === 'abdel').reduce((sum, op) => sum + op.montant, 0);
-        const totalOmar = this.operations.filter(op => op.operateur === 'omar').reduce((sum, op) => sum + op.montant, 0);
-        const totalHicham = this.operations.filter(op => op.operateur === 'hicham').reduce((sum, op) => sum + op.montant, 0);
+    const container = document.getElementById('statsContainer');
+    
+    const totalGeneral = this.operations.reduce((sum, op) => sum + (op.montant || 0), 0);
+    const totalZaitoun = this.operations.filter(op => op.groupe === 'zaitoun').reduce((sum, op) => sum + (op.montant || 0), 0);
+    const total3Commain = this.operations.filter(op => op.groupe === '3commain').reduce((sum, op) => sum + (op.montant || 0), 0);
+    
+    const totalAbdel = this.operations.filter(op => op.operateur === 'abdel').reduce((sum, op) => sum + (op.montant || 0), 0);
+    const totalOmar = this.operations.filter(op => op.operateur === 'omar').reduce((sum, op) => sum + (op.montant || 0), 0);
+    const totalHicham = this.operations.filter(op => op.operateur === 'hicham').reduce((sum, op) => sum + (op.montant || 0), 0);
 
-        container.innerHTML = '<div class="stats-grid"><div class="stat-card"><div class="stat-label">Total General</div><div class="stat-value">' + totalGeneral.toFixed(2) + '</div><div class="stat-label">DH</div></div><div class="stat-card"><div class="stat-label">Zaitoun</div><div class="stat-value">' + totalZaitoun.toFixed(2) + '</div><div class="stat-label">DH</div></div><div class="stat-card"><div class="stat-label">3 Commain</div><div class="stat-value">' + total3Commain.toFixed(2) + '</div><div class="stat-label">DH</div></div><div class="stat-card"><div class="stat-label">Abdel</div><div class="stat-value">' + totalAbdel.toFixed(2) + '</div><div class="stat-label">DH</div></div><div class="stat-card"><div class="stat-label">Omar</div><div class="stat-value">' + totalOmar.toFixed(2) + '</div><div class="stat-label">DH</div></div><div class="stat-card"><div class="stat-label">Hicham</div><div class="stat-value">' + totalHicham.toFixed(2) + '</div><div class="stat-label">DH</div></div></div>';
-    }
+    container.innerHTML = 
+        '<div class="stats-grid">' +
+        '<div class="stat-card"><div class="stat-label">Total Général</div><div class="stat-value">' + totalGeneral.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Zaitoun</div><div class="stat-value">' + totalZaitoun.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '<div class="stat-card"><div class="stat-label">3 Commain</div><div class="stat-value">' + total3Commain.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Abdel</div><div class="stat-value">' + totalAbdel.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Omar</div><div class="stat-value">' + totalOmar.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '<div class="stat-card"><div class="stat-label">Hicham</div><div class="stat-value">' + totalHicham.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+        '</div>';
+}
 
     async importerExcel(file) {
         if (!file) return;
@@ -589,6 +606,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
 
 
