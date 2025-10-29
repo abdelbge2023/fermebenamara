@@ -1,36 +1,35 @@
 class SamarcheApp {
     constructor() {
-        // Configuration Firebase - À MODIFIER AVEC VOS CLÉS
-        const firebaseConfig = {
-          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-          authDomain: "gestion-fermebenamara.firebaseapp.com",
-          projectId: "gestion-fermebenamara",
-          storageBucket: "gestion-fermebenamara.appspot.com",
-          messagingSenderId: "668129137491",
-          appId: "1:668129137491:web:b56522302ea789044507a6"
-        };
+          // Configuration Firebase EXACTE depuis la console
+    this.firebaseConfig = {
+        apiKey: "AIzaSyDKqudvQPUV_Lh2V2d2PUSEcxchDExw6PE",
+        authDomain: "gestion-fermebenamara.firebaseapp.com",
+        projectId: "gestion-fermebenamara",
+        storageBucket: "gestion-fermebenamara.firebasestorage.app",
+        messagingSenderId: "668129137491",
+        appId: "1:668129137491:web:b56522302ea789844587a6"
+    };
 
-        this.db = null;
-        this.syncEnabled = false;
+    this.db = null;
+    this.syncEnabled = false;
 
-        // Votre code existant
-        this.workbook = null;
-        this.currentView = 'global';
-        this.operations = [];
-        this.editMode = false;
-        this.selectedOperations = new Set();
-        
-        this.sheetsConfig = {
-            'zaitoun': { name: 'Zaitoun', filter: (op) => op.groupe === 'zaitoun' },
-            '3commain': { name: '3Commain', filter: (op) => op.groupe === '3commain' },
-            'abdel': { name: 'Abdel', filter: (op) => op.operateur === 'abdel' },
-            'omar': { name: 'Omar', filter: (op) => op.operateur === 'omar' },
-            'hicham': { name: 'Hicham', filter: (op) => op.operateur === 'hicham' }
-        };
+    // Le reste de votre code...
+    this.workbook = null;
+    this.currentView = 'global';
+    this.operations = [];
+    this.editMode = false;
+    this.selectedOperations = new Set();
+    
+    this.sheetsConfig = {
+        'zaitoun': { name: 'Zaitoun', filter: (op) => op.groupe === 'zaitoun' },
+        '3commain': { name: '3Commain', filter: (op) => op.groupe === '3commain' },
+        'abdel': { name: 'Abdel', filter: (op) => op.operateur === 'abdel' },
+        'omar': { name: 'Omar', filter: (op) => op.operateur === 'omar' },
+        'hicham': { name: 'Hicham', filter: (op) => op.operateur === 'hicham' }
+    };
 
-        this.init();
-    }
-
+    this.init();
+}
     // Initialisation Firebase
     initializeFirebase() {
     try {
@@ -593,6 +592,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
 
 
