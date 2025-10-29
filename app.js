@@ -1,23 +1,19 @@
 class SamarcheApp {
     constructor() {
-        // ==================== CONFIGURATION FIREBASE ====================
-        // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET FIREBASE ⚠️
-        const firebaseConfig = {
-          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-          authDomain: "gestion-fermebenamara.firebaseapp.com",
-          projectId: "gestion-fermebenamara",
-          storageBucket: "gestion-fermebenamara.firebasestorage.app",
-          messagingSenderId: "668129137491",
-          appId: "1:668129137491:web:b56522302ea789044507a6"
+        // Configuration Firebase - À REMPLACER AVEC VOS CLÉS
+        this.firebaseConfig = {
+            apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            authDomain: "votre-projet.firebaseapp.com",
+            projectId: "votre-projet-id",
+            storageBucket: "votre-projet.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
         };
 
-
-        // Variables de synchronisation
         this.db = null;
         this.syncEnabled = false;
-        this.lastSyncTime = null;
 
-        // Votre code existant reste inchangé ci-dessous
+        // Code existant
         this.workbook = null;
         this.currentView = 'global';
         this.operations = [];
@@ -35,71 +31,110 @@ class SamarcheApp {
         this.init();
     }
 
-    // ==================== MÉTHODES FIREBASE ====================
-    
+    // Initialisation Firebase
     initializeFirebase() {
         try {
-            // Vérifier si Firebase est disponible
             if (typeof firebase === 'undefined') {
-                console.warn('Firebase non chargé');
+                console.log('Firebase non chargé');
                 return;
             }
-            
-            // Initialiser Firebase
+
             firebase.initializeApp(this.firebaseConfig);
             this.db = firebase.firestore();
             this.syncEnabled = true;
             
-            console.log('✅ Firebase initialisé avec succès');
-            
+            console.log('Firebase initialisé');
+            this.startRealtimeSync();
+
         } catch (error) {
-            console.error('❌ Erreur initialisation Firebase:', error);
-            this.syncEnabled = false;
+            console.error('Erreur Firebase:', error);
         }
     }
-    updateSyncStatus(message, type = 'info') {
-        const syncStatus = document.getElementById('syncStatus');
-        const syncText = document.getElementById('syncText');
-        
-        if (!syncStatus) return;
-        
-        syncStatus.style.display = 'block';
-        syncText.textContent = message;
-        
-        // Couleurs selon le type
-        const colors = {
-            'info': '#d1ecf1',
-            'success': '#d4edda', 
-            'error': '#f8d7da',
-            'warning': '#fff3cd'
+
+    startRealtimeSync() {
+        if (!this.syncEnabled) return;
+
+        this.db.collection('sauvegardes').doc('donnees_principales')
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const remoteData = doc.data();
+                    const remoteOperations = remoteData.data.operations || [];
+                    
+                    console.log('Données reçues:', remoteOperations.length, 'opérations');
+
+                    this.operations = remoteOperations;
+                    
+                    localStorage.setItem('samarche_data', JSON.stringify({
+                        operations: remoteOperations,
+                        lastUpdate: new Date().toISOString()
+                    }));
+
+                    this.showView(this.currentView);
+                    this.updateStats();
+                    
+                    console.log('Données mises à jour depuis cloud');
+                }
+            }, (error) => {
+                console.error('Erreur synchro:', error);
+            });
+    }
+
+    async sauvegarderLocal() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
         };
         
-        syncStatus.style.background = colors[type] || colors.info;
+        localStorage.setItem('samarche_data', JSON.stringify(data));
+        
+        if (this.syncEnabled && this.db) {
+            try {
+                await this.db.collection('sauvegardes').doc('donnees_principales').set({
+                    data: data,
+                    lastSync: new Date().toISOString(),
+                    totalOperations: this.operations.length
+                });
+                
+                console.log('Données envoyées à Firebase');
+                
+            } catch (error) {
+                console.error('Erreur envoi Firebase:', error);
+            }
+        }
     }
+
+    loadFromLocalStorage() {
+        const saved = localStorage.getItem('samarche_data');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                
+                document.getElementById('fileInfo').innerHTML = `
+                    <div class="file-info">
+                        Données locales (${this.operations.length} opérations)
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Erreur chargement local:', error);
+                this.operations = [];
+            }
+        }
+    }
+
     init() {
         this.setupEventListeners();
+        this.loadFromLocalStorage();
         this.initializeFirebase();
-        this.loadFromLocalStorage().then(() => {
-            // Démarrer la synchro temps réel après le chargement
-            if (this.syncEnabled) {
-                this.setupRealtimeSync();
-            }
-            this.showView('global');
-            this.updateStats();
-        });
+        this.showView('global');
+        this.updateStats();
     }
 
     setupEventListeners() {
-        // VOTRE CODE EXISTANT - NE PAS MODIFIER
-        // Formulaire de saisie
         document.getElementById('saisieForm').addEventListener('submit', (e) => this.ajouterOperation(e));
         document.getElementById('btnReset').addEventListener('click', () => this.resetForm());
-        
-        // Gestion de la répartition
         document.getElementById('typeOperation').addEventListener('change', () => this.calculerRepartition());
         document.getElementById('montant').addEventListener('input', () => this.calculerRepartition());
-
-        // Import/Export
         document.getElementById('btnImport').addEventListener('click', () => {
             document.getElementById('fileInput').click();
         });
@@ -112,172 +147,26 @@ class SamarcheApp {
         document.getElementById('btnNewFile').addEventListener('click', () => {
             this.creerNouveauFichier();
         });
-
-        // Navigation par onglets
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const view = e.target.dataset.sheet;
                 this.showView(view);
             });
         });
-
-        // Gestion des opérations
         document.getElementById('btnEditMode').addEventListener('click', () => this.toggleEditMode());
         document.getElementById('btnDeleteSelected').addEventListener('click', () => this.supprimerOperationsSelectionnees());
         document.getElementById('btnCancelEdit').addEventListener('click', () => this.toggleEditMode(false));
-
-        // Modal de modification
         document.getElementById('editForm').addEventListener('submit', (e) => this.modifierOperation(e));
         document.querySelectorAll('.close-modal').forEach(btn => {
             btn.addEventListener('click', () => this.fermerModal());
         });
-
-        // Fermer le modal en cliquant à l'extérieur
         document.getElementById('editModal').addEventListener('click', (e) => {
             if (e.target.id === 'editModal') this.fermerModal();
         });
     }
 
-    // ==================== MODIFICATIONS MINIMALES POUR FIREBASE ====================
-
-        async sauvegarderLocal() {
-        const data = {
-            operations: this.operations,
-            lastUpdate: new Date().toISOString()
-        };
-        
-        // 1. Sauvegarde locale
-        localStorage.setItem('samarche_data', JSON.stringify(data));
-        
-        // 2. Synchronisation Firebase
-        if (this.syncEnabled && this.db) {
-            try {
-                this.updateSyncStatus('🔄 Envoi des données vers le cloud...', 'info');
-                
-                await this.db.collection('sauvegardes').doc('donnees_principales').set({
-                    data: data,
-                    lastSync: new Date().toISOString(),
-                    totalOperations: this.operations.length,
-                    appVersion: '1.0'
-                });
-                
-                this.updateSyncStatus('✅ Données synchronisées avec le cloud', 'success');
-                console.log('✅ Données sauvegardées sur Firebase');
-                
-                // Cacher le message après 3 secondes
-                setTimeout(() => {
-                    const syncStatus = document.getElementById('syncStatus');
-                    if (syncStatus) syncStatus.style.display = 'none';
-                }, 3000);
-                
-            } catch (error) {
-                console.error('❌ Erreur sauvegarde Firebase:', error);
-                this.updateSyncStatus('❌ Erreur de synchronisation - Données sauvegardées localement', 'error');
-            }
-        }
-    }
-
-    async loadFromLocalStorage() {
-        // Essayer Firebase d'abord
-        if (this.syncEnabled && this.db) {
-            try {
-                const doc = await this.db.collection('sauvegardes').doc('donnees_principales').get();
-                
-                if (doc.exists) {
-                    const firebaseData = doc.data();
-                    this.operations = firebaseData.data.operations || [];
-                    
-                    // Sauvegarder localement aussi
-                    localStorage.setItem('samarche_data', JSON.stringify(firebaseData.data));
-                    
-                    document.getElementById('fileInfo').innerHTML = `
-                        <div class="file-info" style="background: #d4edda;">
-                            ☁️ Données chargées depuis Firebase (${this.operations.length} opérations)
-                        </div>
-                    `;
-                    return;
-                }
-            } catch (error) {
-                console.warn('Firebase non disponible, utilisation du stockage local');
-            }
-        }
-           setupRealtimeSync() {
-        if (!this.syncEnabled || !this.db) {
-            console.log('Synchronisation temps réel désactivée');
-            return;
-        }
-        
-        console.log('🔄 Activation synchronisation temps réel...');
-        
-        // Écouter les changements en temps réel
-        this.unsubscribe = this.db.collection('sauvegardes').doc('donnees_principales')
-            .onSnapshot((doc) => {
-                if (doc.exists) {
-                    const firebaseData = doc.data();
-                    const remoteOperations = firebaseData.data.operations || [];
-                    const remoteTime = new Date(firebaseData.lastSync);
-                    
-                    console.log('📡 Données reçues de Firebase:', remoteOperations.length, 'opérations');
-                    
-                    // Vérifier si les données distantes sont plus récentes
-                    const localData = localStorage.getItem('samarche_data');
-                    let shouldUpdate = false;
-                    
-                    if (!localData) {
-                        shouldUpdate = true;
-                        console.log('🆕 Première synchronisation depuis Firebase');
-                    } else {
-                        const localParsed = JSON.parse(localData);
-                        const localTime = new Date(localParsed.lastUpdate);
-                        shouldUpdate = remoteTime > localTime;
-                        
-                        if (shouldUpdate) {
-                            console.log('🔄 Données Firebase plus récentes, mise à jour...');
-                        }
-                    }
-                    
-                    // Mettre à jour si nécessaire
-                    if (shouldUpdate) {
-                        this.operations = remoteOperations;
-                        this.lastSyncTime = remoteTime;
-                        
-                        // Sauvegarder localement
-                        localStorage.setItem('samarche_data', JSON.stringify({
-                            operations: remoteOperations,
-                            lastUpdate: remoteTime.toISOString()
-                        }));
-                        
-                        // Mettre à jour l'interface
-                        this.showView(this.currentView);
-                        this.updateStats();
-                        
-                        this.afficherMessageSucces('🔄 Données mises à jour depuis le cloud');
-                        console.log('✅ Synchronisation terminée');
-                    }
-                }
-            }, (error) => {
-                console.error('❌ Erreur synchronisation temps réel:', error);
-            });
-    } 
-        // Fallback sur le stockage local (ORIGINAL)
-        const saved = localStorage.getItem('samarche_data');
-        if (saved) {
-            const data = JSON.parse(saved);
-            this.operations = data.operations || [];
-            
-            document.getElementById('fileInfo').innerHTML = `
-                <div class="file-info">
-                    💾 Données chargées depuis le stockage local 
-                    (${this.operations.length} opérations, dernière mise à jour: ${new Date(data.lastUpdate).toLocaleDateString('fr-FR')})
-                </div>
-            `;
-        }
-    }
-
-    // ==================== VOTRE CODE EXISTANT - NE RIEN CHANGER CI-DESSOUS ====================
-    
+    // ============ VOS MÉTHODES EXISTANTES ============
     calculerRepartition() {
-        // VOTRE CODE EXISTANT
         const typeOperation = document.getElementById('typeOperation').value;
         const montant = parseFloat(document.getElementById('montant').value) || 0;
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -316,7 +205,6 @@ class SamarcheApp {
         let operationsACreer = [];
 
         if (typeOperation === 'travailleur_global') {
-            // Créer deux opérations : une pour Zaitoun et une pour 3 Commain
             const montantZaitoun = montantSaisi / 3;
             const montant3Commain = (montantSaisi * 2) / 3;
 
@@ -343,7 +231,6 @@ class SamarcheApp {
                 }
             ];
         } else {
-            // Opération normale
             operationsACreer = [{
                 id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
@@ -356,12 +243,10 @@ class SamarcheApp {
             }];
         }
 
-        // Validation
         if (!this.validerOperation(operationsACreer[0])) {
             return;
         }
 
-        // Ajouter les opérations
         operationsACreer.forEach(op => {
             this.operations.unshift(op);
         });
@@ -376,8 +261,6 @@ class SamarcheApp {
         this.resetForm();
         this.showView(this.currentView);
         this.updateStats();
-
-        console.log('Nouvelles opérations:', operationsACreer);
     }
 
     validerOperation(operation) {
@@ -442,7 +325,6 @@ class SamarcheApp {
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) return;
 
-        // Remplir le formulaire
         document.getElementById('editId').value = operation.id;
         document.getElementById('editOperateur').value = operation.operateur;
         document.getElementById('editGroupe').value = operation.groupe;
@@ -450,7 +332,6 @@ class SamarcheApp {
         document.getElementById('editMontant').value = operation.montant;
         document.getElementById('editDescription').value = operation.description;
 
-        // Afficher le modal
         document.getElementById('editModal').style.display = 'flex';
     }
 
@@ -470,7 +351,6 @@ class SamarcheApp {
             return;
         }
 
-        // Mettre à jour l'opération
         this.operations[operationIndex] = {
             ...this.operations[operationIndex],
             operateur: document.getElementById('editOperateur').value,
@@ -734,7 +614,6 @@ class SamarcheApp {
 
         const wb = XLSX.utils.book_new();
 
-        // Feuille principale
         const mainData = this.operations.map(op => ({
             'Date': op.date,
             'Opérateur': this.formaterOperateur(op.operateur),
@@ -747,7 +626,6 @@ class SamarcheApp {
         const mainSheet = XLSX.utils.json_to_sheet(mainData);
         XLSX.utils.book_append_sheet(wb, mainSheet, 'Toutes les opérations');
 
-        // Feuilles spécifiques
         Object.keys(this.sheetsConfig).forEach(sheetKey => {
             const config = this.sheetsConfig[sheetKey];
             const filteredData = this.operations.filter(config.filter)
@@ -779,10 +657,7 @@ class SamarcheApp {
     }
 }
 
-// Initialiser l'application
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
-
-
