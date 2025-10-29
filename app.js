@@ -425,7 +425,7 @@ class SamarcheApp {
             tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
             tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
             tableHTML += '<td>' + op.description + '</td>';
-            tableHTML += '<td style="font-weight: bold; color: #27ae60;">' + op.montant.toFixed(2) + '</td>';
+            tableHTML += '<td style="font-weight: bold; color: #27ae60;">${(op.montant || 0).toFixed(2)}</td>';
             
             if (!this.editMode) {
                 tableHTML += '<td><div class="operation-actions"><button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">Modifier</button><button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">Supprimer</button></div></td>';
@@ -589,6 +589,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
 
 
