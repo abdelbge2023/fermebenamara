@@ -1,13 +1,51 @@
+class SamarcheApp {
+    constructor() {
+        // ==================== DÉBUT CONFIGURATION FIREBASE ====================
+        // Import the functions you need from the SDKs you need
+        const firebaseConfig = {
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-    authDomain: "gestion-fermebenamara.firebaseapp.com",
-    projectId: "gestion-fermebenamara",
-    storageBucket: "gestion-fermebenamara.firebasestorage.app",
-    messagingSenderId: "668129137491",
-    appId: "1:668129137491:web:b56522302ea789044507a6"
-  };
+      apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
 
+      authDomain: "gestion-fermebenamara.firebaseapp.com",
+
+      projectId: "gestion-fermebenamara",
+
+      storageBucket: "gestion-fermebenamara.firebasestorage.app",
+
+      messagingSenderId: "668129137491",
+
+      appId: "1:668129137491:web:b56522302ea789044507a6"
+
+    };
+
+
+
+        // Variables de synchronisation
+        this.db = null;
+        this.syncEnabled = false;
+        this.lastSyncTime = null;
+        
+        // Initialiser Firebase
+        this.initializeFirebase();
+        // ==================== FIN CONFIGURATION FIREBASE ====================
+
+        // Votre code existant reste inchangé ci-dessous
+        this.workbook = null;
+        this.currentView = 'global';
+        this.operations = [];
+        this.editMode = false;
+        this.selectedOperations = new Set();
+        
+        this.sheetsConfig = {
+            'zaitoun': { name: 'Zaitoun', filter: (op) => op.groupe === 'zaitoun' },
+            '3commain': { name: '3Commain', filter: (op) => op.groupe === '3commain' },
+            'abdel': { name: 'Abdel', filter: (op) => op.operateur === 'abdel' },
+            'omar': { name: 'Omar', filter: (op) => op.operateur === 'omar' },
+            'hicham': { name: 'Hicham', filter: (op) => op.operateur === 'hicham' }
+        };
+
+        this.init();
+    }
 class SamarcheApp {
     constructor() {
         this.workbook = null;
@@ -611,5 +649,4 @@ class SamarcheApp {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
-});  
-
+});
