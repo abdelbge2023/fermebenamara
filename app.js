@@ -200,7 +200,7 @@ class SamarcheApp {
                     description: document.getElementById('description').value + ' (Part Zaitoun - 1/3)',
                     montant: montantZaitoun,
                     operationParent: true
-                },
+                }
                 {
                     id: Date.now() + 1,
                     date: new Date().toISOString().split('T')[0],
@@ -579,3 +579,4 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
