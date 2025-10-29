@@ -18,7 +18,65 @@ class SamarcheApp {
 
     };
 
-
+    // ==================== MÉTHODES FIREBASE ====================
+    
+    initializeFirebase() {
+        try {
+            // Vérifier si Firebase est disponible
+            if (typeof firebase === 'undefined') {
+                this.updateSyncStatus('error', 'Firebase non chargé');
+                return;
+            }
+            
+            // Initialiser Firebase
+            firebase.initializeApp(this.firebaseConfig);
+            this.db = firebase.firestore();
+            this.syncEnabled = true;
+            
+            this.updateSyncStatus('syncing', 'Connexion à Firebase...');
+            console.log('✅ Firebase initialisé avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur initialisation Firebase:', error);
+            this.syncEnabled = false;
+            this.updateSyncStatus('error', 'Erreur connexion Firebase');
+        }
+    }
+    
+    updateSyncStatus(status, message) {
+        const syncStatus = document.getElementById('syncStatus');
+        const syncIndicator = syncStatus.querySelector('.sync-indicator');
+        const syncText = document.getElementById('syncText');
+        
+        if (!syncStatus) return;
+        
+        // Reset classes
+        syncStatus.className = 'sync-status';
+        syncIndicator.className = 'sync-indicator';
+        
+        switch(status) {
+            case 'online':
+                syncIndicator.classList.add('online');
+                syncStatus.classList.add('sync-success');
+                syncText.textContent = `✅ Synchronisé ${this.lastSyncTime ? 'à ' + this.lastSyncTime.toLocaleTimeString('fr-FR') : ''}`;
+                break;
+            case 'offline':
+                syncIndicator.classList.add('offline');
+                syncStatus.classList.add('sync-warning');
+                syncText.textContent = '🔴 Mode hors ligne - Données locales';
+                break;
+            case 'syncing':
+                syncIndicator.classList.add('syncing');
+                syncStatus.classList.add('sync-warning');
+                syncText.textContent = '🔄 Synchronisation...';
+                break;
+            case 'error':
+                syncIndicator.classList.add('offline');
+                syncStatus.classList.add('sync-error');
+                syncText.textContent = '❌ ' + message;
+                break;
+        }
+    }
 
         // Variables de synchronisation
         this.db = null;
@@ -65,11 +123,14 @@ class SamarcheApp {
         this.init();
     }
 
-    init() {
+        init() {
         this.setupEventListeners();
-        this.loadFromLocalStorage();
-        this.showView('global');
-        this.updateStats();
+        this.loadFromLocalStorage().then(() => {
+            // Démarrer la synchro temps réel après le chargement
+            this.setupRealtimeSync();
+            this.showView('global');
+            this.updateStats();
+        });
     }
 
     setupEventListeners() {
@@ -621,30 +682,146 @@ class SamarcheApp {
         }
     }
 
-    sauvegarderLocal() {
+        async sauvegarderLocal() {
         const data = {
             operations: this.operations,
             lastUpdate: new Date().toISOString()
         };
+        
+        // 1. Sauvegarde locale (existant)
         localStorage.setItem('samarche_data', JSON.stringify(data));
-    }
-
-    loadFromLocalStorage() {
-        const saved = localStorage.getItem('samarche_data');
-        if (saved) {
-            const data = JSON.parse(saved);
-            this.operations = data.operations || [];
-            
-            document.getElementById('fileInfo').innerHTML = `
-                <div class="file-info">
-                    Données chargées depuis le stockage local 
-                    (${this.operations.length} opérations, dernière mise à jour: ${new Date(data.lastUpdate).toLocaleDateString('fr-FR')})
-                </div>
-            `;
+        
+        // 2. Synchronisation Firebase (NOUVEAU)
+        if (this.syncEnabled && this.db) {
+            try {
+                this.updateSyncStatus('syncing', 'Sauvegarde sur le cloud...');
+                
+                await this.db.collection('sauvegardes').doc('donnees_principales').set({
+                    data: data,
+                    lastSync: new Date().toISOString(),
+                    totalOperations: this.operations.length,
+                    appVersion: '1.0'
+                });
+                
+                this.lastSyncTime = new Date();
+                this.updateSyncStatus('online', `Synchronisé à ${this.lastSyncTime.toLocaleTimeString('fr-FR')}`);
+                
+                console.log('✅ Données sauvegardées sur Firebase');
+                
+            } catch (error) {
+                console.error('❌ Erreur sauvegarde Firebase:', error);
+                this.updateSyncStatus('error', 'Erreur sauvegarde cloud - Données locales sauvegardées');
+            }
+        } else {
+            this.updateSyncStatus('offline', 'Données sauvegardées localement uniquement');
         }
     }
-}
 
+        async loadFromLocalStorage() {
+        // 1. Essayer de charger depuis Firebase en premier
+        if (this.syncEnabled && this.db) {
+            try {
+                this.updateSyncStatus('syncing', 'Chargement depuis le cloud...');
+                
+                const doc = await this.db.collection('sauvegardes').doc('donnees_principales').get();
+                
+                if (doc.exists) {
+                    const firebaseData = doc.data();
+                    this.operations = firebaseData.data.operations || [];
+                    this.lastSyncTime = new Date(firebaseData.lastSync);
+                    
+                    // Sauvegarder localement aussi
+                    localStorage.setItem('samarche_data', JSON.stringify(firebaseData.data));
+                    
+                    this.updateSyncStatus('online', `Données cloud chargées (${this.operations.length} opérations)`);
+                    
+                    document.getElementById('fileInfo').innerHTML = `
+                        <div class="file-info" style="background: #d4edda;">
+                            ☁️ Données chargées depuis Firebase 
+                            (${this.operations.length} opérations, synchronisées à ${this.lastSyncTime.toLocaleString('fr-FR')})
+                        </div>
+                    `;
+                    
+                    console.log('✅ Données chargées depuis Firebase');
+                    return;
+                }
+            } catch (error) {
+                console.warn('Firebase non disponible, utilisation du stockage local:', error);
+            }
+        }
+        
+        // 2. Fallback : Chargement depuis le stockage local
+        const saved = localStorage.getItem('samarche_data');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                
+                this.updateSyncStatus('offline', 'Données locales chargées');
+                
+                document.getElementById('fileInfo').innerHTML = `
+                    <div class="file-info">
+                        💾 Données chargées depuis le stockage local 
+                        (${this.operations.length} opérations, dernière mise à jour: ${new Date(data.lastUpdate).toLocaleDateString('fr-FR')})
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Erreur chargement données locales:', error);
+                this.operations = [];
+            }
+        } else {
+            this.operations = [];
+            this.updateSyncStatus('offline', 'Nouveau fichier - Prêt pour synchronisation');
+        }
+    }
+    }
+}
+    setupRealtimeSync() {
+        if (!this.syncEnabled || !this.db) {
+            console.log('Synchronisation temps réel désactivée');
+            return;
+        }
+        
+        // Écouter les changements en temps réel
+        this.db.collection('sauvegardes').doc('donnees_principales')
+            .onSnapshot((doc) => {
+                if (doc.exists) {
+                    const firebaseData = doc.data();
+                    const remoteOperations = firebaseData.data.operations || [];
+                    const remoteTime = new Date(firebaseData.lastSync);
+                    
+                    // Vérifier si les données distantes sont plus récentes
+                    const localData = localStorage.getItem('samarche_data');
+                    let shouldUpdate = false;
+                    
+                    if (!localData) {
+                        shouldUpdate = true;
+                    } else {
+                        const localParsed = JSON.parse(localData);
+                        const localTime = new Date(localParsed.lastUpdate);
+                        shouldUpdate = remoteTime > localTime;
+                    }
+                    
+                    if (shouldUpdate && remoteOperations.length !== this.operations.length) {
+                        this.operations = remoteOperations;
+                        this.lastSyncTime = remoteTime;
+                        
+                        // Mettre à jour l'interface
+                        this.showView(this.currentView);
+                        this.updateStats();
+                        
+                        // Afficher notification
+                        this.afficherMessageSucces('🔄 Données mises à jour depuis le cloud');
+                        this.updateSyncStatus('online', `Synchronisé à ${this.lastSyncTime.toLocaleTimeString('fr-FR')}`);
+                        
+                        console.log('🔄 Données mises à jour depuis Firebase');
+                    }
+                }
+            }, (error) => {
+                console.error('Erreur synchronisation temps réel:', error);
+                this.updateSyncStatus('error', 'Erreur synchronisation temps réel');
+            });
+    }
 // Initialiser l'application
 let app;
 document.addEventListener('DOMContentLoaded', () => {
