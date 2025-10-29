@@ -57,7 +57,25 @@ class SamarcheApp {
             this.syncEnabled = false;
         }
     }
-
+    updateSyncStatus(message, type = 'info') {
+        const syncStatus = document.getElementById('syncStatus');
+        const syncText = document.getElementById('syncText');
+        
+        if (!syncStatus) return;
+        
+        syncStatus.style.display = 'block';
+        syncText.textContent = message;
+        
+        // Couleurs selon le type
+        const colors = {
+            'info': '#d1ecf1',
+            'success': '#d4edda', 
+            'error': '#f8d7da',
+            'warning': '#fff3cd'
+        };
+        
+        syncStatus.style.background = colors[type] || colors.info;
+    }
     init() {
         this.setupEventListeners();
         this.initializeFirebase();
@@ -122,26 +140,39 @@ class SamarcheApp {
 
     // ==================== MODIFICATIONS MINIMALES POUR FIREBASE ====================
 
-    async sauvegarderLocal() {
+        async sauvegarderLocal() {
         const data = {
             operations: this.operations,
             lastUpdate: new Date().toISOString()
         };
         
-        // 1. Sauvegarde locale (ORIGINAL)
+        // 1. Sauvegarde locale
         localStorage.setItem('samarche_data', JSON.stringify(data));
         
-        // 2. Synchronisation Firebase (NOUVEAU - optionnel)
+        // 2. Synchronisation Firebase
         if (this.syncEnabled && this.db) {
             try {
+                this.updateSyncStatus('🔄 Envoi des données vers le cloud...', 'info');
+                
                 await this.db.collection('sauvegardes').doc('donnees_principales').set({
                     data: data,
                     lastSync: new Date().toISOString(),
-                    totalOperations: this.operations.length
+                    totalOperations: this.operations.length,
+                    appVersion: '1.0'
                 });
-                console.log('✅ Données synchronisées avec Firebase');
+                
+                this.updateSyncStatus('✅ Données synchronisées avec le cloud', 'success');
+                console.log('✅ Données sauvegardées sur Firebase');
+                
+                // Cacher le message après 3 secondes
+                setTimeout(() => {
+                    const syncStatus = document.getElementById('syncStatus');
+                    if (syncStatus) syncStatus.style.display = 'none';
+                }, 3000);
+                
             } catch (error) {
-                console.error('❌ Erreur synchronisation Firebase:', error);
+                console.error('❌ Erreur sauvegarde Firebase:', error);
+                this.updateSyncStatus('❌ Erreur de synchronisation - Données sauvegardées localement', 'error');
             }
         }
     }
@@ -753,4 +784,5 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
