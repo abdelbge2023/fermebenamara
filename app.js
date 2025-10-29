@@ -43,24 +43,21 @@ class SamarcheApp {
 
         console.log('✅ Firebase SDK disponible');
 
+        // Utiliser firebase.initializeApp (v8) au lieu de initializeApp (v9)
         if (!firebase.apps.length) {
             firebase.initializeApp(this.firebaseConfig);
-            console.log('✅ Firebase initialisé');
+            console.log('✅ Firebase initialisé avec succès');
         }
         
         this.db = firebase.firestore();
         this.syncEnabled = true;
         
         console.log('✅ Firestore disponible');
-        
-        // Créer la collection si elle n'existe pas
-        this.creerCollectionInitiale();
-        
-        // Démarrer la synchro
         this.startRealtimeSync();
 
     } catch (error) {
         console.error('❌ Erreur Firebase:', error);
+        console.error('Détails:', error.message);
         this.syncEnabled = false;
     }
 }
@@ -592,6 +589,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
+
 
 
 
