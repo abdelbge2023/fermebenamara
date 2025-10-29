@@ -1,5 +1,22 @@
 class SamarcheApp {
     constructor() {
+        // ==================== CONFIGURATION FIREBASE ====================
+        // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET FIREBASE ⚠️
+        this.firebaseConfig = {
+            apiKey: "AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            authDomain: "samarche-app.firebaseapp.com",
+            projectId: "samarche-app-12345",
+            storageBucket: "samarche-app-12345.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456789"
+        };
+
+        // Variables de synchronisation
+        this.db = null;
+        this.syncEnabled = false;
+        this.lastSyncTime = null;
+
+        // Votre code existant reste inchangé ci-dessous
         this.workbook = null;
         this.currentView = 'global';
         this.operations = [];
@@ -17,14 +34,39 @@ class SamarcheApp {
         this.init();
     }
 
+    // ==================== MÉTHODES FIREBASE ====================
+    
+    initializeFirebase() {
+        try {
+            // Vérifier si Firebase est disponible
+            if (typeof firebase === 'undefined') {
+                console.warn('Firebase non chargé');
+                return;
+            }
+            
+            // Initialiser Firebase
+            firebase.initializeApp(this.firebaseConfig);
+            this.db = firebase.firestore();
+            this.syncEnabled = true;
+            
+            console.log('✅ Firebase initialisé avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur initialisation Firebase:', error);
+            this.syncEnabled = false;
+        }
+    }
+
     init() {
         this.setupEventListeners();
+        this.initializeFirebase(); // Initialiser Firebase
         this.loadFromLocalStorage();
         this.showView('global');
         this.updateStats();
     }
 
     setupEventListeners() {
+        // VOTRE CODE EXISTANT - NE PAS MODIFIER
         // Formulaire de saisie
         document.getElementById('saisieForm').addEventListener('submit', (e) => this.ajouterOperation(e));
         document.getElementById('btnReset').addEventListener('click', () => this.resetForm());
@@ -72,7 +114,76 @@ class SamarcheApp {
         });
     }
 
+    // ==================== MODIFICATIONS MINIMALES POUR FIREBASE ====================
+
+    async sauvegarderLocal() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        
+        // 1. Sauvegarde locale (ORIGINAL)
+        localStorage.setItem('samarche_data', JSON.stringify(data));
+        
+        // 2. Synchronisation Firebase (NOUVEAU - optionnel)
+        if (this.syncEnabled && this.db) {
+            try {
+                await this.db.collection('sauvegardes').doc('donnees_principales').set({
+                    data: data,
+                    lastSync: new Date().toISOString(),
+                    totalOperations: this.operations.length
+                });
+                console.log('✅ Données synchronisées avec Firebase');
+            } catch (error) {
+                console.error('❌ Erreur synchronisation Firebase:', error);
+            }
+        }
+    }
+
+    async loadFromLocalStorage() {
+        // Essayer Firebase d'abord
+        if (this.syncEnabled && this.db) {
+            try {
+                const doc = await this.db.collection('sauvegardes').doc('donnees_principales').get();
+                
+                if (doc.exists) {
+                    const firebaseData = doc.data();
+                    this.operations = firebaseData.data.operations || [];
+                    
+                    // Sauvegarder localement aussi
+                    localStorage.setItem('samarche_data', JSON.stringify(firebaseData.data));
+                    
+                    document.getElementById('fileInfo').innerHTML = `
+                        <div class="file-info" style="background: #d4edda;">
+                            ☁️ Données chargées depuis Firebase (${this.operations.length} opérations)
+                        </div>
+                    `;
+                    return;
+                }
+            } catch (error) {
+                console.warn('Firebase non disponible, utilisation du stockage local');
+            }
+        }
+        
+        // Fallback sur le stockage local (ORIGINAL)
+        const saved = localStorage.getItem('samarche_data');
+        if (saved) {
+            const data = JSON.parse(saved);
+            this.operations = data.operations || [];
+            
+            document.getElementById('fileInfo').innerHTML = `
+                <div class="file-info">
+                    💾 Données chargées depuis le stockage local 
+                    (${this.operations.length} opérations, dernière mise à jour: ${new Date(data.lastUpdate).toLocaleDateString('fr-FR')})
+                </div>
+            `;
+        }
+    }
+
+    // ==================== VOTRE CODE EXISTANT - NE RIEN CHANGER CI-DESSOUS ====================
+    
     calculerRepartition() {
+        // VOTRE CODE EXISTANT
         const typeOperation = document.getElementById('typeOperation').value;
         const montant = parseFloat(document.getElementById('montant').value) || 0;
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -570,29 +681,6 @@ class SamarcheApp {
             this.workbook = null;
             document.getElementById('fileInfo').innerHTML = 
                 '<div class="file-info">Nouveau fichier créé - Données enregistrées localement</div>';
-        }
-    }
-
-    sauvegarderLocal() {
-        const data = {
-            operations: this.operations,
-            lastUpdate: new Date().toISOString()
-        };
-        localStorage.setItem('samarche_data', JSON.stringify(data));
-    }
-
-    loadFromLocalStorage() {
-        const saved = localStorage.getItem('samarche_data');
-        if (saved) {
-            const data = JSON.parse(saved);
-            this.operations = data.operations || [];
-            
-            document.getElementById('fileInfo').innerHTML = `
-                <div class="file-info">
-                    Données chargées depuis le stockage local 
-                    (${this.operations.length} opérations, dernière mise à jour: ${new Date(data.lastUpdate).toLocaleDateString('fr-FR')})
-                </div>
-            `;
         }
     }
 }
