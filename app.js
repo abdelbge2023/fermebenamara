@@ -1,4 +1,4 @@
-// app.js - VERSION COMPLÈTEMENT DÉBOGUÉE
+// app.js - VERSION FINALE COMPLÈTEMENT DÉBOGUÉE
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -8,11 +8,12 @@ class GestionFerme {
     }
 
     init() {
+        console.log('🚀 Initialisation de l\'application...');
         this.setupEventListeners();
         this.loadFromLocalStorage();
         this.updateStats();
         this.afficherHistorique('global');
-        console.log('✅ Application initialisée');
+        console.log('✅ Application initialisée avec succès !');
     }
 
     setupEventListeners() {
@@ -331,6 +332,8 @@ class GestionFerme {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
                 console.log('📁 ' + this.operations.length + ' opérations chargées');
+            } else {
+                console.log('📁 Aucune donnée sauvegardée trouvée');
             }
         } catch (error) {
             console.error('Erreur chargement localStorage:', error);
@@ -345,8 +348,10 @@ class GestionFerme {
                 lastUpdate: new Date().toISOString()
             };
             localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+            console.log('💾 Données sauvegardées (' + this.operations.length + ' opérations)');
         } catch (error) {
             console.error('Erreur sauvegarde localStorage:', error);
+            this.afficherMessageErreur('Erreur de sauvegarde des données');
         }
     }
 
@@ -461,8 +466,8 @@ class GestionFerme {
                 
                 if (this.modeEdition) {
                     html += `<td class="operation-actions">
-                        <button class="btn-small btn-info" onclick="app.editerOperation(${op.id})">✏️</button>
-                        <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
+                        <button class="btn-small btn-info" data-id="${op.id}" onclick="window.gestionFermeApp.editerOperation(${op.id})">✏️</button>
+                        <button class="btn-small btn-danger" data-id="${op.id}" onclick="window.gestionFermeApp.supprimerOperation(${op.id})">🗑️</button>
                     </td>`;
                 }
                 
@@ -785,7 +790,7 @@ class GestionFerme {
     }
 }
 
-// Initialisation avec protection contre la redéclaration
+// Initialisation avec protection contre la redéclaration et accès global
 let app;
 if (!window.appInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
@@ -793,11 +798,32 @@ if (!window.appInitialized) {
             try {
                 app = new GestionFerme();
                 window.appInitialized = true;
-                window.app = app; // Rendre app global pour les onclick
+                window.gestionFermeApp = app; // Rendre l'app accessible globalement
+                window.app = app; // Double accès pour compatibilité
                 console.log('🚀 Application Gestion Ferme démarrée avec succès !');
+                console.log('🔧 App accessible via: window.gestionFermeApp');
             } catch (error) {
                 console.error('❌ Erreur critique lors du démarrage:', error);
             }
         }
     });
+}
+
+// Fonctions globales pour les onclick (sécurité)
+if (typeof window !== 'undefined') {
+    window.supprimerOperationGlobale = function(id) {
+        if (window.gestionFermeApp) {
+            window.gestionFermeApp.supprimerOperation(id);
+        } else if (window.app) {
+            window.app.supprimerOperation(id);
+        }
+    };
+    
+    window.editerOperationGlobale = function(id) {
+        if (window.gestionFermeApp) {
+            window.gestionFermeApp.editerOperation(id);
+        } else if (window.app) {
+            window.app.editerOperation(id);
+        }
+    };
 }
