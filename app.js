@@ -94,112 +94,113 @@ class GestionFerme {
             this.sauvegarderLocal();
         }
     }
+async ajouterOperation(e) {
+    e.preventDefault();
+    console.log('Bouton Enregistrer cliqué !');
 
-    async ajouterOperation(e) {
-        e.preventDefault();
-        console.log('Bouton Enregistrer cliqué !');
+    const operateur = document.getElementById('operateur');
+    const groupe = document.getElementById('groupe');
+    const typeOperation = document.getElementById('typeOperation');
+    const typeTransaction = document.getElementById('typeTransaction');
+    const caisse = document.getElementById('caisse');
+    const montant = document.getElementById('montant');
+    const description = document.getElementById('description');
 
-        const operateur = document.getElementById('operateur');
-        const groupe = document.getElementById('groupe');
-        const typeOperation = document.getElementById('typeOperation');
-        const typeTransaction = document.getElementById('typeTransaction');
-        const caisse = document.getElementById('caisse');
-        const montant = document.getElementById('montant');
-        const description = document.getElementById('description');
+    // Vérification que tous les éléments existent
+    if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
+        alert('Erreur: Éléments du formulaire non trouvés');
+        return;
+    }
 
-        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
-            alert('Erreur: Formulaire non trouvé');
-            return;
-        }
+    const operateurValue = operateur.value;
+    const groupeValue = groupe.value;
+    const typeOperationValue = typeOperation.value;
+    const typeTransactionValue = typeTransaction.value;
+    const caisseValue = caisse.value;
+    const montantSaisi = parseFloat(montant.value);
+    const descriptionValue = description.value.trim();
 
-        const operateurValue = operateur.value;
-        const groupeValue = groupe.value;
-        const typeOperationValue = typeOperation.value;
-        const typeTransactionValue = typeTransaction.value;
-        const caisseValue = caisse.value;
-        const montantSaisi = parseFloat(montant.value);
-        const descriptionValue = description.value.trim();
+    // Validation
+    if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+        alert('Le montant doit être supérieur à 0');
+        return;
+    }
 
-        // Validation
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
+    if (!descriptionValue) {
+        alert('Veuillez saisir une description');
+        return;
+    }
 
-        if (!descriptionValue) {
-            alert('Veuillez saisir une description');
-            return;
-        }
+    let operationsACreer = [];
 
-        let operationsACreer = [];
+    if (typeOperationValue === 'travailleur_global') {
+        // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
+        const montantZaitoun = montantSaisi / 3;
+        const montant3Commain = (montantSaisi * 2) / 3;
 
-        if (typeOperationValue === 'travailleur_global') {
-            // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
-            const montantZaitoun = montantSaisi / 3;
-            const montant3Commain = (montantSaisi * 2) / 3;
-
-            operationsACreer = [
-                {
-                    id: Date.now(),
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateurValue,
-                    groupe: 'zaitoun',
-                    typeOperation: 'zaitoun',
-                    typeTransaction: typeTransactionValue,
-                    caisse: caisseValue,
-                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
-                    repartition: true,
-                    timestamp: new Date().toISOString()
-                },
-                {
-                    id: Date.now() + 1,
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateurValue,
-                    groupe: '3commain',
-                    typeOperation: '3commain',
-                    typeTransaction: typeTransactionValue,
-                    caisse: caisseValue,
-                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
-                    repartition: true,
-                    timestamp: new Date().toISOString()
-                }
-            ];
-        } else {
-            // Opération normale sans répartition
-            operationsACreer = [{
+        operationsACreer = [
+            {
                 id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 operateur: operateurValue,
-                groupe: groupeValue,
-                typeOperation: typeOperationValue,
+                groupe: 'zaitoun',
+                typeOperation: 'zaitoun',
                 typeTransaction: typeTransactionValue,
                 caisse: caisseValue,
-                description: descriptionValue,
-                montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
-                repartition: false,
+                description: descriptionValue + ' (Part Zaitoun - 1/3)',
+                montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
+                repartition: true,
                 timestamp: new Date().toISOString()
-            }];
-        }
-
-        // Ajouter aux opérations
-        for (const op of operationsACreer) {
-            this.operations.unshift(op);
-        }
-
-        // Sauvegarder
-        await this.sauvegarderFirebase();
-
-        this.afficherMessageSucces(
-            typeOperationValue === 'travailleur_global' 
-                ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
-                : 'Opération enregistrée avec succès !'
-        );
-        this.resetForm();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
+            },
+            {
+                id: Date.now() + 1,
+                date: new Date().toISOString().split('T')[0],
+                operateur: operateurValue,
+                groupe: '3commain',
+                typeOperation: '3commain',
+                typeTransaction: typeTransactionValue,
+                caisse: caisseValue,
+                description: descriptionValue + ' (Part 3 Commain - 2/3)',
+                montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
+                repartition: true,
+                timestamp: new Date().toISOString()
+            }
+        ];
+    } else {
+        // Opération normale sans répartition
+        operationsACreer = [{
+            id: Date.now(),
+            date: new Date().toISOString().split('T')[0],
+            operateur: operateurValue,
+            groupe: groupeValue,
+            typeOperation: typeOperationValue,
+            typeTransaction: typeTransactionValue,
+            caisse: caisseValue,
+            description: descriptionValue,
+            montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
+            repartition: false,
+            timestamp: new Date().toISOString()
+        }];
     }
+
+    // Ajouter aux opérations
+    for (const op of operationsACreer) {
+        this.operations.unshift(op);
+    }
+
+    // Sauvegarder
+    await this.sauvegarderFirebase();
+
+    this.afficherMessageSucces(
+        typeOperationValue === 'travailleur_global' 
+            ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
+            : 'Opération enregistrée avec succès !'
+    );
+    this.resetForm();
+    this.updateStats();
+    this.afficherHistorique(this.currentView);
+}
+    
 
     async supprimerOperation(operationId) {
         if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
@@ -534,4 +535,5 @@ document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
     console.log('Application Gestion Ferme avec Firebase initialisée !');
 });
+
 
