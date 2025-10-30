@@ -1,261 +1,514 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme Ben Amara</title>
-    <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>💰 Gestion Ferme Ben Amara</h1>
-            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
-        </header>
+// app.js - Version modifiée pour Firebase
+class GestionFerme {
+    constructor() {
+        this.operations = [];
+        this.caisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        this.editMode = false;
+        this.selectedOperations = new Set();
+        this.currentView = 'global';
+        this.initialisationFirebase = false;
 
-        <div class="main-grid">
-            <!-- Section Nouvelle Opération -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>➕ Nouvelle Opération</h2>
-                </div>
-                <form id="saisieForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="operateur">Opérateur :</label>
-                            <select id="operateur" required>
-                                <option value="">Choisir l'opérateur</option>
-                                <option value="abdel">Abdel</option>
-                                <option value="omar">Omar</option>
-                                <option value="hicham">Hicham</option>
-                            </select>
-                        </div>
+        this.init();
+    }
 
-                        <div class="form-group">
-                            <label for="groupe">Groupe :</label>
-                            <select id="groupe" required>
-                                <option value="">Choisir le groupe</option>
-                                <option value="zaitoun">Zaitoun</option>
-                                <option value="3commain">3 Commain</option>
-                            </select>
-                        </div>
+    async init() {
+        this.setupEventListeners();
+        await this.initialiserFirebase();
+        this.updateStats();
+        this.afficherHistorique('global');
+    }
 
-                        <div class="form-group">
-                            <label for="typeOperation">Type d'opération :</label>
-                            <select id="typeOperation" required>
-                                <option value="">Choisir le type</option>
-                                <option value="travailleur_global">Travailleur global</option>
-                                <option value="zaitoun">Zaitoun seul</option>
-                                <option value="3commain">3 Commain seul</option>
-                                <option value="autre">Autre</option>
-                            </select>
-                        </div>
+    async initialiserFirebase() {
+        try {
+            // Importer Firebase dynamiquement
+            const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
+            
+            console.log('📡 Connexion à Firebase...');
+            const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
+            
+            this.operations = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                this.operations.push({
+                    firebaseId: doc.id,
+                    ...data
+                });
+            });
+            
+            console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
+            this.initialisationFirebase = true;
+            
+        } catch (error) {
+            console.error('❌ Erreur Firebase, utilisation du localStorage:', error);
+            this.loadFromLocalStorage();
+        }
+    }
 
-                        <div class="form-group">
-                            <label for="typeTransaction">Transaction :</label>
-                            <select id="typeTransaction" required>
-                                <option value="">Choisir</option>
-                                <option value="revenu">💰 Revenu</option>
-                                <option value="frais">💸 Frais</option>
-                            </select>
-                        </div>
+    async sauvegarderFirebase() {
+        if (!this.initialisationFirebase) return;
+        
+        try {
+            const { collection, addDoc, updateDoc, doc } = await import('./firebase.js');
+            
+            for (const operation of this.operations) {
+                if (!operation.firebaseId) {
+                    // Nouvelle opération
+                    const docRef = await addDoc(collection(db, 'operations'), operation);
+                    operation.firebaseId = docRef.id;
+                } else {
+                    // Mettre à jour l'opération existante
+                    await updateDoc(doc(db, 'operations', operation.firebaseId), operation);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur sauvegarde Firebase:', error);
+            // Fallback vers localStorage
+            this.sauvegarderLocal();
+        }
+    }
 
-                        <div class="form-group">
-                            <label for="caisse">Caisse concernée :</label>
-                            <select id="caisse" required>
-                                <option value="">Choisir la caisse</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
+    async ajouterOperation(e) {
+        e.preventDefault();
+        console.log('Bouton Enregistrer cliqué !');
 
-                        <div class="form-group">
-                            <label for="montant">Montant (DH) :</label>
-                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
+        const operateur = document.getElementById('operateur');
+        const groupe = document.getElementById('groupe');
+        const typeOperation = document.getElementById('typeOperation');
+        const typeTransaction = document.getElementById('typeTransaction');
+        const caisse = document.getElementById('caisse');
+        const montant = document.getElementById('montant');
+        const description = document.getElementById('description');
 
-                    <!-- Affichage répartition -->
-                    <div id="repartitionInfo" class="repartition-info" style="display: none;">
-                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
-                        <div id="repartitionDetails"></div>
-                    </div>
+        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
+            alert('Erreur: Formulaire non trouvé');
+            return;
+        }
 
-                    <div class="form-group full-width">
-                        <label for="description">Description :</label>
-                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
-                    </div>
+        const operateurValue = operateur.value;
+        const groupeValue = groupe.value;
+        const typeOperationValue = typeOperation.value;
+        const typeTransactionValue = typeTransaction.value;
+        const caisseValue = caisse.value;
+        const montantSaisi = parseFloat(montant.value);
+        const descriptionValue = description.value.trim();
 
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
-                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
-                    </div>
-                </form>
-            </section>
+        // Validation
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
 
-            <!-- Section Transfert -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>🔄 Transfert entre Caisses</h2>
-                </div>
-                <form id="transfertForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="caisseSource">De la caisse :</label>
-                            <select id="caisseSource" required>
-                                <option value="">Source</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
 
-                        <div class="form-group">
-                            <label for="caisseDestination">Vers la caisse :</label>
-                            <select id="caisseDestination" required>
-                                <option value="">Destination</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
+        let operationsACreer = [];
 
-                        <div class="form-group">
-                            <label for="montantTransfert">Montant (DH) :</label>
-                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
+        if (typeOperationValue === 'travailleur_global') {
+            // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
+            const montantZaitoun = montantSaisi / 3;
+            const montant3Commain = (montantSaisi * 2) / 3;
 
-                    <div class="form-group full-width">
-                        <label for="descriptionTransfert">Description :</label>
-                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
-                    </div>
+            operationsACreer = [
+                {
+                    id: Date.now(),
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateurValue,
+                    groupe: 'zaitoun',
+                    typeOperation: 'zaitoun',
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
+                    montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
+                    repartition: true,
+                    timestamp: new Date().toISOString()
+                },
+                {
+                    id: Date.now() + 1,
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateurValue,
+                    groupe: '3commain',
+                    typeOperation: '3commain',
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
+                    montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
+                    repartition: true,
+                    timestamp: new Date().toISOString()
+                }
+            ];
+        } else {
+            // Opération normale sans répartition
+            operationsACreer = [{
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                operateur: operateurValue,
+                groupe: groupeValue,
+                typeOperation: typeOperationValue,
+                typeTransaction: typeTransactionValue,
+                caisse: caisseValue,
+                description: descriptionValue,
+                montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
+                repartition: false,
+                timestamp: new Date().toISOString()
+            }];
+        }
 
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
-                    </div>
-                </form>
-            </section>
-        </div>
+        // Ajouter aux opérations
+        for (const op of operationsACreer) {
+            this.operations.unshift(op);
+        }
 
-        <!-- Section Statistiques -->
-        <section class="stats-section">
-            <div class="section-header">
-                <h2>📊 Soldes des Caisses</h2>
-            </div>
-            <div id="statsContainer" class="stats-container">
-                <!-- Les soldes apparaîtront ici -->
-            </div>
-        </section>
+        // Sauvegarder
+        await this.sauvegarderFirebase();
 
-        <!-- Section Historique -->
-        <section class="navigation-section">
-            <div class="section-header">
-                <div class="header-with-tabs">
-                    <h2>📋 Historique des Opérations</h2>
-                    <div class="nav-tabs">
-                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
-                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
-                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
-                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
-                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
-                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
-                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
-                    </div>
-                </div>
-            </div>
+        this.afficherMessageSucces(
+            typeOperationValue === 'travailleur_global' 
+                ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
+                : 'Opération enregistrée avec succès !'
+        );
+        this.resetForm();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+    }
 
-            <!-- Actions de gestion -->
-            <div class="management-actions">
-                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
-                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
-                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
-            </div>
+    async supprimerOperation(operationId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            const operation = this.operations.find(op => op.id === operationId);
+            
+            // Supprimer de Firebase si l'opération y existe
+            if (operation && operation.firebaseId && this.initialisationFirebase) {
+                try {
+                    const { doc, deleteDoc } = await import('./firebase.js');
+                    await deleteDoc(doc(db, 'operations', operation.firebaseId));
+                } catch (error) {
+                    console.error('Erreur suppression Firebase:', error);
+                }
+            }
+            
+            // Supprimer localement
+            this.operations = this.operations.filter(op => op.id !== operationId);
+            await this.sauvegarderFirebase();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            this.afficherMessageSucces('Opération supprimée avec succès');
+        }
+    }
 
-            <div id="dataDisplay" class="data-display">
-                <!-- L'historique apparaîtra ici -->
-            </div>
-        </section>
-    </div>
+    async supprimerOperationsSelectionnees() {
+        if (this.selectedOperations.size === 0) {
+            alert('Aucune opération sélectionnée');
+            return;
+        }
 
-    <!-- Modal pour modification -->
-    <div id="editModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Modifier l'Opération</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <form id="editForm" class="modal-form">
-                <input type="hidden" id="editId">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editOperateur">Opérateur :</label>
-                        <select id="editOperateur" required>
-                            <option value="abdel">Abdel</option>
-                            <option value="omar">Omar</option>
-                            <option value="hicham">Hicham</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editGroupe">Groupe :</label>
-                        <select id="editGroupe" required>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editTypeOperation">Type d'Opération :</label>
-                        <select id="editTypeOperation" required>
-                            <option value="travailleur_global">Travailleur global</option>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editTypeTransaction">Transaction :</label>
-                        <select id="editTypeTransaction" required>
-                            <option value="revenu">💰 Revenu</option>
-                            <option value="frais">💸 Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editCaisse">Caisse :</label>
-                        <select id="editCaisse" required>
-                            <option value="abdel_caisse">Caisse Abdel</option>
-                            <option value="omar_caisse">Caisse Omar</option>
-                            <option value="hicham_caisse">Caisse Hicham</option>
-                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                            <option value="3commain_caisse">Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editMontant">Montant (DH) :</label>
-                        <input type="number" id="editMontant" step="0.01" min="0" required>
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDescription">Description :</label>
-                    <textarea id="editDescription" rows="3" required></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
-                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
-                </div>
-            </form>
-        </div>
-    </div>
+        if (confirm('Êtes-vous sûr de vouloir supprimer ' + this.selectedOperations.size + ' opération(s) ?')) {
+            
+            // Supprimer de Firebase
+            if (this.initialisationFirebase) {
+                const { doc, deleteDoc } = await import('./firebase.js');
+                for (const opId of this.selectedOperations) {
+                    const operation = this.operations.find(op => op.id === opId);
+                    if (operation && operation.firebaseId) {
+                        try {
+                            await deleteDoc(doc(db, 'operations', operation.firebaseId));
+                        } catch (error) {
+                            console.error('Erreur suppression Firebase:', error);
+                        }
+                    }
+                }
+            }
+            
+            // Supprimer localement
+            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+            await this.sauvegarderFirebase();
+            this.selectedOperations.clear();
+            this.toggleEditMode(false);
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            this.afficherMessageSucces(this.selectedOperations.size + ' opération(s) supprimée(s) avec succès');
+        }
+    }
 
-    <script src="./app.js"></script>
-</body>
-</html>
+    async effectuerTransfert(e) {
+        e.preventDefault();
+
+        const caisseSource = document.getElementById('caisseSource');
+        const caisseDestination = document.getElementById('caisseDestination');
+        const montantTransfert = document.getElementById('montantTransfert');
+        const descriptionTransfert = document.getElementById('descriptionTransfert');
+
+        if (!caisseSource || !caisseDestination || !montantTransfert || !descriptionTransfert) {
+            alert('Erreur: Formulaire de transfert non trouvé');
+            return;
+        }
+
+        const caisseSourceValue = caisseSource.value;
+        const caisseDestinationValue = caisseDestination.value;
+        const montantTransfertValue = parseFloat(montantTransfert.value);
+        const descriptionValue = descriptionTransfert.value.trim();
+
+        // Validation
+        if (caisseSourceValue === caisseDestinationValue) {
+            alert('Vous ne pouvez pas transférer vers la même caisse');
+            return;
+        }
+
+        if (montantTransfertValue <= 0 || isNaN(montantTransfertValue)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        // Vérifier si la caisse source a suffisamment de fonds
+        const soldeSource = this.caisses[caisseSourceValue];
+        if (soldeSource < montantTransfertValue) {
+            alert('Solde insuffisant dans la caisse source ! Solde disponible : ' + soldeSource.toFixed(2) + ' DH');
+            return;
+        }
+
+        // Créer les opérations de transfert
+        const operationsTransfert = [
+            {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                type: 'transfert_sortie',
+                operateur: 'system',
+                groupe: 'system',
+                typeOperation: 'transfert',
+                typeTransaction: 'frais',
+                caisse: caisseSourceValue,
+                caisseDestination: caisseDestinationValue,
+                description: `Transfert vers ${this.formaterCaisse(caisseDestinationValue)}: ${descriptionValue}`,
+                montant: -montantTransfertValue,
+                transfert: true,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 1,
+                date: new Date().toISOString().split('T')[0],
+                type: 'transfert_entree',
+                operateur: 'system',
+                groupe: 'system',
+                typeOperation: 'transfert',
+                typeTransaction: 'revenu',
+                caisse: caisseDestinationValue,
+                caisseDestination: caisseSourceValue,
+                description: `Transfert de ${this.formaterCaisse(caisseSourceValue)}: ${descriptionValue}`,
+                montant: montantTransfertValue,
+                transfert: true,
+                timestamp: new Date().toISOString()
+            }
+        ];
+
+        // Ajouter aux opérations
+        operationsTransfert.forEach(op => {
+            this.operations.unshift(op);
+        });
+
+        // Sauvegarder
+        await this.sauvegarderFirebase();
+
+        this.afficherMessageSucces('Transfert effectué avec succès !');
+        document.getElementById('transfertForm').reset();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+    }
+
+    async modifierOperation(e) {
+        e.preventDefault();
+
+        const operationId = parseInt(document.getElementById('editId').value);
+        const operationIndex = this.operations.findIndex(op => op.id === operationId);
+
+        if (operationIndex === -1) {
+            alert('Opération non trouvée');
+            return;
+        }
+
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+
+        // Validation
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        this.operations[operationIndex] = {
+            ...this.operations[operationIndex],
+            operateur: document.getElementById('editOperateur').value,
+            groupe: document.getElementById('editGroupe').value,
+            typeOperation: document.getElementById('editTypeOperation').value,
+            typeTransaction: typeTransaction,
+            caisse: document.getElementById('editCaisse').value,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            description: document.getElementById('editDescription').value,
+            timestamp: new Date().toISOString()
+        };
+
+        await this.sauvegarderFirebase();
+        this.fermerModal();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        this.afficherMessageSucces('Opération modifiée avec succès !');
+    }
+
+    // Méthodes de sauvegarde locale (fallback)
+    sauvegarderLocal() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+    }
+
+    loadFromLocalStorage() {
+        const saved = localStorage.getItem('gestion_ferme_data');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                console.log(`📁 ${this.operations.length} opérations chargées du localStorage`);
+            } catch (error) {
+                console.error('Erreur chargement localStorage:', error);
+                this.operations = [];
+            }
+        }
+    }
+
+    // AJOUTER: Méthodes pour les boutons de migration
+    setupEventListeners() {
+        // ... (votre code existant)
+
+        // Ajouter les boutons Firebase
+        this.ajouterBoutonsFirebase();
+    }
+
+    ajouterBoutonsFirebase() {
+        const header = document.querySelector('header');
+        
+        const divBoutons = document.createElement('div');
+        divBoutons.style.marginTop = '15px';
+        divBoutons.style.display = 'flex';
+        divBoutons.style.gap = '10px';
+        divBoutons.style.justifyContent = 'center';
+        divBoutons.style.flexWrap = 'wrap';
+        
+        const btnMigrer = document.createElement('button');
+        btnMigrer.textContent = '🔄 Migrer vers Firebase';
+        btnMigrer.className = 'btn-warning';
+        btnMigrer.onclick = async () => {
+            const { migrerVersFirebase } = await import('./migration.js');
+            await migrerVersFirebase();
+            // Recharger les données après migration
+            await this.initialiserFirebase();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+        };
+        
+        const btnVerifier = document.createElement('button');
+        btnVerifier.textContent = '📊 Vérifier Firebase';
+        btnVerifier.className = 'btn-info';
+        btnVerifier.onclick = async () => {
+            const { verifierDonneesFirebase } = await import('./migration.js');
+            await verifierDonneesFirebase();
+        };
+        
+        divBoutons.appendChild(btnMigrer);
+        divBoutons.appendChild(btnVerifier);
+        header.appendChild(divBoutons);
+    }
+
+    // ... (LE RESTE DE VOTRE CODE EXISTANT RESTE IDENTIQUE)
+    // calculerSoldes(), updateStats(), afficherHistorique(), etc.
+
+    calculerRepartition() {
+        // Votre code existant
+    }
+
+    toggleEditMode(enable = null) {
+        // Votre code existant
+    }
+
+    selectionnerOperation(operationId, checked) {
+        // Votre code existant
+    }
+
+    calculerSoldes() {
+        // Votre code existant
+    }
+
+    updateStats() {
+        // Votre code existant
+    }
+
+    creerCarteCaisse(cleCaisse, nomCaisse) {
+        // Votre code existant
+    }
+
+    afficherHistorique(vue = 'global') {
+        // Votre code existant
+    }
+
+    ouvrirModalModification(operationId) {
+        // Votre code existant
+    }
+
+    fermerModal() {
+        // Votre code existant
+    }
+
+    getTitreVue(vue) {
+        // Votre code existant
+    }
+
+    formaterDate(dateStr) {
+        // Votre code existant
+    }
+
+    formaterOperateur(operateur) {
+        // Votre code existant
+    }
+
+    formaterGroupe(groupe) {
+        // Votre code existant
+    }
+
+    formaterTypeOperation(type) {
+        // Votre code existant
+    }
+
+    formaterTypeTransaction(type) {
+        // Votre code existant
+    }
+
+    formaterCaisse(caisse) {
+        // Votre code existant
+    }
+
+    resetForm() {
+        // Votre code existant
+    }
+
+    afficherMessageSucces(message) {
+        // Votre code existant
+    }
+}
+
+// Initialisation
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new GestionFerme();
+    console.log('Application Gestion Ferme avec Firebase initialisée !');
+});
