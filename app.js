@@ -26,17 +26,18 @@ class GestionFerme {
 
     async initialiserFirebase() {
     try {
-        // Vérifier si Firebase est disponible
-        const firebaseModule = await import('./firebase.js');
-        
-        if (!firebaseModule.db) {
-            throw new Error('Firebase non configuré');
-        }
-        
-        const { db, collection, getDocs, query, orderBy } = firebaseModule;
+        const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
         
         console.log('📡 Connexion à Firebase...');
-        const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
+        
+        // Test de connexion avec timeout
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout Firebase')), 10000)
+        );
+        
+        const firestorePromise = getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
+        
+        const querySnapshot = await Promise.race([firestorePromise, timeoutPromise]);
         
         this.operations = [];
         querySnapshot.forEach((doc) => {
@@ -46,6 +47,19 @@ class GestionFerme {
                 ...data
             });
         });
+        
+        console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
+        this.initialisationFirebase = true;
+        
+    } catch (error) {
+        console.error('❌ Erreur Firebase, utilisation du localStorage:', error);
+        this.loadFromLocalStorage();
+        this.initialisationFirebase = false;
+        
+        // Afficher un message à l'utilisateur
+        this.afficherMessageSucces('Mode hors ligne activé - Données locales');
+    }
+}
         
         console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
         this.initialisationFirebase = true;
@@ -520,3 +534,4 @@ document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
     console.log('Application Gestion Ferme avec Firebase initialisée !');
 });
+
