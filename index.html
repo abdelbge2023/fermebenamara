@@ -1,378 +1,261 @@
-class GestionFerme {
-    constructor() {
-        // Configuration Firebase
-        this.firebaseConfig = {
-            apiKey: "AIzaSyDKqudvQPUV_Lh2V2d2PUSEcxchDExw6PE",
-            authDomain: "gestion-fermebenamara.firebaseapp.com",
-            projectId: "gestion-fermebenamara",
-            storageBucket: "gestion-fermebenamara.firebasestorage.app",
-            messagingSenderId: "668129137491",
-            appId: "1:668129137491:web:b56522302ea789844587a6"
-        };
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Ferme Ben Amara</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Gestion Ferme Ben Amara</h1>
+            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
+        </header>
 
-        this.db = null;
-        this.syncEnabled = false;
-        this.operations = [];
-        this.caisses = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0,
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-        this.editMode = false;
-        this.selectedOperations = new Set();
-        this.currentView = 'global';
+        <div class="main-grid">
+            <!-- Section Nouvelle Opération -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2>➕ Nouvelle Opération</h2>
+                </div>
+                <form id="saisieForm" class="saisie-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="operateur">Opérateur :</label>
+                            <select id="operateur" required>
+                                <option value="">Choisir l'opérateur</option>
+                                <option value="abdel">Abdel</option>
+                                <option value="omar">Omar</option>
+                                <option value="hicham">Hicham</option>
+                            </select>
+                        </div>
 
-        console.log('🔧 Initialisation Gestion Ferme avec Firebase...');
-        this.init();
-    }
+                        <div class="form-group">
+                            <label for="groupe">Groupe :</label>
+                            <select id="groupe" required>
+                                <option value="">Choisir le groupe</option>
+                                <option value="zaitoun">Zaitoun</option>
+                                <option value="3commain">3 Commain</option>
+                            </select>
+                        </div>
 
-    async init() {
-        await this.initializeFirebase();
-        this.setupEventListeners();
-        await this.loadData();
-        this.updateStats();
-        this.afficherHistorique('global');
-    }
+                        <div class="form-group">
+                            <label for="typeOperation">Type d'opération :</label>
+                            <select id="typeOperation" required>
+                                <option value="">Choisir le type</option>
+                                <option value="travailleur_global">Travailleur global</option>
+                                <option value="zaitoun">Zaitoun seul</option>
+                                <option value="3commain">3 Commain seul</option>
+                                <option value="autre">Autre</option>
+                            </select>
+                        </div>
 
-    async initializeFirebase() {
-        try {
-            console.log('🚀 Initialisation Firebase...');
-            
-            if (typeof firebase === 'undefined') {
-                console.error('❌ Firebase SDK non chargé');
-                this.syncEnabled = false;
-                return;
-            }
+                        <div class="form-group">
+                            <label for="typeTransaction">Transaction :</label>
+                            <select id="typeTransaction" required>
+                                <option value="">Choisir</option>
+                                <option value="revenu">💰 Revenu</option>
+                                <option value="frais">💸 Frais</option>
+                            </select>
+                        </div>
 
-            // Initialiser Firebase
-            if (!firebase.apps.length) {
-                firebase.initializeApp(this.firebaseConfig);
-                console.log('✅ Firebase initialisé');
-            }
-            
-            this.db = firebase.firestore();
-            this.syncEnabled = true;
-            
-            console.log('✅ Firestore disponible');
-            this.startRealtimeSync();
+                        <div class="form-group">
+                            <label for="caisse">Caisse concernée :</label>
+                            <select id="caisse" required>
+                                <option value="">Choisir la caisse</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
 
-        } catch (error) {
-            console.error('❌ Erreur Firebase:', error);
-            this.syncEnabled = false;
-        }
-    }
+                        <div class="form-group">
+                            <label for="montant">Montant (DH) :</label>
+                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
 
-    startRealtimeSync() {
-        if (!this.syncEnabled || !this.db) return;
+                    <!-- Affichage répartition -->
+                    <div id="repartitionInfo" class="repartition-info" style="display: none;">
+                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
+                        <div id="repartitionDetails"></div>
+                    </div>
 
-        this.db.collection('ferme_operations').orderBy('timestamp', 'desc')
-            .onSnapshot((snapshot) => {
-                console.log('🔄 Sync Firestore:', snapshot.docs.length, 'opérations');
-                
-                const remoteOperations = [];
-                snapshot.forEach(doc => {
-                    remoteOperations.push({ id: doc.id, ...doc.data() });
-                });
+                    <div class="form-group full-width">
+                        <label for="description">Description :</label>
+                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
+                    </div>
 
-                this.operations = remoteOperations;
-                this.updateStats();
-                this.afficherHistorique(this.currentView);
-                
-                // Sauvegarder aussi en local comme backup
-                this.sauvegarderLocal();
-                
-            }, (error) => {
-                console.error('❌ Erreur synchro Firestore:', error);
-                this.syncEnabled = false;
-            });
-    }
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
+                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
+                    </div>
+                </form>
+            </section>
 
-    async saveToFirebase(operations) {
-        if (!this.syncEnabled || !this.db) {
-            console.log('📱 Mode hors ligne - sauvegarde locale seulement');
-            return false;
-        }
+            <!-- Section Transfert -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2>🔄 Transfert entre Caisses</h2>
+                </div>
+                <form id="transfertForm" class="saisie-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="caisseSource">De la caisse :</label>
+                            <select id="caisseSource" required>
+                                <option value="">Source</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
 
-        try {
-            const batch = this.db.batch();
-            
-            operations.forEach(op => {
-                const opRef = this.db.collection('ferme_operations').doc(op.id.toString());
-                batch.set(opRef, {
-                    ...op,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            });
+                        <div class="form-group">
+                            <label for="caisseDestination">Vers la caisse :</label>
+                            <select id="caisseDestination" required>
+                                <option value="">Destination</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
 
-            await batch.commit();
-            console.log('✅ Données sauvegardées sur Firebase');
-            return true;
-        } catch (error) {
-            console.error('❌ Erreur sauvegarde Firebase:', error);
-            return false;
-        }
-    }
+                        <div class="form-group">
+                            <label for="montantTransfert">Montant (DH) :</label>
+                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
 
-    async ajouterOperation(e) {
-        e.preventDefault();
+                    <div class="form-group full-width">
+                        <label for="descriptionTransfert">Description :</label>
+                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
+                    </div>
 
-        const operateur = document.getElementById('operateur').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantSaisi = parseFloat(document.getElementById('montant').value);
-        const description = document.getElementById('description').value.trim();
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
+                    </div>
+                </form>
+            </section>
+        </div>
 
-        // Validation
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
+        <!-- Section Statistiques -->
+        <section class="stats-section">
+            <div class="section-header">
+                <h2>📊 Soldes des Caisses</h2>
+            </div>
+            <div id="statsContainer" class="stats-container">
+                <!-- Les soldes apparaîtront ici -->
+            </div>
+        </section>
 
-        if (!description) {
-            alert('Veuillez saisir une description');
-            return;
-        }
+        <!-- Section Historique -->
+        <section class="navigation-section">
+            <div class="section-header">
+                <div class="header-with-tabs">
+                    <h2>📋 Historique des Opérations</h2>
+                    <div class="nav-tabs">
+                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
+                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
+                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
+                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
+                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
+                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
+                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
+                    </div>
+                </div>
+            </div>
 
-        let operationsACreer = [];
-        const timestamp = new Date().toISOString();
+            <!-- Actions de gestion -->
+            <div class="management-actions">
+                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
+                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
+                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
+            </div>
 
-        if (typeOperation === 'travailleur_global') {
-            const montantZaitoun = montantSaisi / 3;
-            const montant3Commain = (montantSaisi * 2) / 3;
+            <div id="dataDisplay" class="data-display">
+                <!-- L'historique apparaîtra ici -->
+            </div>
+        </section>
+    </div>
 
-            operationsACreer = [
-                {
-                    id: Date.now().toString(),
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: 'zaitoun',
-                    typeOperation: 'zaitoun',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                    repartition: true,
-                    timestamp: timestamp
-                },
-                {
-                    id: (Date.now() + 1).toString(),
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: '3commain',
-                    typeOperation: '3commain',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
-                    repartition: true,
-                    timestamp: timestamp
-                }
-            ];
-        } else {
-            operationsACreer = [{
-                id: Date.now().toString(),
-                date: new Date().toISOString().split('T')[0],
-                operateur: operateur,
-                groupe: groupe,
-                typeOperation: typeOperation,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                description: description,
-                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
-                repartition: false,
-                timestamp: timestamp
-            }];
-        }
+    <!-- Modal pour modification -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Modifier l'Opération</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="editForm" class="modal-form">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editOperateur">Opérateur :</label>
+                        <select id="editOperateur" required>
+                            <option value="abdel">Abdel</option>
+                            <option value="omar">Omar</option>
+                            <option value="hicham">Hicham</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGroupe">Groupe :</label>
+                        <select id="editGroupe" required>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTypeOperation">Type d'Opération :</label>
+                        <select id="editTypeOperation" required>
+                            <option value="travailleur_global">Travailleur global</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editTypeTransaction">Transaction :</label>
+                        <select id="editTypeTransaction" required>
+                            <option value="revenu">💰 Revenu</option>
+                            <option value="frais">💸 Frais</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCaisse">Caisse :</label>
+                        <select id="editCaisse" required>
+                            <option value="abdel_caisse">Caisse Abdel</option>
+                            <option value="omar_caisse">Caisse Omar</option>
+                            <option value="hicham_caisse">Caisse Hicham</option>
+                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editMontant">Montant (DH) :</label>
+                        <input type="number" id="editMontant" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="editDescription">Description :</label>
+                    <textarea id="editDescription" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
+                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        // Sauvegarde immédiate en local
-        operationsACreer.forEach(op => {
-            this.operations.unshift(op);
-        });
-
-        // Tentative de sauvegarde Firebase
-        const firebaseSuccess = await this.saveToFirebase(operationsACreer);
-        
-        if (!firebaseSuccess) {
-            // Si Firebase échoue, sauvegarder en local
-            this.sauvegarderLocal();
-        }
-
-        const message = typeOperation === 'travailleur_global' 
-            ? `Opération enregistrée ! Répartie : ${(montantSaisi/3).toFixed(2)} DH (Zaitoun) + ${((montantSaisi*2)/3).toFixed(2)} DH (3 Commain)`
-            : 'Opération enregistrée avec succès !';
-
-        if (!firebaseSuccess) {
-            this.afficherMessageSucces(message + ' (Mode hors ligne)');
-        } else {
-            this.afficherMessageSucces(message);
-        }
-
-        this.resetForm();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-    }
-
-    async effectuerTransfert(e) {
-        e.preventDefault();
-
-        const caisseSource = document.getElementById('caisseSource').value;
-        const caisseDestination = document.getElementById('caisseDestination').value;
-        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
-        const description = document.getElementById('descriptionTransfert').value.trim();
-
-        // Validation
-        if (caisseSource === caisseDestination) {
-            alert('Vous ne pouvez pas transférer vers la même caisse');
-            return;
-        }
-
-        if (montantTransfert <= 0 || isNaN(montantTransfert)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!description) {
-            alert('Veuillez saisir une description');
-            return;
-        }
-
-        // Vérifier solde
-        const soldeSource = this.caisses[caisseSource];
-        if (soldeSource < montantTransfert) {
-            alert(`Solde insuffisant dans ${this.formaterCaisse(caisseSource)} ! Solde disponible : ${soldeSource.toFixed(2)} DH`);
-            return;
-        }
-
-        const timestamp = new Date().toISOString();
-        const operationsTransfert = [
-            {
-                id: Date.now().toString(),
-                date: new Date().toISOString().split('T')[0],
-                type: 'transfert_sortie',
-                operateur: 'system',
-                groupe: 'system',
-                typeOperation: 'transfert',
-                typeTransaction: 'frais',
-                caisse: caisseSource,
-                caisseDestination: caisseDestination,
-                description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${description}`,
-                montant: -montantTransfert,
-                transfert: true,
-                timestamp: timestamp
-            },
-            {
-                id: (Date.now() + 1).toString(),
-                date: new Date().toISOString().split('T')[0],
-                type: 'transfert_entree',
-                operateur: 'system',
-                groupe: 'system',
-                typeOperation: 'transfert',
-                typeTransaction: 'revenu',
-                caisse: caisseDestination,
-                caisseDestination: caisseSource,
-                description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${description}`,
-                montant: montantTransfert,
-                transfert: true,
-                timestamp: timestamp
-            }
-        ];
-
-        // Sauvegarde immédiate en local
-        operationsTransfert.forEach(op => {
-            this.operations.unshift(op);
-        });
-
-        // Tentative Firebase
-        const firebaseSuccess = await this.saveToFirebase(operationsTransfert);
-        
-        if (!firebaseSuccess) {
-            this.sauvegarderLocal();
-        }
-
-        if (!firebaseSuccess) {
-            this.afficherMessageSucces('Transfert effectué ! (Mode hors ligne)');
-        } else {
-            this.afficherMessageSucces('Transfert effectué avec succès !');
-        }
-
-        document.getElementById('transfertForm').reset();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-    }
-
-    async loadData() {
-        console.log('📂 Chargement des données...');
-        
-        // D'abord essayer Firebase
-        if (this.syncEnabled) {
-            try {
-                const snapshot = await this.db.collection('ferme_operations')
-                    .orderBy('timestamp', 'desc')
-                    .limit(1000)
-                    .get();
-                
-                const remoteOperations = [];
-                snapshot.forEach(doc => {
-                    remoteOperations.push({ id: doc.id, ...doc.data() });
-                });
-
-                if (remoteOperations.length > 0) {
-                    this.operations = remoteOperations;
-                    console.log('✅ Données chargées depuis Firebase:', this.operations.length, 'opérations');
-                    this.sauvegarderLocal(); // Synchroniser local
-                    return;
-                }
-            } catch (error) {
-                console.error('❌ Erreur chargement Firebase:', error);
-            }
-        }
-
-        // Fallback: charger depuis localStorage
-        this.loadFromLocalStorage();
-    }
-
-    // ... (les autres méthodes restent similaires)
-
-    sauvegarderLocal() {
-        const data = {
-            operations: this.operations,
-            lastUpdate: new Date().toISOString(),
-            totalOperations: this.operations.length,
-            version: '2.0-firebase'
-        };
-        
-        try {
-            localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-            console.log('💾 Backup local:', this.operations.length, 'opérations');
-        } catch (error) {
-            console.error('❌ Erreur sauvegarde locale:', error);
-        }
-    }
-
-    loadFromLocalStorage() {
-        try {
-            const saved = localStorage.getItem('gestion_ferme_data');
-            if (saved) {
-                const data = JSON.parse(saved);
-                this.operations = data.operations || [];
-                console.log('✅ Données chargées depuis localStorage:', this.operations.length, 'opérations');
-            } else {
-                console.log('ℹ️ Aucune donnée sauvegardée trouvée');
-                this.operations = [];
-            }
-        } catch (error) {
-            console.error('❌ Erreur chargement local:', error);
-            this.operations = [];
-        }
-    }
-}
-
-// Initialisation
-let app;
-document.addEventListener('DOMContentLoaded', () => {
-    app = new GestionFerme();
-});
+    <script src="./app.js"></script>
+</body>
+</html>
