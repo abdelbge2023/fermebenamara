@@ -25,30 +25,37 @@ class GestionFerme {
     }
 
     async initialiserFirebase() {
-        try {
-            // Importer Firebase dynamiquement
-            const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
-            
-            console.log('📡 Connexion à Firebase...');
-            const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
-            
-            this.operations = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                this.operations.push({
-                    firebaseId: doc.id,
-                    ...data
-                });
-            });
-            
-            console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
-            this.initialisationFirebase = true;
-            
-        } catch (error) {
-            console.error('❌ Erreur Firebase, utilisation du localStorage:', error);
-            this.loadFromLocalStorage();
+    try {
+        // Vérifier si Firebase est disponible
+        const firebaseModule = await import('./firebase.js');
+        
+        if (!firebaseModule.db) {
+            throw new Error('Firebase non configuré');
         }
+        
+        const { db, collection, getDocs, query, orderBy } = firebaseModule;
+        
+        console.log('📡 Connexion à Firebase...');
+        const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
+        
+        this.operations = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            this.operations.push({
+                firebaseId: doc.id,
+                ...data
+            });
+        });
+        
+        console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
+        this.initialisationFirebase = true;
+        
+    } catch (error) {
+        console.error('❌ Erreur Firebase, utilisation du localStorage:', error);
+        this.loadFromLocalStorage();
+        this.initialisationFirebase = false;
     }
+}
 
     async sauvegarderFirebase() {
         if (!this.initialisationFirebase) return;
@@ -59,7 +66,8 @@ class GestionFerme {
             for (const operation of this.operations) {
                 if (!operation.firebaseId) {
                     // Nouvelle opération
-                    const docRef = await addDoc(collection(db, 'operations'), operation);
+                    const { db: firebaseDb, collection, addDoc } = await import('./firebase.js');
+                    const docRef = await addDoc(collection(firebaseDb, 'operations'), operation);
                     operation.firebaseId = docRef.id;
                 } else {
                     // Mettre à jour l'opération existante
