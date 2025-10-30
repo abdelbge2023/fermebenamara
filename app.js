@@ -1,7 +1,9 @@
-// app.js - VERSION CORRIGÉE SANS REDÉCLARATION
+// app.js - VERSION COMPLÈTE AVEC TOUTES LES MÉTHODES IMPLÉMENTÉES
 class GestionFerme {
     constructor() {
         this.operations = [];
+        this.modeEdition = false;
+        this.operationsSelectionnees = new Set();
         this.init();
     }
 
@@ -71,6 +73,14 @@ class GestionFerme {
         const editForm = document.getElementById('editForm');
         if (editForm) {
             editForm.addEventListener('submit', (e) => this.modifierOperation(e));
+        }
+
+        // Écouteurs pour la répartition automatique
+        const typeOperationSelect = document.getElementById('typeOperation');
+        const montantInput = document.getElementById('montant');
+        if (typeOperationSelect && montantInput) {
+            typeOperationSelect.addEventListener('change', () => this.calculerRepartition());
+            montantInput.addEventListener('input', () => this.calculerRepartition());
         }
     }
 
@@ -145,6 +155,11 @@ class GestionFerme {
             return;
         }
 
+        if (!description) {
+            alert('Veuillez saisir une description pour le transfert');
+            return;
+        }
+
         // Créer les opérations de transfert
         const transfertSource = {
             id: Date.now() + 1,
@@ -186,6 +201,34 @@ class GestionFerme {
         document.getElementById('transfertForm').reset();
         this.updateStats();
         this.afficherHistorique('global');
+    }
+
+    calculerRepartition() {
+        const typeOperation = document.getElementById('typeOperation').value;
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+
+        if (typeOperation === 'travailleur_global' && montant > 0) {
+            const unTiers = (montant / 3).toFixed(2);
+            const deuxTiers = ((montant * 2) / 3).toFixed(2);
+
+            repartitionDetails.innerHTML = `
+                <div class="repartition-details">
+                    <div class="repartition-item zaitoun">
+                        <strong>🫒 Zaitoun</strong><br>
+                        ${deuxTiers} DH (2/3)
+                    </div>
+                    <div class="repartition-item commain">
+                        <strong>🔧 3 Commain</strong><br>
+                        ${unTiers} DH (1/3)
+                    </div>
+                </div>
+            `;
+            repartitionInfo.style.display = 'block';
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
     }
 
     resetForm() {
@@ -307,12 +350,28 @@ class GestionFerme {
         }
 
         let html = '<table class="data-table"><thead><tr>';
+        
+        if (this.modeEdition) {
+            html += '<th><input type="checkbox" id="selectAll"></th>';
+        }
+        
         html += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type</th>';
         html += '<th>Transaction</th><th>Caisse</th><th>Montant</th><th>Description</th>';
+        
+        if (this.modeEdition) {
+            html += '<th>Actions</th>';
+        }
+        
         html += '</tr></thead><tbody>';
 
         operationsFiltrees.forEach(op => {
             html += '<tr>';
+            
+            if (this.modeEdition) {
+                const isChecked = this.operationsSelectionnees.has(op.id) ? 'checked' : '';
+                html += `<td><input type="checkbox" class="operation-checkbox" data-id="${op.id}" ${isChecked}></td>`;
+            }
+            
             html += '<td>' + this.formaterDate(op.date) + '</td>';
             html += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
             html += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
@@ -322,35 +381,189 @@ class GestionFerme {
             html += '<td class="' + (op.montant >= 0 ? 'type-revenu' : 'type-frais') + '">';
             html += op.montant.toFixed(2) + ' DH</td>';
             html += '<td>' + op.description + '</td>';
+            
+            if (this.modeEdition) {
+                html += `<td class="operation-actions">
+                    <button class="btn-small btn-info" onclick="app.editerOperation(${op.id})">✏️</button>
+                    <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
+                </td>`;
+            }
+            
             html += '</tr>';
         });
 
         html += '</tbody></table>';
         dataDisplay.innerHTML = html;
+
+        // Ajouter les écouteurs pour les cases à cocher en mode édition
+        if (this.modeEdition) {
+            this.setupCheckboxListeners();
+        }
     }
 
-    // Méthodes pour le mode édition (à implémenter)
-    toggleEditMode(activer = true) {
-        console.log('Mode édition:', activer ? 'activé' : 'désactivé');
-        // Implémentation à venir
+    setupCheckboxListeners() {
+        // Case à cocher "Tout sélectionner"
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => {
+                const checkboxes = document.querySelectorAll('.operation-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = e.target.checked;
+                    const operationId = parseInt(checkbox.dataset.id);
+                    if (e.target.checked) {
+                        this.operationsSelectionnees.add(operationId);
+                    } else {
+                        this.operationsSelectionnees.delete(operationId);
+                    }
+                });
+                this.updateBoutonsSuppression();
+            });
+        }
+
+        // Cases à cocher individuelles
+        const checkboxes = document.querySelectorAll('.operation-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const operationId = parseInt(e.target.dataset.id);
+                if (e.target.checked) {
+                    this.operationsSelectionnees.add(operationId);
+                } else {
+                    this.operationsSelectionnees.delete(operationId);
+                }
+                this.updateBoutonsSuppression();
+            });
+        });
+    }
+
+    updateBoutonsSuppression() {
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected) {
+            if (this.operationsSelectionnees.size > 0) {
+                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.operationsSelectionnees.size})`;
+                btnDeleteSelected.style.display = 'inline-block';
+            } else {
+                btnDeleteSelected.style.display = 'none';
+            }
+        }
+    }
+
+    // MÉTHODES DU MODE ÉDITION
+    toggleEditMode(activer = null) {
+        this.modeEdition = activer !== null ? activer : !this.modeEdition;
+        
+        const btnEditMode = document.getElementById('btnEditMode');
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        
+        if (this.modeEdition) {
+            btnEditMode.textContent = '✅ Mode Normal';
+            btnEditMode.classList.remove('btn-warning');
+            btnEditMode.classList.add('btn-success');
+            btnCancelEdit.style.display = 'inline-block';
+            document.body.classList.add('edit-mode');
+        } else {
+            btnEditMode.textContent = '✏️ Mode Édition';
+            btnEditMode.classList.remove('btn-success');
+            btnEditMode.classList.add('btn-warning');
+            btnDeleteSelected.style.display = 'none';
+            btnCancelEdit.style.display = 'none';
+            document.body.classList.remove('edit-mode');
+            this.operationsSelectionnees.clear();
+        }
+        
+        // Re-afficher l'historique avec le nouveau mode
+        const tabActif = document.querySelector('.tab-btn.active');
+        this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
     }
 
     supprimerOperationsSelectionnees() {
-        console.log('Suppression multiple');
-        // Implémentation à venir
+        if (this.operationsSelectionnees.size === 0) {
+            alert('Aucune opération sélectionnée');
+            return;
+        }
+
+        if (confirm(`Voulez-vous vraiment supprimer ${this.operationsSelectionnees.size} opération(s) ?`)) {
+            this.operations = this.operations.filter(op => !this.operationsSelectionnees.has(op.id));
+            this.sauvegarderLocal();
+            this.operationsSelectionnees.clear();
+            this.afficherMessageSucces(`${this.operationsSelectionnees.size} opération(s) supprimée(s) !`);
+            this.updateStats();
+            this.afficherHistorique('global');
+            this.toggleEditMode(false);
+        }
+    }
+
+    supprimerOperation(id) {
+        if (confirm('Voulez-vous vraiment supprimer cette opération ?')) {
+            this.operations = this.operations.filter(op => op.id !== id);
+            this.sauvegarderLocal();
+            this.afficherMessageSucces('Opération supprimée !');
+            this.updateStats();
+            
+            const tabActif = document.querySelector('.tab-btn.active');
+            this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
+        }
+    }
+
+    editerOperation(id) {
+        const operation = this.operations.find(op => op.id === id);
+        if (!operation) return;
+
+        // Remplir le formulaire modal
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = Math.abs(operation.montant);
+        document.getElementById('editDescription').value = operation.description;
+
+        // Afficher le modal
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    modifierOperation(e) {
+        e.preventDefault();
+        
+        const id = parseInt(document.getElementById('editId').value);
+        const operateur = document.getElementById('editOperateur').value;
+        const groupe = document.getElementById('editGroupe').value;
+        const typeOperation = document.getElementById('editTypeOperation').value;
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+        const caisse = document.getElementById('editCaisse').value;
+        const montant = parseFloat(document.getElementById('editMontant').value);
+        const description = document.getElementById('editDescription').value;
+
+        // Trouver et mettre à jour l'opération
+        const operationIndex = this.operations.findIndex(op => op.id === id);
+        if (operationIndex !== -1) {
+            this.operations[operationIndex] = {
+                ...this.operations[operationIndex],
+                operateur,
+                groupe,
+                typeOperation,
+                typeTransaction,
+                caisse,
+                description,
+                montant: typeTransaction === 'frais' ? -montant : montant
+            };
+
+            this.sauvegarderLocal();
+            this.afficherMessageSucces('Opération modifiée !');
+            this.fermerModal();
+            this.updateStats();
+            
+            const tabActif = document.querySelector('.tab-btn.active');
+            this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
+        }
     }
 
     fermerModal() {
         document.getElementById('editModal').style.display = 'none';
     }
 
-    modifierOperation(e) {
-        e.preventDefault();
-        console.log('Modification opération');
-        // Implémentation à venir
-    }
-
-    // Méthodes de formatage
+    // MÉTHODES DE FORMATAGE
     formaterDate(dateStr) {
         return new Date(dateStr).toLocaleDateString('fr-FR');
     }
