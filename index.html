@@ -177,6 +177,11 @@
                 <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
                 <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
                 <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
+                
+                <!-- NOUVEAUX BOUTONS EXPORT/IMPORT -->
+                <button id="btnExport" class="btn-info">📤 Exporter</button>
+                <input type="file" id="inputImport" accept=".json" style="display: none;">
+                <button onclick="document.getElementById('inputImport').click()" class="btn-info">📥 Importer</button>
             </div>
 
             <div id="dataDisplay" class="data-display">
@@ -256,7 +261,6 @@
         </div>
     </div>
 
-    <!-- SEUL SCRIPT CHARGÉ -->
     <script src="./app.js"></script>
 </body>
 </html>
