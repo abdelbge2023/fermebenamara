@@ -1,529 +1,235 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
-    padding: 20px;
-    color: #333;
-}
-
-.container {
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-/* En-tête */
-header {
-    background: rgba(255, 255, 255, 0.95);
-    padding: 20px;
-    border-radius: 15px;
-    text-align: center;
-    margin-bottom: 20px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-header h1 {
-    color: #2c3e50;
-    margin-bottom: 10px;
-}
-
-header p {
-    color: #7f8c8d;
-    font-size: 1.1em;
-}
-
-/* Sections */
-.file-section, .saisie-section, .navigation-section, .stats-section {
-    background: white;
-    padding: 25px;
-    margin-bottom: 20px;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-
-/* Actions Fichier */
-.file-actions {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    margin-bottom: 15px;
-}
-
-.file-info {
-    padding: 12px;
-    background: #d4edda;
-    color: #155724;
-    border-radius: 8px;
-    border-left: 4px solid #28a745;
-}
-
-/* Formulaire */
-.saisie-form {
-    margin-top: 15px;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-group.full-width {
-    grid-column: 1 / -1;
-}
-
-label {
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #2c3e50;
-    font-size: 14px;
-}
-
-input, select, textarea {
-    padding: 12px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: all 0.3s ease;
-}
-
-input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-textarea {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.form-actions {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-/* Boutons */
-button {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-primary {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
-}
-
-.btn-success {
-    background: linear-gradient(135deg, #27ae60, #229954);
-    color: white;
-}
-
-.btn-info {
-    background: linear-gradient(135deg, #17a2b8, #138496);
-    color: white;
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
-
-/* Navigation par onglets */
-.nav-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
-    background: #f8f9fa;
-    padding: 15px;
-    border-radius: 10px;
-}
-
-.tab-btn {
-    background: #e9ecef;
-    color: #495057;
-    border: 2px solid transparent;
-    flex: 1;
-    min-width: 140px;
-    justify-content: center;
-}
-
-.tab-btn.active {
-    background: #3498db;
-    color: white;
-    border-color: #2980b9;
-    transform: translateY(-2px);
-}
-
-/* Affichage des données */
-.data-display {
-    min-height: 200px;
-    overflow-x: auto;
-}
-
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    min-width: 1000px;
-}
-
-.data-table th,
-.data-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #e9ecef;
-    font-size: 14px;
-}
-
-.data-table th {
-    background: #3498db;
-    color: white;
-    font-weight: 600;
-    font-size: 13px;
-}
-
-.data-table tr:hover {
-    background: #f8f9fa;
-}
-
-.data-table td {
-    color: #495057;
-}
-
-/* Statistiques */
-.stats-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.stat-card {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
-
-.stat-value {
-    font-size: 2em;
-    font-weight: bold;
-    margin: 10px 0;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}
-
-.stat-label {
-    font-size: 0.9em;
-    opacity: 0.9;
-    font-weight: 500;
-}
-
-/* Messages */
-.empty-message {
-    text-align: center;
-    padding: 40px;
-    color: #6c757d;
-    font-style: italic;
-}
-
-.success-message {
-    background: #d4edda;
-    color: #155724;
-    padding: 15px;
-    border-radius: 8px;
-    margin: 15px 0;
-    border-left: 4px solid #28a745;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    body {
-        padding: 10px;
-    }
-
-    .file-actions, .form-actions {
-        flex-direction: column;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .nav-tabs {
-        flex-direction: column;
-    }
-
-    .tab-btn {
-        min-width: 100%;
-    }
-
-    .stats-container {
-        grid-template-columns: 1fr;
-    }
-
-    .data-table {
-        font-size: 12px;
-        min-width: 800px;
-    }
-
-    .data-table th,
-    .data-table td {
-        padding: 8px 6px;
-    }
-    
-    .stat-card {
-        padding: 15px;
-    }
-    
-    .stat-value {
-        font-size: 1.5em;
-    }
-}
-
-/* Animation de chargement */
-.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-}
-
-/* Section Répartition */
-.repartition-info {
-    background: #e3f2fd;
-    border: 2px solid #2196f3;
-    border-radius: 10px;
-    padding: 15px;
-    margin: 15px 0;
-}
-
-.repartition-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 10px;
-}
-
-.repartition-item {
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-    text-align: center;
-    border-left: 4px solid #4caf50;
-}
-
-.repartition-item.zaitoun { border-left-color: #ff9800; }
-.repartition-item.commain { border-left-color: #2196f3; }
-
-/* Gestion */
-.management-actions {
-    display: flex;
-    gap: 10px;
-    margin: 15px 0;
-    flex-wrap: wrap;
-}
-
-.btn-danger {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
-    color: white;
-}
-
-.btn-warning {
-    background: linear-gradient(135deg, #f39c12, #e67e22);
-    color: white;
-}
-
-/* Cases à cocher */
-.operation-checkbox {
-    transform: scale(1.2);
-    margin-right: 10px;
-}
-
-/* Actions des lignes */
-.operation-actions {
-    display: flex;
-    gap: 5px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-tr:hover .operation-actions {
-    opacity: 1;
-}
-
-.btn-small {
-    padding: 6px 12px;
-    font-size: 12px;
-}
-
-/* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: white;
-    padding: 0;
-    border-radius: 15px;
-    width: 95%;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-.modal-header {
-    background: #3498db;
-    color: white;
-    padding: 20px;
-    border-radius: 15px 15px 0 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    margin: 0;
-}
-
-.close-modal {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 24px;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-form {
-    padding: 20px;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-}
-
-/* Mode édition */
-.edit-mode .operation-actions {
-    opacity: 1;
-}
-
-.edit-mode .data-table tr {
-    background: #fff3cd;
-}
-
-.edit-mode .data-table tr.selected {
-    background: #f8d7da;
-}
-
-/* NOUVEAUX STYLES POUR LES TYPES DE TRANSACTION */
-.type-revenu {
-    color: #27ae60;
-    font-weight: bold;
-}
-
-.type-frais {
-    color: #e74c3c;
-    font-weight: bold;
-}
-
-/* Styles pour les caisses */
-.caisse-info {
-    background: #e3f2fd;
-    padding: 8px;
-    border-radius: 5px;
-    font-size: 0.9em;
-}
-
-/* Responsive pour tableaux larges */
-@media (max-width: 1200px) {
-    .container {
-        max-width: 100%;
-    }
-    
-    .data-table {
-        min-width: 900px;
-    }
-}
-
-@media (max-width: 768px) {
-    .repartition-details {
-        grid-template-columns: 1fr;
-    }
-    
-    .management-actions {
-        flex-direction: column;
-    }
-    
-    .modal-content {
-        width: 98%;
-        margin: 10px;
-    }
-    
-    .operation-actions {
-        opacity: 1;
-        flex-direction: column;
-    }
-    
-    .data-table {
-        min-width: 700px;
-    }
-}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Samarche - Saisie et Répartition</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- En-tête -->
+        <header>
+            <h1>📊 Application Samarche</h1>
+            <p>Saisie avec répartition automatique 1/3 - 2/3</p>
+        </header>
+
+        <!-- Section Import/Export -->
+        <section class="file-section">
+            <div class="file-actions">
+                <input type="file" id="fileInput" accept=".xlsm,.xlsx" style="display: none;">
+                <button id="btnImport" class="btn-primary">📥 Importer Samarche.xlsm</button>
+                <button id="btnExport" class="btn-success">📤 Exporter vers Excel</button>
+                <button id="btnNewFile" class="btn-info">🆕 Nouveau Fichier</button>
+            </div>
+            <div id="fileInfo" class="file-info"></div>
+        </section>
+
+        <!-- Formulaire de Saisie -->
+        <section class="saisie-section">
+            <h2>➕ Nouvelle Opération</h2>
+            <form id="saisieForm" class="saisie-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="operateur">Opérateur :</label>
+                        <select id="operateur" required>
+                            <option value="">Sélectionnez un opérateur</option>
+                            <option value="abdel">Abdel</option>
+                            <option value="omar">Omar</option>
+                            <option value="hicham">Hicham</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="groupe">Groupe :</label>
+                        <select id="groupe" required>
+                            <option value="">Sélectionnez un groupe</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="typeOperation">Type d'Opération :</label>
+                        <select id="typeOperation" required>
+                            <option value="">Sélectionnez un type</option>
+                            <option value="travailleur_global">Travailleur global</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+
+                    <!-- NOUVEAU CHAMP : Type Frais/Revenu -->
+                    <div class="form-group">
+                        <label for="typeTransaction">Transaction :</label>
+                        <select id="typeTransaction" required>
+                            <option value="">Sélectionnez</option>
+                            <option value="revenu">💰 Revenu</option>
+                            <option value="frais">💸 Frais</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="montant">Montant (DH) :</label>
+                        <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
+                    </div>
+
+                    <!-- NOUVEAU CHAMP : Caisse Opérateur -->
+                    <div class="form-group">
+                        <label for="caisseOperateur">Caisse Opérateur :</label>
+                        <select id="caisseOperateur">
+                            <option value="aucune">Aucune caisse</option>
+                            <option value="abdel_caisse">Caisse Abdel</option>
+                            <option value="omar_caisse">Caisse Omar</option>
+                            <option value="hicham_caisse">Caisse Hicham</option>
+                        </select>
+                    </div>
+
+                    <!-- NOUVEAU CHAMP : Caisse Groupe -->
+                    <div class="form-group">
+                        <label for="caisseGroupe">Caisse Groupe :</label>
+                        <select id="caisseGroupe">
+                            <option value="aucune">Aucune caisse</option>
+                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="description">Description :</label>
+                    <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
+                </div>
+
+                <!-- Affichage de la répartition -->
+                <div id="repartitionInfo" class="repartition-info" style="display: none;">
+                    <h4>📋 Répartition Automatique :</h4>
+                    <div id="repartitionDetails"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">✅ Enregistrer l'Opération</button>
+                    <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Navigation et Visualisation -->
+        <section class="navigation-section">
+            <div class="nav-tabs">
+                <button class="tab-btn active" data-sheet="global">🌍 Vue Globale</button>
+                <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
+                <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
+                <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
+                <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
+                <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
+            </div>
+
+            <!-- Actions de gestion -->
+            <div class="management-actions">
+                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
+                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
+                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
+            </div>
+
+            <div id="dataDisplay" class="data-display">
+                <!-- Les données apparaîtront ici -->
+            </div>
+        </section>
+
+        <!-- Statistiques -->
+        <section class="stats-section">
+            <h2>📈 Statistiques</h2>
+            <div id="statsContainer" class="stats-container">
+                <!-- Les statistiques apparaîtront ici -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal pour modification -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Modifier l'Opération</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="editForm" class="modal-form">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editOperateur">Opérateur :</label>
+                        <select id="editOperateur" required>
+                            <option value="abdel">Abdel</option>
+                            <option value="omar">Omar</option>
+                            <option value="hicham">Hicham</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGroupe">Groupe :</label>
+                        <select id="editGroupe" required>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTypeOperation">Type d'Opération :</label>
+                        <select id="editTypeOperation" required>
+                            <option value="travailleur_global">Travailleur global</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    
+                    <!-- NOUVEAUX CHAMPS DANS LE MODAL -->
+                    <div class="form-group">
+                        <label for="editTypeTransaction">Transaction :</label>
+                        <select id="editTypeTransaction" required>
+                            <option value="revenu">💰 Revenu</option>
+                            <option value="frais">💸 Frais</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCaisseOperateur">Caisse Opérateur :</label>
+                        <select id="editCaisseOperateur">
+                            <option value="aucune">Aucune caisse</option>
+                            <option value="abdel_caisse">Caisse Abdel</option>
+                            <option value="omar_caisse">Caisse Omar</option>
+                            <option value="hicham_caisse">Caisse Hicham</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCaisseGroupe">Caisse Groupe :</label>
+                        <select id="editCaisseGroupe">
+                            <option value="aucune">Aucune caisse</option>
+                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editMontant">Montant (DH) :</label>
+                        <input type="number" id="editMontant" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="editDescription">Description :</label>
+                    <textarea id="editDescription" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
+                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>
