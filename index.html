@@ -6,80 +6,6 @@
     <title>Gestion Ferme Ben Amara</title>
     <link rel="stylesheet" href="./style.css">
 </head>
-        <!-- Modal pour modification -->
-    <div id="editModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Modifier l'Opération</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <form id="editForm" class="modal-form">
-                <input type="hidden" id="editId">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editOperateur">Opérateur :</label>
-                        <select id="editOperateur" required>
-                            <option value="abdel">Abdel</option>
-                            <option value="omar">Omar</option>
-                            <option value="hicham">Hicham</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editGroupe">Groupe :</label>
-                        <select id="editGroupe" required>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editTypeOperation">Type d'Opération :</label>
-                        <select id="editTypeOperation" required>
-                            <option value="travailleur_global">Travailleur global</option>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editTypeTransaction">Transaction :</label>
-                        <select id="editTypeTransaction" required>
-                            <option value="revenu">💰 Revenu</option>
-                            <option value="frais">💸 Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editCaisse">Caisse :</label>
-                        <select id="editCaisse" required>
-                            <option value="abdel_caisse">Caisse Abdel</option>
-                            <option value="omar_caisse">Caisse Omar</option>
-                            <option value="hicham_caisse">Caisse Hicham</option>
-                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                            <option value="3commain_caisse">Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editMontant">Montant (DH) :</label>
-                        <input type="number" id="editMontant" step="0.01" min="0" required>
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDescription">Description :</label>
-                    <textarea id="editDescription" rows="3" required></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
-                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="./app.js"></script>
-</body>
-</html>
 <body>
     <div class="container">
         <header>
@@ -259,7 +185,78 @@
         </section>
     </div>
 
+    <!-- Modal pour modification -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Modifier l'Opération</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="editForm" class="modal-form">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editOperateur">Opérateur :</label>
+                        <select id="editOperateur" required>
+                            <option value="abdel">Abdel</option>
+                            <option value="omar">Omar</option>
+                            <option value="hicham">Hicham</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGroupe">Groupe :</label>
+                        <select id="editGroupe" required>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTypeOperation">Type d'Opération :</label>
+                        <select id="editTypeOperation" required>
+                            <option value="travailleur_global">Travailleur global</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editTypeTransaction">Transaction :</label>
+                        <select id="editTypeTransaction" required>
+                            <option value="revenu">💰 Revenu</option>
+                            <option value="frais">💸 Frais</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCaisse">Caisse :</label>
+                        <select id="editCaisse" required>
+                            <option value="abdel_caisse">Caisse Abdel</option>
+                            <option value="omar_caisse">Caisse Omar</option>
+                            <option value="hicham_caisse">Caisse Hicham</option>
+                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editMontant">Montant (DH) :</label>
+                        <input type="number" id="editMontant" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="editDescription">Description :</label>
+                    <textarea id="editDescription" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
+                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SEUL SCRIPT CHARGÉ -->
     <script src="./app.js"></script>
 </body>
 </html>
-
