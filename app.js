@@ -1,4 +1,4 @@
-// app.js - VERSION COMPLÈTE ET CORRIGÉE
+// app.js - VERSION COMPLÈTE AVEC ÉDITION
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -81,6 +81,18 @@ class GestionFerme {
         const btnCancelEdit = document.getElementById('btnCancelEdit');
         if (btnCancelEdit) {
             btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
+        }
+
+        // Modal
+        const closeModalBtns = document.querySelectorAll('.close-modal');
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.fermerModal());
+        });
+
+        // Formulaire de modification
+        const editForm = document.getElementById('editForm');
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => this.modifierOperation(e));
         }
 
         // Calcul de répartition
@@ -292,6 +304,7 @@ class GestionFerme {
         }
     }
 
+    // FONCTIONNALITÉS D'ÉDITION
     toggleEditMode(enable = null) {
         this.editMode = enable !== null ? enable : !this.editMode;
         
@@ -353,6 +366,72 @@ class GestionFerme {
             this.afficherHistorique(this.currentView);
             this.afficherMessageSucces('Opération supprimée avec succès');
         }
+    }
+
+    // OUVRIRE LE MODAL POUR MODIFICATION
+    ouvrirModalModification(operationId) {
+        const operation = this.operations.find(op => op.id === operationId);
+        if (!operation) return;
+
+        // Remplir le formulaire avec les données actuelles
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = Math.abs(operation.montant);
+        document.getElementById('editDescription').value = operation.description;
+
+        // Afficher le modal
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    // MODIFIER L'OPÉRATION
+    async modifierOperation(e) {
+        e.preventDefault();
+
+        const operationId = parseInt(document.getElementById('editId').value);
+        const operationIndex = this.operations.findIndex(op => op.id === operationId);
+
+        if (operationIndex === -1) {
+            alert('Opération non trouvée');
+            return;
+        }
+
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+
+        // Validation
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        // Mettre à jour l'opération
+        this.operations[operationIndex] = {
+            ...this.operations[operationIndex],
+            operateur: document.getElementById('editOperateur').value,
+            groupe: document.getElementById('editGroupe').value,
+            typeOperation: document.getElementById('editTypeOperation').value,
+            typeTransaction: typeTransaction,
+            caisse: document.getElementById('editCaisse').value,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            description: document.getElementById('editDescription').value,
+            timestamp: new Date().toISOString() // Mettre à jour la date de modification
+        };
+
+        // Sauvegarder et mettre à jour l'interface
+        this.sauvegarderLocal();
+        this.fermerModal();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        this.afficherMessageSucces('Opération modifiée avec succès !');
+    }
+
+    // FERMER LE MODAL
+    fermerModal() {
+        document.getElementById('editModal').style.display = 'none';
     }
 
     calculerSoldes() {
@@ -481,8 +560,11 @@ class GestionFerme {
                     ${this.editMode ? `
                         <td>
                             <div class="operation-actions">
+                                <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">
+                                    ✏️ Modifier
+                                </button>
                                 <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">
-                                    🗑️
+                                    🗑️ Supprimer
                                 </button>
                             </div>
                         </td>
@@ -563,7 +645,6 @@ class GestionFerme {
     }
 
     afficherMessageSucces(message) {
-        // Créer ou mettre à jour un élément de message
         let messageDiv = document.getElementById('successMessage');
         if (!messageDiv) {
             messageDiv = document.createElement('div');
@@ -574,7 +655,6 @@ class GestionFerme {
         messageDiv.textContent = message;
         messageDiv.style.display = 'block';
         
-        // Disparaître après 5 secondes
         setTimeout(() => {
             if (messageDiv.parentNode) {
                 messageDiv.remove();
