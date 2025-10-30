@@ -1,57 +1,26 @@
-// app.js - VERSION AVEC DEBUG
+// app.js - VERSION CORRIGÉE SANS REDÉCLARATION
 class GestionFerme {
     constructor() {
         this.operations = [];
-        this.caisses = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0,
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-        this.editMode = false;
-        this.selectedOperations = new Set();
-        this.currentView = 'global';
-        this.initialisationFirebase = false;
-
         this.init();
     }
 
-    async init() {
-        console.log('🚀 INITIALISATION DE L\'APPLICATION');
+    init() {
         this.setupEventListeners();
-        await this.initialiserFirebase();
+        this.loadFromLocalStorage();
         this.updateStats();
         this.afficherHistorique('global');
-        
-        // DEBUG: Afficher le nombre d'opérations chargées
-        console.log('📊 Opérations chargées:', this.operations.length);
-    }
-
-    async initialiserFirebase() {
-        try {
-            console.log('🔧 Chargement depuis localStorage');
-            this.loadFromLocalStorage();
-            this.initialisationFirebase = false;
-        } catch (error) {
-            console.error('Erreur:', error);
-            this.loadFromLocalStorage();
-        }
+        console.log('✅ Application initialisée');
     }
 
     setupEventListeners() {
-        console.log('🔧 Configuration des événements...');
-        
         // Formulaire principal
         const saisieForm = document.getElementById('saisieForm');
         if (saisieForm) {
             saisieForm.addEventListener('submit', (e) => this.ajouterOperation(e));
-            console.log('✅ Formulaire principal configuré');
-        } else {
-            console.error('❌ Formulaire principal NON TROUVÉ');
         }
 
-        // Formulaire de transfert
+        // Formulaire transfert
         const transfertForm = document.getElementById('transfertForm');
         if (transfertForm) {
             transfertForm.addEventListener('submit', (e) => this.effectuerTransfert(e));
@@ -79,13 +48,13 @@ class GestionFerme {
         if (btnEditMode) {
             btnEditMode.addEventListener('click', () => this.toggleEditMode());
         }
-
+        
         // Suppression multiple
         const btnDeleteSelected = document.getElementById('btnDeleteSelected');
         if (btnDeleteSelected) {
             btnDeleteSelected.addEventListener('click', () => this.supprimerOperationsSelectionnees());
         }
-
+        
         // Annuler édition
         const btnCancelEdit = document.getElementById('btnCancelEdit');
         if (btnCancelEdit) {
@@ -98,29 +67,16 @@ class GestionFerme {
             btn.addEventListener('click', () => this.fermerModal());
         });
 
-        // Formulaire de modification
+        // Formulaire édition
         const editForm = document.getElementById('editForm');
         if (editForm) {
             editForm.addEventListener('submit', (e) => this.modifierOperation(e));
         }
-
-        // Calcul de répartition
-        const typeOperation = document.getElementById('typeOperation');
-        if (typeOperation) {
-            typeOperation.addEventListener('change', () => this.calculerRepartition());
-        }
-
-        const montant = document.getElementById('montant');
-        if (montant) {
-            montant.addEventListener('input', () => this.calculerRepartition());
-        }
-
-        console.log('✅ Tous les événements configurés');
     }
 
-    async ajouterOperation(e) {
+    ajouterOperation(e) {
         e.preventDefault();
-        console.log('✅ DÉBUT - Ajout d\'opération');
+        console.log('✅ Formulaire soumis');
 
         // Récupérer les valeurs du formulaire
         const operateur = document.getElementById('operateur').value;
@@ -128,15 +84,11 @@ class GestionFerme {
         const typeOperation = document.getElementById('typeOperation').value;
         const typeTransaction = document.getElementById('typeTransaction').value;
         const caisse = document.getElementById('caisse').value;
-        const montantSaisi = parseFloat(document.getElementById('montant').value);
+        const montant = parseFloat(document.getElementById('montant').value);
         const description = document.getElementById('description').value;
 
-        console.log('📝 Données du formulaire:', {
-            operateur, groupe, typeOperation, typeTransaction, caisse, montantSaisi, description
-        });
-
         // Validation simple
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+        if (montant <= 0 || isNaN(montant)) {
             alert('Le montant doit être supérieur à 0');
             return;
         }
@@ -146,248 +98,317 @@ class GestionFerme {
             return;
         }
 
-        let operationsACreer = [];
-
-        if (typeOperation === 'travailleur_global') {
-            console.log('🔀 Création d\'opération avec répartition');
-            // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
-            const montantZaitoun = montantSaisi / 3;
-            const montant3Commain = (montantSaisi * 2) / 3;
-
-            operationsACreer = [
-                {
-                    id: Date.now(),
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: 'zaitoun',
-                    typeOperation: 'zaitoun',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                    repartition: true,
-                    timestamp: new Date().toISOString()
-                },
-                {
-                    id: Date.now() + 1,
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: '3commain',
-                    typeOperation: '3commain',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
-                    repartition: true,
-                    timestamp: new Date().toISOString()
-                }
-            ];
-        } else {
-            console.log('📝 Création d\'opération simple');
-            // Opération normale sans répartition
-            operationsACreer = [{
-                id: Date.now(),
-                date: new Date().toISOString().split('T')[0],
-                operateur: operateur,
-                groupe: groupe,
-                typeOperation: typeOperation,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                description: description,
-                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
-                repartition: false,
-                timestamp: new Date().toISOString()
-            }];
-        }
-
-        console.log('➕ Opérations à créer:', operationsACreer);
+        // Créer l'opération
+        const nouvelleOperation = {
+            id: Date.now(),
+            date: new Date().toISOString().split('T')[0],
+            operateur: operateur,
+            groupe: groupe,
+            typeOperation: typeOperation,
+            typeTransaction: typeTransaction,
+            caisse: caisse,
+            description: description,
+            montant: typeTransaction === 'frais' ? -montant : montant,
+            timestamp: new Date().toISOString()
+        };
 
         // Ajouter aux opérations
-        for (const op of operationsACreer) {
-            this.operations.unshift(op);
-        }
-
-        console.log('📊 Opérations après ajout:', this.operations);
+        this.operations.unshift(nouvelleOperation);
 
         // Sauvegarder
         this.sauvegarderLocal();
 
-        // Message de succès
-        const message = typeOperation === 'travailleur_global' 
-            ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
-            : 'Opération enregistrée avec succès !';
-
-        this.afficherMessageSucces(message);
+        // Mettre à jour l'interface
+        this.afficherMessageSucces('Opération enregistrée avec succès !');
         this.resetForm();
         this.updateStats();
-        this.afficherHistorique(this.currentView);
-        
-        console.log('✅ FIN - Opération ajoutée avec succès');
-        console.log('📊 Total opérations:', this.operations.length);
+        this.afficherHistorique('global');
     }
 
-    // ... [LE RESTE DU CODE RESTE IDENTIQUE AU PRÉCÉDENT]
-    // Gardez toutes les autres méthodes (effectuerTransfert, calculerRepartition, etc.)
+    effectuerTransfert(e) {
+        e.preventDefault();
+        console.log('✅ Transfert en cours');
 
-    afficherHistorique(vue = 'global') {
-        console.log('📋 Affichage historique - Vue:', vue);
-        console.log('📊 Opérations à afficher:', this.operations.length);
-        
-        this.currentView = vue;
-        const dataDisplay = document.getElementById('dataDisplay');
-        
-        if (!dataDisplay) {
-            console.error('❌ dataDisplay NON TROUVÉ');
+        const caisseSource = document.getElementById('caisseSource').value;
+        const caisseDestination = document.getElementById('caisseDestination').value;
+        const montant = parseFloat(document.getElementById('montantTransfert').value);
+        const description = document.getElementById('descriptionTransfert').value;
+
+        // Validation
+        if (caisseSource === caisseDestination) {
+            alert('Les caisses source et destination doivent être différentes');
             return;
         }
 
-        let operationsFiltrees = [];
-
-        switch (vue) {
-            case 'zaitoun':
-                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
-                break;
-            case '3commain':
-                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
-                break;
-            case 'abdel':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
-                break;
-            case 'omar':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
-                break;
-            case 'hicham':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
-                break;
-            case 'transferts':
-                operationsFiltrees = this.operations.filter(op => op.transfert);
-                break;
-            default:
-                operationsFiltrees = this.operations;
-        }
-
-        console.log('🔍 Opérations filtrées:', operationsFiltrees.length);
-
-        if (operationsFiltrees.length === 0) {
-            dataDisplay.innerHTML = '<div class="empty-message">Aucune opération trouvée</div>';
-            console.log('ℹ️ Aucune opération à afficher');
+        if (montant <= 0 || isNaN(montant)) {
+            alert('Le montant doit être supérieur à 0');
             return;
         }
 
-        let html = `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        ${this.editMode ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
-                        <th>Date</th>
-                        <th>Opérateur</th>
-                        <th>Groupe</th>
-                        <th>Type</th>
-                        <th>Transaction</th>
-                        <th>Caisse</th>
-                        <th>Montant</th>
-                        <th>Description</th>
-                        ${this.editMode ? '<th>Actions</th>' : ''}
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-
-        operationsFiltrees.forEach((op, index) => {
-            const estSelectionnee = this.selectedOperations.has(op.id);
-            console.log(`📝 Opération ${index}:`, op);
-            
-            html += `
-                <tr class="${estSelectionnee ? 'selected' : ''}">
-                    ${this.editMode ? `
-                        <td>
-                            <input type="checkbox" class="operation-checkbox" 
-                                   ${estSelectionnee ? 'checked' : ''}
-                                   onchange="app.selectionnerOperation(${op.id}, this.checked)"
-                                   title="Sélectionner">
-                        </td>
-                    ` : ''}
-                    <td>${this.formaterDate(op.date)}</td>
-                    <td>${this.formaterOperateur(op.operateur)}</td>
-                    <td>${this.formaterGroupe(op.groupe)}</td>
-                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                    <td class="type-${op.typeTransaction}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
-                    <td>${this.formaterCaisse(op.caisse)}</td>
-                    <td class="${op.montant >= 0 ? 'type-revenu' : 'type-frais'}">
-                        ${op.montant.toFixed(2)} DH
-                    </td>
-                    <td>${op.description}</td>
-                    ${this.editMode ? `
-                        <td>
-                            <div class="operation-actions">
-                                <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})" title="Modifier">
-                                    ✏️ Édition
-                                </button>
-                                <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})" title="Supprimer">
-                                    🗑️
-                                </button>
-                            </div>
-                        </td>
-                    ` : ''}
-                </tr>
-            `;
-        });
-
-        html += '</tbody></table>';
-        dataDisplay.innerHTML = html;
-
-        console.log('✅ Historique affiché avec succès');
-
-        // Gestion de la sélection globale
-        if (this.editMode) {
-            const selectAll = document.getElementById('selectAll');
-            if (selectAll) {
-                selectAll.addEventListener('change', (e) => {
-                    const checkboxes = document.querySelectorAll('.operation-checkbox');
-                    checkboxes.forEach(cb => {
-                        cb.checked = e.target.checked;
-                        const opId = parseInt(cb.getAttribute('onchange').match(/\d+/)[0]);
-                        this.selectionnerOperation(opId, e.target.checked);
-                    });
-                });
-            }
-        }
-    }
-
-    // ... [GARDEZ TOUTES LES AUTRES MÉTHODES IDENTIQUES]
-
-    sauvegarderLocal() {
-        console.log('💾 Sauvegarde des données...');
-        const data = {
-            operations: this.operations,
-            lastUpdate: new Date().toISOString()
+        // Créer les opérations de transfert
+        const transfertSource = {
+            id: Date.now() + 1,
+            date: new Date().toISOString().split('T')[0],
+            operateur: 'system',
+            groupe: 'transfert',
+            typeOperation: 'transfert',
+            typeTransaction: 'frais',
+            caisse: caisseSource,
+            description: `Transfert vers ${this.formaterCaisse(caisseDestination)} - ${description}`,
+            montant: -montant,
+            timestamp: new Date().toISOString(),
+            isTransfert: true
         };
-        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-        console.log('✅ Données sauvegardées:', this.operations.length, 'opérations');
+
+        const transfertDestination = {
+            id: Date.now() + 2,
+            date: new Date().toISOString().split('T')[0],
+            operateur: 'system',
+            groupe: 'transfert',
+            typeOperation: 'transfert',
+            typeTransaction: 'revenu',
+            caisse: caisseDestination,
+            description: `Transfert depuis ${this.formaterCaisse(caisseSource)} - ${description}`,
+            montant: montant,
+            timestamp: new Date().toISOString(),
+            isTransfert: true
+        };
+
+        // Ajouter les opérations
+        this.operations.unshift(transfertDestination);
+        this.operations.unshift(transfertSource);
+
+        // Sauvegarder
+        this.sauvegarderLocal();
+
+        // Mettre à jour l'interface
+        this.afficherMessageSucces('Transfert effectué avec succès !');
+        document.getElementById('transfertForm').reset();
+        this.updateStats();
+        this.afficherHistorique('global');
+    }
+
+    resetForm() {
+        document.getElementById('saisieForm').reset();
+        document.getElementById('repartitionInfo').style.display = 'none';
+    }
+
+    afficherMessageSucces(message) {
+        // Version améliorée avec notification temporaire
+        const notification = document.createElement('div');
+        notification.className = 'success-message fade-in';
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 15px 20px;
+            border-radius: 8px;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 
     loadFromLocalStorage() {
-        console.log('📂 Chargement depuis localStorage...');
         const saved = localStorage.getItem('gestion_ferme_data');
         if (saved) {
             try {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log('✅ Données chargées:', this.operations.length, 'opérations');
+                console.log('📁 ' + this.operations.length + ' opérations chargées');
             } catch (error) {
-                console.error('❌ Erreur chargement localStorage:', error);
+                console.error('Erreur chargement:', error);
                 this.operations = [];
             }
-        } else {
-            console.log('ℹ️ Aucune donnée sauvegardée trouvée');
-            this.operations = [];
         }
+    }
+
+    sauvegarderLocal() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+    }
+
+    updateStats() {
+        console.log('📊 Mise à jour des statistiques');
+        
+        const statsContainer = document.getElementById('statsContainer');
+        if (!statsContainer) return;
+
+        // Calcul des soldes par caisse
+        const soldes = {};
+        this.operations.forEach(op => {
+            if (!soldes[op.caisse]) {
+                soldes[op.caisse] = 0;
+            }
+            soldes[op.caisse] += op.montant;
+        });
+
+        let html = '';
+        
+        // Cartes pour chaque caisse
+        for (const [caisse, solde] of Object.entries(soldes)) {
+            const soldeFormate = solde.toFixed(2);
+            const isPositif = solde >= 0;
+            
+            html += `
+                <div class="stat-card ${isPositif ? 'solde-positif' : 'solde-negatif'}">
+                    <div class="stat-label">${this.formaterCaisse(caisse)}</div>
+                    <div class="stat-value">${soldeFormate} DH</div>
+                    <div class="stat-trend">${isPositif ? '📈' : '📉'}</div>
+                </div>
+            `;
+        }
+
+        // Carte pour le solde total
+        const soldeTotal = Object.values(soldes).reduce((total, solde) => total + solde, 0);
+        const totalFormate = soldeTotal.toFixed(2);
+        const totalPositif = soldeTotal >= 0;
+        
+        html += `
+            <div class="stat-card ${totalPositif ? 'solde-positif' : 'solde-negatif'}" style="grid-column: 1 / -1;">
+                <div class="stat-label">💰 SOLDE TOTAL</div>
+                <div class="stat-value">${totalFormate} DH</div>
+                <div class="stat-trend">${totalPositif ? '🎉' : '⚠️'}</div>
+            </div>
+        `;
+
+        statsContainer.innerHTML = html;
+    }
+
+    afficherHistorique(vue) {
+        const dataDisplay = document.getElementById('dataDisplay');
+        if (!dataDisplay) return;
+
+        let operationsFiltrees = this.operations;
+
+        if (vue === 'transferts') {
+            operationsFiltrees = this.operations.filter(op => op.isTransfert);
+        } else if (vue !== 'global') {
+            operationsFiltrees = this.operations.filter(op => 
+                op.groupe === vue || op.operateur === vue
+            );
+        }
+
+        if (operationsFiltrees.length === 0) {
+            dataDisplay.innerHTML = '<div class="empty-message">Aucune opération trouvée</div>';
+            return;
+        }
+
+        let html = '<table class="data-table"><thead><tr>';
+        html += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type</th>';
+        html += '<th>Transaction</th><th>Caisse</th><th>Montant</th><th>Description</th>';
+        html += '</tr></thead><tbody>';
+
+        operationsFiltrees.forEach(op => {
+            html += '<tr>';
+            html += '<td>' + this.formaterDate(op.date) + '</td>';
+            html += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
+            html += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
+            html += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
+            html += '<td class="type-' + op.typeTransaction + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
+            html += '<td>' + this.formaterCaisse(op.caisse) + '</td>';
+            html += '<td class="' + (op.montant >= 0 ? 'type-revenu' : 'type-frais') + '">';
+            html += op.montant.toFixed(2) + ' DH</td>';
+            html += '<td>' + op.description + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        dataDisplay.innerHTML = html;
+    }
+
+    // Méthodes pour le mode édition (à implémenter)
+    toggleEditMode(activer = true) {
+        console.log('Mode édition:', activer ? 'activé' : 'désactivé');
+        // Implémentation à venir
+    }
+
+    supprimerOperationsSelectionnees() {
+        console.log('Suppression multiple');
+        // Implémentation à venir
+    }
+
+    fermerModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    modifierOperation(e) {
+        e.preventDefault();
+        console.log('Modification opération');
+        // Implémentation à venir
+    }
+
+    // Méthodes de formatage
+    formaterDate(dateStr) {
+        return new Date(dateStr).toLocaleDateString('fr-FR');
+    }
+
+    formaterOperateur(operateur) {
+        const operateurs = {
+            'abdel': '👨‍💼 Abdel',
+            'omar': '👨‍💻 Omar', 
+            'hicham': '👨‍🔧 Hicham',
+            'system': '🤖 Système'
+        };
+        return operateurs[operateur] || operateur;
+    }
+
+    formaterGroupe(groupe) {
+        const groupes = {
+            'zaitoun': '🫒 Zaitoun',
+            '3commain': '🔧 3 Commain',
+            'transfert': '🔄 Transfert'
+        };
+        return groupes[groupe] || groupe;
+    }
+
+    formaterTypeOperation(type) {
+        const types = {
+            'travailleur_global': '🌍 Travailleur global',
+            'zaitoun': '🫒 Zaitoun',
+            '3commain': '🔧 3 Commain',
+            'autre': '📝 Autre',
+            'transfert': '🔄 Transfert'
+        };
+        return types[type] || type;
+    }
+
+    formaterTypeTransaction(type) {
+        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
+    }
+
+    formaterCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': '👨‍💼 Caisse Abdel',
+            'omar_caisse': '👨‍💻 Caisse Omar',
+            'hicham_caisse': '👨‍🔧 Caisse Hicham',
+            'zaitoun_caisse': '🫒 Caisse Zaitoun', 
+            '3commain_caisse': '🔧 Caisse 3 Commain'
+        };
+        return caisses[caisse] || caisse;
     }
 }
 
-// Initialisation
+// Initialisation avec protection contre la redéclaration
 let app;
-document.addEventListener('DOMContentLoaded', () => {
-    app = new GestionFerme();
-    console.log('🚀 Application Gestion Ferme initialisée !');
-});
+if (!window.appInitialized) {
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!app) {
+            app = new GestionFerme();
+            window.appInitialized = true;
+            console.log('🚀 Application Gestion Ferme démarrée !');
+        }
+    });
+}
