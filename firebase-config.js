@@ -4,19 +4,23 @@ import { initializeApp } from "firebase/app";
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-  authDomain: "gestion-fermebenamara.firebaseapp.com",
-  projectId: "gestion-fermebenamara",
-  storageBucket: "gestion-fermebenamara.firebasestorage.app",
-  messagingSenderId: "668129137491",
-  appId: "1:668129137491:web:b56522302ea789044507a6"
-};
+if (typeof firebase !== 'undefined') {
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+    authDomain: "gestion-fermebenamara.firebaseapp.com",
+    projectId: "gestion-fermebenamara",
+    storageBucket: "gestion-fermebenamara.firebasestorage.app",
+    messagingSenderId: "668129137491",
+    appId: "1:668129137491:web:b56522302ea789044507a6"
+  };
 
 // Initialize Firebase
-if (typeof firebase !== 'undefined') {
-    firebase.initializeApp(firebaseConfig);
-    console.log('✅ Firebase configuré');
+ if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        console.log('✅ Firebase initialisé avec succès');
+    } else {
+        console.log('✅ Firebase déjà initialisé');
+    }
 } else {
-    console.error('❌ Firebase non chargé');
+    console.warn('❌ Firebase non disponible');
 }
