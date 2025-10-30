@@ -1,4 +1,4 @@
-// app.js - VERSION FINALE COMPLÈTEMENT DÉBOGUÉE
+// app.js - VERSION COMPLÈTE AVEC SYNCHRONISATION
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -86,6 +86,17 @@ class GestionFerme {
         if (typeOperationSelect && montantInput) {
             typeOperationSelect.addEventListener('change', () => this.calculerRepartition());
             montantInput.addEventListener('input', () => this.calculerRepartition());
+        }
+
+        // Boutons export/import
+        const btnExport = document.getElementById('btnExport');
+        if (btnExport) {
+            btnExport.addEventListener('click', () => this.exporterDonnees());
+        }
+
+        const inputImport = document.getElementById('inputImport');
+        if (inputImport) {
+            inputImport.addEventListener('change', (e) => this.importerDonnees(e));
         }
 
         console.log('✅ Tous les événements configurés');
@@ -325,15 +336,69 @@ class GestionFerme {
         }, 4000);
     }
 
+    // MÉTHODES D'EXPORT/IMPORT
+    exporterDonnees() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString(),
+            totalOperations: this.operations.length,
+            totalMontant: this.operations.reduce((sum, op) => sum + op.montant, 0),
+            exportDate: new Date().toLocaleString('fr-FR')
+        };
+        
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = `gestion_ferme_${new Date().toISOString().split('T')[0]}.json`;
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+        
+        this.afficherMessageSucces(`Données exportées (${this.operations.length} opérations) !`);
+    }
+
+    importerDonnees(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.operations && Array.isArray(data.operations)) {
+                    // Demander confirmation avant remplacement
+                    if (confirm(`Voulez-vous importer ${data.operations.length} opérations ? Cela remplacera les données actuelles.`)) {
+                        this.operations = data.operations;
+                        this.sauvegarderLocal();
+                        this.updateStats();
+                        this.afficherHistorique('global');
+                        this.afficherMessageSucces(`${data.operations.length} opérations importées avec succès !`);
+                    }
+                } else {
+                    this.afficherMessageErreur('Fichier de données invalide');
+                }
+            } catch (error) {
+                console.error('Erreur import:', error);
+                this.afficherMessageErreur('Erreur lors de l\'import du fichier');
+            }
+        };
+        reader.readAsText(file);
+        
+        // Réinitialiser l'input file
+        event.target.value = '';
+    }
+
     loadFromLocalStorage() {
         try {
             const saved = localStorage.getItem('gestion_ferme_data');
             if (saved) {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log('📁 ' + this.operations.length + ' opérations chargées');
+                console.log('📁 ' + this.operations.length + ' opérations chargées du localStorage');
             } else {
-                console.log('📁 Aucune donnée sauvegardée trouvée');
+                console.log('📁 Aucune donnée sauvegardée trouvée dans le localStorage');
             }
         } catch (error) {
             console.error('Erreur chargement localStorage:', error);
@@ -345,14 +410,24 @@ class GestionFerme {
         try {
             const data = {
                 operations: this.operations,
-                lastUpdate: new Date().toISOString()
+                lastUpdate: new Date().toISOString(),
+                device: this.getDeviceInfo()
             };
             localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-            console.log('💾 Données sauvegardées (' + this.operations.length + ' opérations)');
+            console.log('💾 Données sauvegardées dans le localStorage (' + this.operations.length + ' opérations)');
         } catch (error) {
             console.error('Erreur sauvegarde localStorage:', error);
             this.afficherMessageErreur('Erreur de sauvegarde des données');
         }
+    }
+
+    getDeviceInfo() {
+        return {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            timestamp: new Date().toISOString()
+        };
     }
 
     updateStats() {
@@ -800,30 +875,10 @@ if (!window.appInitialized) {
                 window.appInitialized = true;
                 window.gestionFermeApp = app; // Rendre l'app accessible globalement
                 window.app = app; // Double accès pour compatibilité
-                console.log('🚀 Application Gestion Ferme démarrée avec succès !');
-                console.log('🔧 App accessible via: window.gestionFermeApp');
+                console.log('🚀 Application Gestion Ferme avec synchronisation démarrée !');
             } catch (error) {
                 console.error('❌ Erreur critique lors du démarrage:', error);
             }
         }
     });
-}
-
-// Fonctions globales pour les onclick (sécurité)
-if (typeof window !== 'undefined') {
-    window.supprimerOperationGlobale = function(id) {
-        if (window.gestionFermeApp) {
-            window.gestionFermeApp.supprimerOperation(id);
-        } else if (window.app) {
-            window.app.supprimerOperation(id);
-        }
-    };
-    
-    window.editerOperationGlobale = function(id) {
-        if (window.gestionFermeApp) {
-            window.gestionFermeApp.editerOperation(id);
-        } else if (window.app) {
-            window.app.editerOperation(id);
-        }
-    };
 }
