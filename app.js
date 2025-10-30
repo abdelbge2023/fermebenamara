@@ -1,993 +1,318 @@
-// app.js - VERSION CORRIGÉE
+// app.js - Version corrigée avec gestion d'erreurs
 class GestionFerme {
     constructor() {
         this.operations = [];
-        this.modeEdition = false;
-        this.operationsSelectionnees = new Set();
-        this.db = null;
-        this.isOnline = false;
-        this.syncStatus = null;
-        
+        this.caisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        this.editMode = false;
+        this.selectedOperations = new Set();
+        this.currentView = 'global';
+        this.firebaseDisponible = false;
+
         this.init();
     }
 
     async init() {
-        console.log('🚀 Initialisation de l\'application...');
         this.setupEventListeners();
-        await this.initFirebase();
-        await this.loadData();
+        await this.chargerDonnees();
         this.updateStats();
         this.afficherHistorique('global');
-        console.log('✅ Application initialisée avec succès !');
+        console.log('✅ Application Gestion Ferme initialisée avec succès');
     }
 
-    async initFirebase() {
+    async chargerDonnees() {
+        // Essayer Firebase d'abord
         try {
-            // Vérifier si Firebase est disponible
-            if (typeof firebase === 'undefined') {
-                console.warn('Firebase non chargé');
-                this.isOnline = false;
-                this.updateSyncStatus('🔴 Mode hors ligne', 'warning');
-                return;
-            }
-
-            if (!firebase.apps.length) {
-                // La configuration est dans firebase-config.js
-                console.log('✅ Firebase déjà initialisé');
-            }
-            
-            this.db = firebase.firestore();
-            
-            // Tester la connexion
-            await this.db.collection('test').doc('test').get();
-            this.isOnline = true;
-            this.updateSyncStatus('✅ Connecté au cloud', 'success');
-            
-            // Démarrer l'écoute en temps réel
-            this.setupRealtimeListener();
-            
+            await this.chargerDepuisFirebase();
+            this.firebaseDisponible = true;
+            console.log('✅ Données chargées depuis Firebase');
         } catch (error) {
-            console.warn('❌ Firebase non disponible, mode hors ligne activé');
-            this.isOnline = false;
-            this.updateSyncStatus('🔴 Mode hors ligne', 'warning');
+            console.log('❌ Firebase non disponible, utilisation du localStorage');
+            this.chargerDepuisLocalStorage();
+            this.firebaseDisponible = false;
         }
     }
 
-    updateSyncStatus(message, type = 'info') {
-        const statusElement = document.getElementById('syncStatus');
-        if (statusElement) {
-            statusElement.textContent = message;
-            statusElement.style.background = 
-                type === 'success' ? '#d4edda' : 
-                type === 'error' ? '#f8d7da' : 
-                type === 'warning' ? '#fff3cd' : '#d1ecf1';
-            statusElement.style.color = 
-                type === 'success' ? '#155724' : 
-                type === 'error' ? '#721c24' : 
-                type === 'warning' ? '#856404' : '#0c5460';
-        }
-    }
-
-    setupEventListeners() {
-        console.log('🔧 Configuration des événements...');
-
-        // Formulaire principal
-        const saisieForm = document.getElementById('saisieForm');
-        if (saisieForm) {
-            saisieForm.addEventListener('submit', (e) => this.ajouterOperation(e));
-            console.log('✅ Formulaire principal configuré');
-        }
-
-        // Formulaire transfert
-        const transfertForm = document.getElementById('transfertForm');
-        if (transfertForm) {
-            transfertForm.addEventListener('submit', (e) => this.effectuerTransfert(e));
-            console.log('✅ Formulaire transfert configuré');
-        }
-
-        // Bouton reset
-        const btnReset = document.getElementById('btnReset');
-        if (btnReset) {
-            btnReset.addEventListener('click', () => this.resetForm());
-        }
-
-        // Bouton synchronisation
-        const btnSync = document.getElementById('btnSync');
-        if (btnSync) {
-            btnSync.addEventListener('click', () => this.synchroniserManuellement());
-        }
-
-        // Onglets
-        const tabBtns = document.querySelectorAll('.tab-btn');
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const vue = e.target.getAttribute('data-sheet');
-                this.afficherHistorique(vue);
-                tabBtns.forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-            });
-        });
-
-        // Mode édition
-        const btnEditMode = document.getElementById('btnEditMode');
-        if (btnEditMode) {
-            btnEditMode.addEventListener('click', () => this.toggleEditMode());
-        }
-        
-        // Suppression multiple
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        if (btnDeleteSelected) {
-            btnDeleteSelected.addEventListener('click', () => this.supprimerOperationsSelectionnees());
-        }
-        
-        // Annuler édition
-        const btnCancelEdit = document.getElementById('btnCancelEdit');
-        if (btnCancelEdit) {
-            btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
-        }
-
-        // Modal
-        const closeModalBtns = document.querySelectorAll('.close-modal');
-        closeModalBtns.forEach(btn => {
-            btn.addEventListener('click', () => this.fermerModal());
-        });
-
-        // Formulaire édition
-        const editForm = document.getElementById('editForm');
-        if (editForm) {
-            editForm.addEventListener('submit', (e) => this.modifierOperation(e));
-        }
-
-        // Écouteurs pour la répartition automatique
-        const typeOperationSelect = document.getElementById('typeOperation');
-        const montantInput = document.getElementById('montant');
-        if (typeOperationSelect && montantInput) {
-            typeOperationSelect.addEventListener('change', () => this.calculerRepartition());
-            montantInput.addEventListener('input', () => this.calculerRepartition());
-        }
-
-        // BOUTONS EXPORT/IMPORT - VERSION SIMPLIFIÉE
-        const btnExport = document.getElementById('btnExport');
-        if (btnExport) {
-            btnExport.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.exporterDonnees();
-            });
-            console.log('✅ Bouton export configuré');
-        }
-
-        const inputImport = document.getElementById('inputImport');
-        if (inputImport) {
-            inputImport.addEventListener('change', (e) => this.importerDonnees(e));
-            console.log('✅ Input import configuré');
-        }
-
-        console.log('✅ Tous les événements configurés');
-    }
-
-    // MÉTHODE UNIFIÉE POUR CHARGER LES DONNÉES
-    async loadData() {
+    async chargerDepuisFirebase() {
         try {
-            if (this.isOnline) {
-                await this.loadFromFirebase();
-            } else {
-                this.loadFromLocalStorage();
-            }
-        } catch (error) {
-            console.error('Erreur chargement:', error);
-            this.loadFromLocalStorage();
-        }
-    }
-
-    // MÉTHODE UNIFIÉE POUR SAUVEGARDER
-    async sauvegarder() {
-        try {
-            // Sauvegarder localement d'abord
-            this.sauvegarderLocal();
+            const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
             
-            // Puis synchroniser avec Firebase si en ligne
-            if (this.isOnline) {
-                await this.sauvegarderFirebase();
+            if (!db) {
+                throw new Error('Firebase non configuré');
             }
-        } catch (error) {
-            console.error('Erreur sauvegarde:', error);
-        }
-    }
 
-    // CHARGEMENT DEPUIS FIREBASE
-    async loadFromFirebase() {
-        try {
-            this.updateSyncStatus('🔄 Chargement depuis le cloud...', 'info');
-            const doc = await this.db.collection('fermeData').doc('operations').get();
+            const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
             
-            if (doc.exists) {
+            this.operations = [];
+            querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                this.operations = data.operations || [];
-                console.log('☁️ ' + this.operations.length + ' opérations chargées depuis Firebase');
-                
-                // Synchroniser le localStorage
-                this.sauvegarderLocal();
-                this.updateSyncStatus('✅ Données synchronisées', 'success');
-            } else {
-                // Si pas de données sur Firebase, charger du localStorage
-                this.loadFromLocalStorage();
-                // Et sauvegarder sur Firebase
-                await this.sauvegarderFirebase();
-            }
-        } catch (error) {
-            console.error('Erreur Firebase load:', error);
-            this.updateSyncStatus('❌ Erreur synchronisation', 'error');
-            throw error;
-        }
-    }
-
-    // SAUVEGARDE SUR FIREBASE
-    async sauvegarderFirebase() {
-        try {
-            const data = {
-                operations: this.operations,
-                lastUpdate: new Date().toISOString(),
-                totalOperations: this.operations.length,
-                device: navigator.userAgent
-            };
-            
-            await this.db.collection('fermeData').doc('operations').set(data);
-            console.log('💾 Données sauvegardées sur Firebase');
-            this.updateSyncStatus('✅ Données sauvegardées', 'success');
-        } catch (error) {
-            console.error('Erreur Firebase save:', error);
-            this.updateSyncStatus('❌ Erreur sauvegarde cloud', 'error');
-            throw error;
-        }
-    }
-
-    // ÉCOUTE DES CHANGEMENTS EN TEMPS RÉEL
-    setupRealtimeListener() {
-        if (!this.isOnline) return;
-        
-        this.db.collection('fermeData').doc('operations')
-            .onSnapshot((doc) => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    const remoteUpdate = new Date(data.lastUpdate).getTime();
-                    const localData = JSON.parse(localStorage.getItem('gestion_ferme_data') || '{}');
-                    const localUpdate = new Date(localData.lastUpdate || 0).getTime();
-                    
-                    // Si les données distantes sont plus récentes
-                    if (remoteUpdate > localUpdate) {
-                        console.log('🔄 Synchronisation depuis Firebase...');
-                        this.operations = data.operations || [];
-                        this.sauvegarderLocal();
-                        this.updateStats();
-                        this.afficherHistorique('global');
-                        this.afficherMessageSucces('Données synchronisées !');
-                    }
-                }
-            }, (error) => {
-                console.error('Erreur écoute temps réel:', error);
+                this.operations.push({
+                    firebaseId: doc.id,
+                    ...data
+                });
             });
-    }
-
-    // SYNCHRONISATION MANUELLE
-    async synchroniserManuellement() {
-        try {
-            this.updateSyncStatus('🔄 Synchronisation en cours...', 'info');
-            await this.loadFromFirebase();
-            this.updateStats();
-            this.afficherHistorique('global');
-            this.afficherMessageSucces('Synchronisation réussie !');
-        } catch (error) {
-            this.afficherMessageErreur('Erreur de synchronisation');
-        }
-    }
-
-    // MÉTHODES EXISTANTES (conservées)
-    async ajouterOperation(e) {
-        e.preventDefault();
-        console.log('✅ Formulaire soumis');
-
-        const operateur = document.getElementById('operateur').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantInput = document.getElementById('montant').value;
-        const description = document.getElementById('description').value;
-
-        // Validation
-        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse) {
-            this.afficherMessageErreur('Veuillez remplir tous les champs obligatoires');
-            return;
-        }
-
-        const montant = parseFloat(montantInput);
-        if (montant <= 0 || isNaN(montant)) {
-            this.afficherMessageErreur('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!description.trim()) {
-            this.afficherMessageErreur('Veuillez saisir une description');
-            return;
-        }
-
-        // Créer l'opération
-        const nouvelleOperation = {
-            id: Date.now(),
-            date: new Date().toISOString().split('T')[0],
-            operateur: operateur,
-            groupe: groupe,
-            typeOperation: typeOperation,
-            typeTransaction: typeTransaction,
-            caisse: caisse,
-            description: description.trim(),
-            montant: typeTransaction === 'frais' ? -montant : montant,
-            timestamp: new Date().toISOString()
-        };
-
-        // Ajouter aux opérations
-        this.operations.unshift(nouvelleOperation);
-
-        // Sauvegarder (local + cloud)
-        await this.sauvegarder();
-
-        // Mettre à jour l'interface
-        this.afficherMessageSucces('Opération enregistrée avec succès !');
-        this.resetForm();
-        this.updateStats();
-        this.afficherHistorique('global');
-    }
-
-    async effectuerTransfert(e) {
-        e.preventDefault();
-        console.log('✅ Transfert en cours');
-
-        const caisseSource = document.getElementById('caisseSource').value;
-        const caisseDestination = document.getElementById('caisseDestination').value;
-        const montantInput = document.getElementById('montantTransfert').value;
-        const description = document.getElementById('descriptionTransfert').value;
-
-        // Validation
-        if (!caisseSource || !caisseDestination) {
-            this.afficherMessageErreur('Veuillez sélectionner les caisses source et destination');
-            return;
-        }
-
-        if (caisseSource === caisseDestination) {
-            this.afficherMessageErreur('Les caisses source et destination doivent être différentes');
-            return;
-        }
-
-        const montant = parseFloat(montantInput);
-        if (montant <= 0 || isNaN(montant)) {
-            this.afficherMessageErreur('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!description.trim()) {
-            this.afficherMessageErreur('Veuillez saisir une description pour le transfert');
-            return;
-        }
-
-        // Vérifier que la caisse source a suffisamment de fonds
-        const soldeSource = this.calculerSoldeCaisse(caisseSource);
-        if (soldeSource < montant) {
-            this.afficherMessageErreur(`Solde insuffisant dans ${this.formaterCaisse(caisseSource)} (${soldeSource.toFixed(2)} DH)`);
-            return;
-        }
-
-        // Créer les opérations de transfert
-        const timestamp = Date.now();
-        const transfertSource = {
-            id: timestamp + 1,
-            date: new Date().toISOString().split('T')[0],
-            operateur: 'system',
-            groupe: 'transfert',
-            typeOperation: 'transfert',
-            typeTransaction: 'frais',
-            caisse: caisseSource,
-            description: `Transfert vers ${this.formaterCaisse(caisseDestination)} - ${description}`,
-            montant: -montant,
-            timestamp: new Date().toISOString(),
-            isTransfert: true
-        };
-
-        const transfertDestination = {
-            id: timestamp + 2,
-            date: new Date().toISOString().split('T')[0],
-            operateur: 'system',
-            groupe: 'transfert',
-            typeOperation: 'transfert',
-            typeTransaction: 'revenu',
-            caisse: caisseDestination,
-            description: `Transfert depuis ${this.formaterCaisse(caisseSource)} - ${description}`,
-            montant: montant,
-            timestamp: new Date().toISOString(),
-            isTransfert: true
-        };
-
-        // Ajouter les opérations
-        this.operations.unshift(transfertDestination);
-        this.operations.unshift(transfertSource);
-
-        // Sauvegarder (local + cloud)
-        await this.sauvegarder();
-
-        // Mettre à jour l'interface
-        this.afficherMessageSucces('Transfert effectué avec succès !');
-        document.getElementById('transfertForm').reset();
-        this.updateStats();
-        this.afficherHistorique('global');
-    }
-
-    // MÉTHODE EXPORT SIMPLIFIÉE
-    exporterDonnees() {
-        console.log('📤 Début de l\'export des données...');
-        
-        if (this.operations.length === 0) {
-            this.afficherMessageErreur('Aucune donnée à exporter');
-            return;
-        }
-
-        try {
-            const data = {
-                operations: this.operations,
-                lastUpdate: new Date().toISOString(),
-                totalOperations: this.operations.length,
-                exportDate: new Date().toLocaleString('fr-FR')
-            };
             
-            const dataStr = JSON.stringify(data, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `gestion_ferme_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            
-            this.afficherMessageSucces(`✅ Données exportées (${this.operations.length} opérations) !`);
+            console.log(`📡 ${this.operations.length} opérations chargées depuis Firebase`);
             
         } catch (error) {
-            console.error('❌ Erreur export:', error);
-            this.afficherMessageErreur('Erreur lors de l\'export');
+            console.error('Erreur chargement Firebase:', error);
+            throw error; // Propager l'erreur
         }
     }
 
-    // MÉTHODE IMPORT
-    importerDonnees(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
+    chargerDepuisLocalStorage() {
+        const saved = localStorage.getItem('gestion_ferme_data');
+        if (saved) {
             try {
-                const data = JSON.parse(e.target.result);
-                if (data.operations && Array.isArray(data.operations)) {
-                    const nbOperations = data.operations.length;
-                    
-                    if (confirm(`Voulez-vous importer ${nbOperations} opérations ?`)) {
-                        this.operations = data.operations;
-                        await this.sauvegarder();
-                        this.updateStats();
-                        this.afficherHistorique('global');
-                        this.afficherMessageSucces(`${nbOperations} opérations importées avec succès !`);
-                    }
-                } else {
-                    this.afficherMessageErreur('Format de fichier invalide');
-                }
-            } catch (error) {
-                console.error('Erreur import:', error);
-                this.afficherMessageErreur('Fichier JSON invalide');
-            }
-        };
-        reader.readAsText(file);
-        event.target.value = '';
-    }
-
-    // MÉTHODES EXISTANTES (inchangées)
-    calculerSoldeCaisse(caisse) {
-        return this.operations
-            .filter(op => op.caisse === caisse)
-            .reduce((total, op) => total + op.montant, 0);
-    }
-
-    calculerRepartition() {
-        try {
-            const typeOperation = document.getElementById('typeOperation').value;
-            const montantInput = document.getElementById('montant').value;
-            const repartitionInfo = document.getElementById('repartitionInfo');
-            const repartitionDetails = document.getElementById('repartitionDetails');
-
-            if (!repartitionInfo || !repartitionDetails) return;
-
-            const montant = parseFloat(montantInput);
-            
-            if (typeOperation === 'travailleur_global' && montant > 0) {
-                const unTiers = (montant / 3).toFixed(2);
-                const deuxTiers = ((montant * 2) / 3).toFixed(2);
-
-                repartitionDetails.innerHTML = `
-                    <div class="repartition-details">
-                        <div class="repartition-item zaitoun">
-                            <strong>🫒 Zaitoun</strong><br>
-                            ${deuxTiers} DH (2/3)
-                        </div>
-                        <div class="repartition-item commain">
-                            <strong>🔧 3 Commain</strong><br>
-                            ${unTiers} DH (1/3)
-                        </div>
-                    </div>
-                `;
-                repartitionInfo.style.display = 'block';
-            } else {
-                repartitionInfo.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Erreur dans calculerRepartition:', error);
-        }
-    }
-
-    resetForm() {
-        const saisieForm = document.getElementById('saisieForm');
-        if (saisieForm) {
-            saisieForm.reset();
-        }
-        const repartitionInfo = document.getElementById('repartitionInfo');
-        if (repartitionInfo) {
-            repartitionInfo.style.display = 'none';
-        }
-    }
-
-    afficherMessageSucces(message) {
-        this.afficherNotification(message, 'success');
-    }
-
-    afficherMessageErreur(message) {
-        this.afficherNotification(message, 'error');
-    }
-
-    afficherNotification(message, type = 'success') {
-        const notification = document.createElement('div');
-        const isSuccess = type === 'success';
-        
-        notification.className = 'fade-in';
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            padding: 15px 20px;
-            border-radius: 8px;
-            background: ${isSuccess ? '#d4edda' : '#f8d7da'};
-            color: ${isSuccess ? '#155724' : '#721c24'};
-            border: 1px solid ${isSuccess ? '#c3e6cb' : '#f5c6cb'};
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            font-weight: 500;
-            max-width: 400px;
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 4000);
-    }
-
-    loadFromLocalStorage() {
-        try {
-            const saved = localStorage.getItem('gestion_ferme_data');
-            if (saved) {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log('📁 ' + this.operations.length + ' opérations chargées du localStorage');
+                console.log(`📁 ${this.operations.length} opérations chargées du localStorage`);
+            } catch (error) {
+                console.error('Erreur chargement localStorage:', error);
+                this.operations = [];
+            }
+        }
+    }
+
+    async sauvegarderDonnees() {
+        // Sauvegarder dans localStorage en premier
+        this.sauvegarderLocal();
+        
+        // Sauvegarder dans Firebase si disponible
+        if (this.firebaseDisponible) {
+            await this.sauvegarderFirebase();
+        }
+    }
+
+    async sauvegarderFirebase() {
+        if (!this.firebaseDisponible) return;
+        
+        try {
+            const { db, collection, addDoc, updateDoc, doc } = await import('./firebase.js');
+            
+            for (const operation of this.operations) {
+                if (!operation.firebaseId) {
+                    // Nouvelle opération
+                    const docRef = await addDoc(collection(db, 'operations'), operation);
+                    operation.firebaseId = docRef.id;
+                    console.log('➕ Opération ajoutée à Firebase:', docRef.id);
+                } else {
+                    // Mettre à jour l'opération existante
+                    await updateDoc(doc(db, 'operations', operation.firebaseId), operation);
+                }
             }
         } catch (error) {
-            console.error('Erreur chargement localStorage:', error);
-            this.operations = [];
+            console.error('❌ Erreur sauvegarde Firebase:', error);
+            this.firebaseDisponible = false;
         }
     }
 
     sauvegarderLocal() {
-        try {
-            const data = {
-                operations: this.operations,
-                lastUpdate: new Date().toISOString()
-            };
-            localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-        } catch (error) {
-            console.error('Erreur sauvegarde localStorage:', error);
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+    }
+
+    // MÉTHODES PRINCIPALES (garder votre code existant)
+    async ajouterOperation(e) {
+        e.preventDefault();
+
+        // VOTRE CODE EXISTANT POUR RÉCUPÉRER LES DONNÉES DU FORMULAIRE
+        const operateur = document.getElementById('operateur');
+        const groupe = document.getElementById('groupe');
+        const typeOperation = document.getElementById('typeOperation');
+        const typeTransaction = document.getElementById('typeTransaction');
+        const caisse = document.getElementById('caisse');
+        const montant = document.getElementById('montant');
+        const description = document.getElementById('description');
+
+        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
+            alert('Erreur: Formulaire non trouvé');
+            return;
         }
+
+        const operateurValue = operateur.value;
+        const groupeValue = groupe.value;
+        const typeOperationValue = typeOperation.value;
+        const typeTransactionValue = typeTransaction.value;
+        const caisseValue = caisse.value;
+        const montantSaisi = parseFloat(montant.value);
+        const descriptionValue = description.value.trim();
+
+        // Validation
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        let operationsACreer = [];
+
+        if (typeOperationValue === 'travailleur_global') {
+            // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
+            const montantZaitoun = montantSaisi / 3;
+            const montant3Commain = (montantSaisi * 2) / 3;
+
+            operationsACreer = [
+                {
+                    id: Date.now(),
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateurValue,
+                    groupe: 'zaitoun',
+                    typeOperation: 'zaitoun',
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
+                    montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
+                    repartition: true,
+                    timestamp: new Date().toISOString()
+                },
+                {
+                    id: Date.now() + 1,
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateurValue,
+                    groupe: '3commain',
+                    typeOperation: '3commain',
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
+                    montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
+                    repartition: true,
+                    timestamp: new Date().toISOString()
+                }
+            ];
+        } else {
+            // Opération normale sans répartition
+            operationsACreer = [{
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                operateur: operateurValue,
+                groupe: groupeValue,
+                typeOperation: typeOperationValue,
+                typeTransaction: typeTransactionValue,
+                caisse: caisseValue,
+                description: descriptionValue,
+                montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
+                repartition: false,
+                timestamp: new Date().toISOString()
+            }];
+        }
+
+        // Ajouter aux opérations
+        for (const op of operationsACreer) {
+            this.operations.unshift(op);
+        }
+
+        // Sauvegarder
+        await this.sauvegarderDonnees();
+
+        this.afficherMessageSucces(
+            typeOperationValue === 'travailleur_global' 
+                ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
+                : 'Opération enregistrée avec succès !'
+        );
+        this.resetForm();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+    }
+
+    async supprimerOperation(operationId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            const operation = this.operations.find(op => op.id === operationId);
+            
+            // Supprimer de Firebase si disponible
+            if (operation && operation.firebaseId && this.firebaseDisponible) {
+                try {
+                    const { db, doc, deleteDoc } = await import('./firebase.js');
+                    await deleteDoc(doc(db, 'operations', operation.firebaseId));
+                } catch (error) {
+                    console.error('Erreur suppression Firebase:', error);
+                }
+            }
+            
+            // Supprimer localement
+            this.operations = this.operations.filter(op => op.id !== operationId);
+            await this.sauvegarderDonnees();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            this.afficherMessageSucces('Opération supprimée avec succès');
+        }
+    }
+
+    // AJOUTER L'AFFICHAGE DU STATUT FIREBASE
+    setupEventListeners() {
+        // VOTRE CODE EXISTANT...
+        
+        // Ajouter l'affichage du statut
+        this.afficherStatutFirebase();
+    }
+
+    afficherStatutFirebase() {
+        const header = document.querySelector('header');
+        const statutDiv = document.createElement('div');
+        statutDiv.id = 'statutFirebase';
+        statutDiv.style.marginTop = '10px';
+        statutDiv.style.padding = '8px 16px';
+        statutDiv.style.borderRadius = '20px';
+        statutDiv.style.fontSize = '14px';
+        statutDiv.style.fontWeight = 'bold';
+        
+        if (this.firebaseDisponible) {
+            statutDiv.textContent = '✅ Synchronisé avec le cloud';
+            statutDiv.style.background = '#d4edda';
+            statutDiv.style.color = '#155724';
+            statutDiv.style.border = '2px solid #c3e6cb';
+        } else {
+            statutDiv.textContent = '⚠️ Mode hors ligne (local)';
+            statutDiv.style.background = '#fff3cd';
+            statutDiv.style.color = '#856404';
+            statutDiv.style.border = '2px solid #ffeaa7';
+        }
+        
+        header.appendChild(statutDiv);
+    }
+
+    // GARDER TOUTES VOS AUTRES MÉTHODES EXISTANTES
+    calculerRepartition() {
+        // Votre code existant
+    }
+
+    toggleEditMode(enable = null) {
+        // Votre code existant
+    }
+
+    selectionnerOperation(operationId, checked) {
+        // Votre code existant
+    }
+
+    calculerSoldes() {
+        // Votre code existant
     }
 
     updateStats() {
-        console.log('📊 Mise à jour des statistiques');
-        
-        const statsContainer = document.getElementById('statsContainer');
-        if (!statsContainer) return;
-
-        try {
-            const soldes = {};
-            this.operations.forEach(op => {
-                if (!soldes[op.caisse]) {
-                    soldes[op.caisse] = 0;
-                }
-                soldes[op.caisse] += op.montant;
-            });
-
-            let html = '';
-            
-            const caisses = ['abdel_caisse', 'omar_caisse', 'hicham_caisse', 'zaitoun_caisse', '3commain_caisse'];
-            caisses.forEach(caisse => {
-                const solde = soldes[caisse] || 0;
-                const soldeFormate = solde.toFixed(2);
-                const isPositif = solde >= 0;
-                
-                html += `
-                    <div class="stat-card ${isPositif ? 'solde-positif' : 'solde-negatif'}">
-                        <div class="stat-label">${this.formaterCaisse(caisse)}</div>
-                        <div class="stat-value">${soldeFormate} DH</div>
-                        <div class="stat-trend">${isPositif ? '📈' : '📉'}</div>
-                    </div>
-                `;
-            });
-
-            const soldeTotal = Object.values(soldes).reduce((total, solde) => total + solde, 0);
-            const totalFormate = soldeTotal.toFixed(2);
-            const totalPositif = soldeTotal >= 0;
-            
-            html += `
-                <div class="stat-card ${totalPositif ? 'solde-positif' : 'solde-negatif'}" style="grid-column: 1 / -1;">
-                    <div class="stat-label">💰 SOLDE TOTAL</div>
-                    <div class="stat-value">${totalFormate} DH</div>
-                    <div class="stat-trend">${totalPositif ? '🎉' : '⚠️'}</div>
-                </div>
-            `;
-
-            statsContainer.innerHTML = html;
-        } catch (error) {
-            console.error('Erreur updateStats:', error);
-        }
+        // Votre code existant
     }
 
-    afficherHistorique(vue) {
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay) return;
-
-        try {
-            let operationsFiltrees = this.operations;
-
-            if (vue === 'transferts') {
-                operationsFiltrees = this.operations.filter(op => op.isTransfert);
-            } else if (vue !== 'global') {
-                operationsFiltrees = this.operations.filter(op => 
-                    op.groupe === vue || op.operateur === vue
-                );
-            }
-
-            if (operationsFiltrees.length === 0) {
-                dataDisplay.innerHTML = '<div class="empty-message">Aucune opération trouvée</div>';
-                return;
-            }
-
-            let html = '<table class="data-table"><thead><tr>';
-            
-            if (this.modeEdition) {
-                html += '<th><input type="checkbox" id="selectAll"></th>';
-            }
-            
-            html += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type</th>';
-            html += '<th>Transaction</th><th>Caisse</th><th>Montant</th><th>Description</th>';
-            
-            if (this.modeEdition) {
-                html += '<th>Actions</th>';
-            }
-            
-            html += '</tr></thead><tbody>';
-
-            operationsFiltrees.forEach(op => {
-                html += '<tr>';
-                
-                if (this.modeEdition) {
-                    const isChecked = this.operationsSelectionnees.has(op.id) ? 'checked' : '';
-                    html += `<td><input type="checkbox" class="operation-checkbox" data-id="${op.id}" ${isChecked}></td>`;
-                }
-                
-                html += '<td>' + this.formaterDate(op.date) + '</td>';
-                html += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
-                html += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
-                html += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
-                html += '<td class="type-' + op.typeTransaction + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
-                html += '<td>' + this.formaterCaisse(op.caisse) + '</td>';
-                html += '<td class="' + (op.montant >= 0 ? 'type-revenu' : 'type-frais') + '">';
-                html += op.montant.toFixed(2) + ' DH</td>';
-                html += '<td>' + op.description + '</td>';
-                
-                if (this.modeEdition) {
-                    html += `<td class="operation-actions">
-                        <button class="btn-small btn-info" onclick="window.gestionFermeApp.editerOperation(${op.id})">✏️</button>
-                        <button class="btn-small btn-danger" onclick="window.gestionFermeApp.supprimerOperation(${op.id})">🗑️</button>
-                    </td>`;
-                }
-                
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            dataDisplay.innerHTML = html;
-
-            if (this.modeEdition) {
-                this.setupCheckboxListeners();
-            }
-        } catch (error) {
-            console.error('Erreur afficherHistorique:', error);
-        }
+    afficherHistorique(vue = 'global') {
+        // Votre code existant
     }
 
-    setupCheckboxListeners() {
-        try {
-            const selectAll = document.getElementById('selectAll');
-            if (selectAll) {
-                selectAll.addEventListener('change', (e) => {
-                    const checkboxes = document.querySelectorAll('.operation-checkbox');
-                    checkboxes.forEach(checkbox => {
-                        checkbox.checked = e.target.checked;
-                        const operationId = parseInt(checkbox.dataset.id);
-                        if (e.target.checked) {
-                            this.operationsSelectionnees.add(operationId);
-                        } else {
-                            this.operationsSelectionnees.delete(operationId);
-                        }
-                    });
-                    this.updateBoutonsSuppression();
-                });
-            }
-
-            const checkboxes = document.querySelectorAll('.operation-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const operationId = parseInt(e.target.dataset.id);
-                    if (e.target.checked) {
-                        this.operationsSelectionnees.add(operationId);
-                    } else {
-                        this.operationsSelectionnees.delete(operationId);
-                    }
-                    this.updateBoutonsSuppression();
-                });
-            });
-        } catch (error) {
-            console.error('Erreur setupCheckboxListeners:', error);
-        }
-    }
-
-    updateBoutonsSuppression() {
-        try {
-            const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-            if (btnDeleteSelected) {
-                if (this.operationsSelectionnees.size > 0) {
-                    btnDeleteSelected.textContent = `🗑️ Supprimer (${this.operationsSelectionnees.size})`;
-                    btnDeleteSelected.style.display = 'inline-block';
-                } else {
-                    btnDeleteSelected.style.display = 'none';
-                }
-            }
-        } catch (error) {
-            console.error('Erreur updateBoutonsSuppression:', error);
-        }
-    }
-
-    toggleEditMode(activer = null) {
-        try {
-            this.modeEdition = activer !== null ? activer : !this.modeEdition;
-            
-            const btnEditMode = document.getElementById('btnEditMode');
-            const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-            const btnCancelEdit = document.getElementById('btnCancelEdit');
-            
-            if (btnEditMode) {
-                if (this.modeEdition) {
-                    btnEditMode.textContent = '✅ Mode Normal';
-                    btnEditMode.classList.remove('btn-warning');
-                    btnEditMode.classList.add('btn-success');
-                } else {
-                    btnEditMode.textContent = '✏️ Mode Édition';
-                    btnEditMode.classList.remove('btn-success');
-                    btnEditMode.classList.add('btn-warning');
-                }
-            }
-            
-            if (btnCancelEdit) {
-                btnCancelEdit.style.display = this.modeEdition ? 'inline-block' : 'none';
-            }
-            
-            if (btnDeleteSelected && !this.modeEdition) {
-                btnDeleteSelected.style.display = 'none';
-            }
-            
-            if (this.modeEdition) {
-                document.body.classList.add('edit-mode');
-            } else {
-                document.body.classList.remove('edit-mode');
-                this.operationsSelectionnees.clear();
-            }
-            
-            const tabActif = document.querySelector('.tab-btn.active');
-            this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
-        } catch (error) {
-            console.error('Erreur toggleEditMode:', error);
-        }
-    }
-
-    async supprimerOperationsSelectionnees() {
-        try {
-            if (this.operationsSelectionnees.size === 0) {
-                this.afficherMessageErreur('Aucune opération sélectionnée');
-                return;
-            }
-
-            if (confirm(`Voulez-vous vraiment supprimer ${this.operationsSelectionnees.size} opération(s) ?`)) {
-                this.operations = this.operations.filter(op => !this.operationsSelectionnees.has(op.id));
-                await this.sauvegarder();
-                this.afficherMessageSucces(`${this.operationsSelectionnees.size} opération(s) supprimée(s) !`);
-                this.updateStats();
-                this.operationsSelectionnees.clear();
-                this.toggleEditMode(false);
-            }
-        } catch (error) {
-            console.error('Erreur supprimerOperationsSelectionnees:', error);
-        }
-    }
-
-    async supprimerOperation(id) {
-        try {
-            if (confirm('Voulez-vous vraiment supprimer cette opération ?')) {
-                this.operations = this.operations.filter(op => op.id !== id);
-                await this.sauvegarder();
-                this.afficherMessageSucces('Opération supprimée !');
-                this.updateStats();
-                this.afficherHistorique('global');
-            }
-        } catch (error) {
-            console.error('Erreur supprimerOperation:', error);
-        }
-    }
-
-    editerOperation(id) {
-        try {
-            const operation = this.operations.find(op => op.id === id);
-            if (!operation) return;
-
-            document.getElementById('editId').value = operation.id;
-            document.getElementById('editOperateur').value = operation.operateur;
-            document.getElementById('editGroupe').value = operation.groupe;
-            document.getElementById('editTypeOperation').value = operation.typeOperation;
-            document.getElementById('editTypeTransaction').value = operation.typeTransaction;
-            document.getElementById('editCaisse').value = operation.caisse;
-            document.getElementById('editMontant').value = Math.abs(operation.montant);
-            document.getElementById('editDescription').value = operation.description;
-
-            document.getElementById('editModal').style.display = 'flex';
-        } catch (error) {
-            console.error('Erreur editerOperation:', error);
-        }
-    }
-
-    async modifierOperation(e) {
-        e.preventDefault();
-        
-        try {
-            const id = parseInt(document.getElementById('editId').value);
-            const operateur = document.getElementById('editOperateur').value;
-            const groupe = document.getElementById('editGroupe').value;
-            const typeOperation = document.getElementById('editTypeOperation').value;
-            const typeTransaction = document.getElementById('editTypeTransaction').value;
-            const caisse = document.getElementById('editCaisse').value;
-            const montant = parseFloat(document.getElementById('editMontant').value);
-            const description = document.getElementById('editDescription').value;
-
-            const operationIndex = this.operations.findIndex(op => op.id === id);
-            if (operationIndex !== -1) {
-                this.operations[operationIndex] = {
-                    ...this.operations[operationIndex],
-                    operateur,
-                    groupe,
-                    typeOperation,
-                    typeTransaction,
-                    caisse,
-                    description,
-                    montant: typeTransaction === 'frais' ? -montant : montant
-                };
-
-                await this.sauvegarder();
-                this.afficherMessageSucces('Opération modifiée !');
-                this.fermerModal();
-                this.updateStats();
-                this.afficherHistorique('global');
-            }
-        } catch (error) {
-            console.error('Erreur modifierOperation:', error);
-        }
-    }
-
-    fermerModal() {
-        try {
-            document.getElementById('editModal').style.display = 'none';
-        } catch (error) {
-            console.error('Erreur fermerModal:', error);
-        }
-    }
-
-    formaterDate(dateStr) {
-        return new Date(dateStr).toLocaleDateString('fr-FR');
-    }
-
-    formaterOperateur(operateur) {
-        const operateurs = {
-            'abdel': '👨‍💼 Abdel',
-            'omar': '👨‍💻 Omar', 
-            'hicham': '👨‍🔧 Hicham',
-            'system': '🤖 Système'
-        };
-        return operateurs[operateur] || operateur;
-    }
-
-    formaterGroupe(groupe) {
-        const groupes = {
-            'zaitoun': '🫒 Zaitoun',
-            '3commain': '🔧 3 Commain',
-            'transfert': '🔄 Transfert'
-        };
-        return groupes[groupe] || groupe;
-    }
-
-    formaterTypeOperation(type) {
-        const types = {
-            'travailleur_global': '🌍 Travailleur global',
-            'zaitoun': '🫒 Zaitoun',
-            '3commain': '🔧 3 Commain',
-            'autre': '📝 Autre',
-            'transfert': '🔄 Transfert'
-        };
-        return types[type] || type;
-    }
-
-    formaterTypeTransaction(type) {
-        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
-    }
-
-    formaterCaisse(caisse) {
-        const caisses = {
-            'abdel_caisse': '👨‍💼 Caisse Abdel',
-            'omar_caisse': '👨‍💻 Caisse Omar',
-            'hicham_caisse': '👨‍🔧 Caisse Hicham',
-            'zaitoun_caisse': '🫒 Caisse Zaitoun', 
-            '3commain_caisse': '🔧 Caisse 3 Commain'
-        };
-        return caisses[caisse] || caisse;
-    }
+    // ... (toutes vos autres méthodes)
 }
 
 // Initialisation
 let app;
-if (!window.appInitialized) {
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!app) {
-            try {
-                app = new GestionFerme();
-                window.appInitialized = true;
-                window.gestionFermeApp = app;
-                window.app = app;
-                console.log('🚀 Application Gestion Ferme avec synchronisation démarrée !');
-            } catch (error) {
-                console.error('❌ Erreur démarrage:', error);
-            }
-        }
-    });
-}
+document.addEventListener('DOMContentLoaded', () => {
+    app = new GestionFerme();
+});
