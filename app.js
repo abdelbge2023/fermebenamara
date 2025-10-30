@@ -1,4 +1,4 @@
-// app.js - VERSION COMPLÈTE AVEC SYNCHRONISATION
+// app.js - VERSION AVEC BOUTON EXPORT FONCTIONNEL
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -88,20 +88,140 @@ class GestionFerme {
             montantInput.addEventListener('input', () => this.calculerRepartition());
         }
 
-        // Boutons export/import
+        // BOUTONS EXPORT/IMPORT - CORRIGÉ
         const btnExport = document.getElementById('btnExport');
         if (btnExport) {
             btnExport.addEventListener('click', () => this.exporterDonnees());
+            console.log('✅ Bouton export configuré');
+        } else {
+            console.log('❌ Bouton export non trouvé');
         }
 
         const inputImport = document.getElementById('inputImport');
         if (inputImport) {
             inputImport.addEventListener('change', (e) => this.importerDonnees(e));
+            console.log('✅ Input import configuré');
+        } else {
+            console.log('❌ Input import non trouvé');
         }
 
         console.log('✅ Tous les événements configurés');
     }
 
+    // MÉTHODE EXPORT CORRIGÉE
+    exporterDonnees() {
+        console.log('📤 Début de l\'export des données...');
+        
+        if (this.operations.length === 0) {
+            this.afficherMessageErreur('Aucune donnée à exporter');
+            return;
+        }
+
+        try {
+            const data = {
+                operations: this.operations,
+                lastUpdate: new Date().toISOString(),
+                totalOperations: this.operations.length,
+                totalMontant: this.operations.reduce((sum, op) => sum + op.montant, 0),
+                exportDate: new Date().toLocaleString('fr-FR'),
+                version: '1.0'
+            };
+            
+            console.log('📊 Données préparées:', data);
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            console.log('📝 JSON généré:', dataStr.length, 'caractères');
+            
+            // Créer un blob avec le type correct
+            const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            // Créer un lien de téléchargement
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Nom du fichier avec date
+            const date = new Date().toISOString().split('T')[0];
+            link.download = `gestion_ferme_${date}.json`;
+            
+            // Simuler le clic
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Libérer l'URL
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            
+            console.log('✅ Export réussi');
+            this.afficherMessageSucces(`Données exportées (${this.operations.length} opérations) !`);
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'export:', error);
+            this.afficherMessageErreur('Erreur lors de l\'export: ' + error.message);
+        }
+    }
+
+    // MÉTHODE IMPORT CORRIGÉE
+    importerDonnees(event) {
+        console.log('📥 Début de l\'import des données...');
+        
+        const file = event.target.files[0];
+        if (!file) {
+            console.log('❌ Aucun fichier sélectionné');
+            return;
+        }
+
+        console.log('📄 Fichier sélectionné:', file.name, file.size, 'bytes');
+
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                console.log('📖 Lecture du fichier terminée');
+                const data = JSON.parse(e.target.result);
+                console.log('✅ Fichier JSON parsé:', data);
+                
+                if (data.operations && Array.isArray(data.operations)) {
+                    const nbOperations = data.operations.length;
+                    console.log(`📊 ${nbOperations} opérations trouvées dans le fichier`);
+                    
+                    // Demander confirmation
+                    if (confirm(`Voulez-vous importer ${nbOperations} opérations ?\n\nCela remplacera les ${this.operations.length} opérations actuelles.`)) {
+                        this.operations = data.operations;
+                        this.sauvegarderLocal();
+                        this.updateStats();
+                        this.afficherHistorique('global');
+                        this.afficherMessageSucces(`${nbOperations} opérations importées avec succès !`);
+                        console.log('✅ Import réussi');
+                    }
+                } else {
+                    console.log('❌ Format de fichier invalide - operations manquant');
+                    this.afficherMessageErreur('Format de fichier invalide. Le fichier doit contenir un tableau "operations".');
+                }
+            } catch (error) {
+                console.error('❌ Erreur lors du parsing JSON:', error);
+                this.afficherMessageErreur('Fichier JSON invalide: ' + error.message);
+            }
+        };
+
+        reader.onerror = (error) => {
+            console.error('❌ Erreur de lecture du fichier:', error);
+            this.afficherMessageErreur('Erreur de lecture du fichier');
+        };
+
+        reader.readAsText(file);
+        
+        // Réinitialiser l'input pour permettre le re-téléchargement du même fichier
+        event.target.value = '';
+    }
+
+    // TEST MANUEL DE L'EXPORT (pour débogage)
+    testerExport() {
+        console.log('🧪 Test manuel de l\'export');
+        this.exporterDonnees();
+    }
+
+    // ... (TOUTES LES AUTRES MÉTHODES RESTENT IDENTIQUES)
     ajouterOperation(e) {
         e.preventDefault();
         console.log('✅ Formulaire soumis');
@@ -334,60 +454,6 @@ class GestionFerme {
                 notification.remove();
             }
         }, 4000);
-    }
-
-    // MÉTHODES D'EXPORT/IMPORT
-    exporterDonnees() {
-        const data = {
-            operations: this.operations,
-            lastUpdate: new Date().toISOString(),
-            totalOperations: this.operations.length,
-            totalMontant: this.operations.reduce((sum, op) => sum + op.montant, 0),
-            exportDate: new Date().toLocaleString('fr-FR')
-        };
-        
-        const dataStr = JSON.stringify(data, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = `gestion_ferme_${new Date().toISOString().split('T')[0]}.json`;
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-        
-        this.afficherMessageSucces(`Données exportées (${this.operations.length} opérations) !`);
-    }
-
-    importerDonnees(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                if (data.operations && Array.isArray(data.operations)) {
-                    // Demander confirmation avant remplacement
-                    if (confirm(`Voulez-vous importer ${data.operations.length} opérations ? Cela remplacera les données actuelles.`)) {
-                        this.operations = data.operations;
-                        this.sauvegarderLocal();
-                        this.updateStats();
-                        this.afficherHistorique('global');
-                        this.afficherMessageSucces(`${data.operations.length} opérations importées avec succès !`);
-                    }
-                } else {
-                    this.afficherMessageErreur('Fichier de données invalide');
-                }
-            } catch (error) {
-                console.error('Erreur import:', error);
-                this.afficherMessageErreur('Erreur lors de l\'import du fichier');
-            }
-        };
-        reader.readAsText(file);
-        
-        // Réinitialiser l'input file
-        event.target.value = '';
     }
 
     loadFromLocalStorage() {
@@ -875,7 +941,12 @@ if (!window.appInitialized) {
                 window.appInitialized = true;
                 window.gestionFermeApp = app; // Rendre l'app accessible globalement
                 window.app = app; // Double accès pour compatibilité
-                console.log('🚀 Application Gestion Ferme avec synchronisation démarrée !');
+                console.log('🚀 Application Gestion Ferme avec export/import démarrée !');
+                
+                // Test manuel de l'export (débogage)
+                console.log('💡 Pour tester l\'export manuellement, tapez dans la console:');
+                console.log('   window.gestionFermeApp.testerExport()');
+                
             } catch (error) {
                 console.error('❌ Erreur critique lors du démarrage:', error);
             }
