@@ -1,17 +1,6 @@
+// app.js - Version modifiée pour Firebase
 class GestionFerme {
     constructor() {
-        // Configuration Firebase
-        this.firebaseConfig = {
-            apiKey: "AIzaSyDKqudvQPUV_Lh2V2d2PUSEcxchDExw6PE",
-            authDomain: "gestion-fermebenamara.firebaseapp.com",
-            projectId: "gestion-fermebenamara",
-            storageBucket: "gestion-fermebenamara.firebasestorage.app",
-            messagingSenderId: "668129137491",
-            appId: "1:668129137491:web:b56522302ea789844587a6"
-        };
-
-        this.db = null;
-        this.syncEnabled = false;
         this.operations = [];
         this.caisses = {
             'abdel_caisse': 0,
@@ -23,108 +12,91 @@ class GestionFerme {
         this.editMode = false;
         this.selectedOperations = new Set();
         this.currentView = 'global';
+        this.initialisationFirebase = false;
 
-        console.log('🔧 Initialisation Gestion Ferme avec Firebase...');
         this.init();
     }
 
     async init() {
-        await this.initializeFirebase();
         this.setupEventListeners();
-        await this.loadData();
+        await this.initialiserFirebase();
         this.updateStats();
         this.afficherHistorique('global');
     }
 
-    async initializeFirebase() {
+    async initialiserFirebase() {
         try {
-            console.log('🚀 Initialisation Firebase...');
+            // Importer Firebase dynamiquement
+            const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
             
-            if (typeof firebase === 'undefined') {
-                console.error('❌ Firebase SDK non chargé');
-                this.syncEnabled = false;
-                return;
-            }
-
-            // Initialiser Firebase
-            if (!firebase.apps.length) {
-                firebase.initializeApp(this.firebaseConfig);
-                console.log('✅ Firebase initialisé');
-            }
+            console.log('📡 Connexion à Firebase...');
+            const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
             
-            this.db = firebase.firestore();
-            this.syncEnabled = true;
+            this.operations = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                this.operations.push({
+                    firebaseId: doc.id,
+                    ...data
+                });
+            });
             
-            console.log('✅ Firestore disponible');
-            this.startRealtimeSync();
-
+            console.log(`✅ ${this.operations.length} opérations chargées depuis Firebase`);
+            this.initialisationFirebase = true;
+            
         } catch (error) {
-            console.error('❌ Erreur Firebase:', error);
-            this.syncEnabled = false;
+            console.error('❌ Erreur Firebase, utilisation du localStorage:', error);
+            this.loadFromLocalStorage();
         }
     }
 
-    startRealtimeSync() {
-        if (!this.syncEnabled || !this.db) return;
-
-        this.db.collection('ferme_operations').orderBy('timestamp', 'desc')
-            .onSnapshot((snapshot) => {
-                console.log('🔄 Sync Firestore:', snapshot.docs.length, 'opérations');
-                
-                const remoteOperations = [];
-                snapshot.forEach(doc => {
-                    remoteOperations.push({ id: doc.id, ...doc.data() });
-                });
-
-                this.operations = remoteOperations;
-                this.updateStats();
-                this.afficherHistorique(this.currentView);
-                
-                // Sauvegarder aussi en local comme backup
-                this.sauvegarderLocal();
-                
-            }, (error) => {
-                console.error('❌ Erreur synchro Firestore:', error);
-                this.syncEnabled = false;
-            });
-    }
-
-    async saveToFirebase(operations) {
-        if (!this.syncEnabled || !this.db) {
-            console.log('📱 Mode hors ligne - sauvegarde locale seulement');
-            return false;
-        }
-
+    async sauvegarderFirebase() {
+        if (!this.initialisationFirebase) return;
+        
         try {
-            const batch = this.db.batch();
+            const { collection, addDoc, updateDoc, doc } = await import('./firebase.js');
             
-            operations.forEach(op => {
-                const opRef = this.db.collection('ferme_operations').doc(op.id.toString());
-                batch.set(opRef, {
-                    ...op,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            });
-
-            await batch.commit();
-            console.log('✅ Données sauvegardées sur Firebase');
-            return true;
+            for (const operation of this.operations) {
+                if (!operation.firebaseId) {
+                    // Nouvelle opération
+                    const docRef = await addDoc(collection(db, 'operations'), operation);
+                    operation.firebaseId = docRef.id;
+                } else {
+                    // Mettre à jour l'opération existante
+                    await updateDoc(doc(db, 'operations', operation.firebaseId), operation);
+                }
+            }
         } catch (error) {
-            console.error('❌ Erreur sauvegarde Firebase:', error);
-            return false;
+            console.error('Erreur sauvegarde Firebase:', error);
+            // Fallback vers localStorage
+            this.sauvegarderLocal();
         }
     }
 
     async ajouterOperation(e) {
         e.preventDefault();
+        console.log('Bouton Enregistrer cliqué !');
 
-        const operateur = document.getElementById('operateur').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantSaisi = parseFloat(document.getElementById('montant').value);
-        const description = document.getElementById('description').value.trim();
+        const operateur = document.getElementById('operateur');
+        const groupe = document.getElementById('groupe');
+        const typeOperation = document.getElementById('typeOperation');
+        const typeTransaction = document.getElementById('typeTransaction');
+        const caisse = document.getElementById('caisse');
+        const montant = document.getElementById('montant');
+        const description = document.getElementById('description');
+
+        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
+            alert('Erreur: Formulaire non trouvé');
+            return;
+        }
+
+        const operateurValue = operateur.value;
+        const groupeValue = groupe.value;
+        const typeOperationValue = typeOperation.value;
+        const typeTransactionValue = typeTransaction.value;
+        const caisseValue = caisse.value;
+        const montantSaisi = parseFloat(montant.value);
+        const descriptionValue = description.value.trim();
 
         // Validation
         if (montantSaisi <= 0 || isNaN(montantSaisi)) {
@@ -132,242 +104,405 @@ class GestionFerme {
             return;
         }
 
-        if (!description) {
+        if (!descriptionValue) {
             alert('Veuillez saisir une description');
             return;
         }
 
         let operationsACreer = [];
-        const timestamp = new Date().toISOString();
 
-        if (typeOperation === 'travailleur_global') {
+        if (typeOperationValue === 'travailleur_global') {
+            // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
             const montantZaitoun = montantSaisi / 3;
             const montant3Commain = (montantSaisi * 2) / 3;
 
             operationsACreer = [
                 {
-                    id: Date.now().toString(),
+                    id: Date.now(),
                     date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
+                    operateur: operateurValue,
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
+                    montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
-                    timestamp: timestamp
+                    timestamp: new Date().toISOString()
                 },
                 {
-                    id: (Date.now() + 1).toString(),
+                    id: Date.now() + 1,
                     date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
+                    operateur: operateurValue,
                     groupe: '3commain',
                     typeOperation: '3commain',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: description + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
+                    typeTransaction: typeTransactionValue,
+                    caisse: caisseValue,
+                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
+                    montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
-                    timestamp: timestamp
+                    timestamp: new Date().toISOString()
                 }
             ];
         } else {
+            // Opération normale sans répartition
             operationsACreer = [{
-                id: Date.now().toString(),
+                id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
-                operateur: operateur,
-                groupe: groupe,
-                typeOperation: typeOperation,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                description: description,
-                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+                operateur: operateurValue,
+                groupe: groupeValue,
+                typeOperation: typeOperationValue,
+                typeTransaction: typeTransactionValue,
+                caisse: caisseValue,
+                description: descriptionValue,
+                montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
-                timestamp: timestamp
+                timestamp: new Date().toISOString()
             }];
         }
 
-        // Sauvegarde immédiate en local
-        operationsACreer.forEach(op => {
+        // Ajouter aux opérations
+        for (const op of operationsACreer) {
             this.operations.unshift(op);
-        });
-
-        // Tentative de sauvegarde Firebase
-        const firebaseSuccess = await this.saveToFirebase(operationsACreer);
-        
-        if (!firebaseSuccess) {
-            // Si Firebase échoue, sauvegarder en local
-            this.sauvegarderLocal();
         }
 
-        const message = typeOperation === 'travailleur_global' 
-            ? `Opération enregistrée ! Répartie : ${(montantSaisi/3).toFixed(2)} DH (Zaitoun) + ${((montantSaisi*2)/3).toFixed(2)} DH (3 Commain)`
-            : 'Opération enregistrée avec succès !';
+        // Sauvegarder
+        await this.sauvegarderFirebase();
 
-        if (!firebaseSuccess) {
-            this.afficherMessageSucces(message + ' (Mode hors ligne)');
-        } else {
-            this.afficherMessageSucces(message);
-        }
-
+        this.afficherMessageSucces(
+            typeOperationValue === 'travailleur_global' 
+                ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
+                : 'Opération enregistrée avec succès !'
+        );
         this.resetForm();
         this.updateStats();
         this.afficherHistorique(this.currentView);
     }
 
+    async supprimerOperation(operationId) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            const operation = this.operations.find(op => op.id === operationId);
+            
+            // Supprimer de Firebase si l'opération y existe
+            if (operation && operation.firebaseId && this.initialisationFirebase) {
+                try {
+                    const { doc, deleteDoc } = await import('./firebase.js');
+                    await deleteDoc(doc(db, 'operations', operation.firebaseId));
+                } catch (error) {
+                    console.error('Erreur suppression Firebase:', error);
+                }
+            }
+            
+            // Supprimer localement
+            this.operations = this.operations.filter(op => op.id !== operationId);
+            await this.sauvegarderFirebase();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            this.afficherMessageSucces('Opération supprimée avec succès');
+        }
+    }
+
+    async supprimerOperationsSelectionnees() {
+        if (this.selectedOperations.size === 0) {
+            alert('Aucune opération sélectionnée');
+            return;
+        }
+
+        if (confirm('Êtes-vous sûr de vouloir supprimer ' + this.selectedOperations.size + ' opération(s) ?')) {
+            
+            // Supprimer de Firebase
+            if (this.initialisationFirebase) {
+                const { doc, deleteDoc } = await import('./firebase.js');
+                for (const opId of this.selectedOperations) {
+                    const operation = this.operations.find(op => op.id === opId);
+                    if (operation && operation.firebaseId) {
+                        try {
+                            await deleteDoc(doc(db, 'operations', operation.firebaseId));
+                        } catch (error) {
+                            console.error('Erreur suppression Firebase:', error);
+                        }
+                    }
+                }
+            }
+            
+            // Supprimer localement
+            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+            await this.sauvegarderFirebase();
+            this.selectedOperations.clear();
+            this.toggleEditMode(false);
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            this.afficherMessageSucces(this.selectedOperations.size + ' opération(s) supprimée(s) avec succès');
+        }
+    }
+
     async effectuerTransfert(e) {
         e.preventDefault();
 
-        const caisseSource = document.getElementById('caisseSource').value;
-        const caisseDestination = document.getElementById('caisseDestination').value;
-        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
-        const description = document.getElementById('descriptionTransfert').value.trim();
+        const caisseSource = document.getElementById('caisseSource');
+        const caisseDestination = document.getElementById('caisseDestination');
+        const montantTransfert = document.getElementById('montantTransfert');
+        const descriptionTransfert = document.getElementById('descriptionTransfert');
+
+        if (!caisseSource || !caisseDestination || !montantTransfert || !descriptionTransfert) {
+            alert('Erreur: Formulaire de transfert non trouvé');
+            return;
+        }
+
+        const caisseSourceValue = caisseSource.value;
+        const caisseDestinationValue = caisseDestination.value;
+        const montantTransfertValue = parseFloat(montantTransfert.value);
+        const descriptionValue = descriptionTransfert.value.trim();
 
         // Validation
-        if (caisseSource === caisseDestination) {
+        if (caisseSourceValue === caisseDestinationValue) {
             alert('Vous ne pouvez pas transférer vers la même caisse');
             return;
         }
 
-        if (montantTransfert <= 0 || isNaN(montantTransfert)) {
+        if (montantTransfertValue <= 0 || isNaN(montantTransfertValue)) {
             alert('Le montant doit être supérieur à 0');
             return;
         }
 
-        if (!description) {
+        if (!descriptionValue) {
             alert('Veuillez saisir une description');
             return;
         }
 
-        // Vérifier solde
-        const soldeSource = this.caisses[caisseSource];
-        if (soldeSource < montantTransfert) {
-            alert(`Solde insuffisant dans ${this.formaterCaisse(caisseSource)} ! Solde disponible : ${soldeSource.toFixed(2)} DH`);
+        // Vérifier si la caisse source a suffisamment de fonds
+        const soldeSource = this.caisses[caisseSourceValue];
+        if (soldeSource < montantTransfertValue) {
+            alert('Solde insuffisant dans la caisse source ! Solde disponible : ' + soldeSource.toFixed(2) + ' DH');
             return;
         }
 
-        const timestamp = new Date().toISOString();
+        // Créer les opérations de transfert
         const operationsTransfert = [
             {
-                id: Date.now().toString(),
+                id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 type: 'transfert_sortie',
                 operateur: 'system',
                 groupe: 'system',
                 typeOperation: 'transfert',
                 typeTransaction: 'frais',
-                caisse: caisseSource,
-                caisseDestination: caisseDestination,
-                description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${description}`,
-                montant: -montantTransfert,
+                caisse: caisseSourceValue,
+                caisseDestination: caisseDestinationValue,
+                description: `Transfert vers ${this.formaterCaisse(caisseDestinationValue)}: ${descriptionValue}`,
+                montant: -montantTransfertValue,
                 transfert: true,
-                timestamp: timestamp
+                timestamp: new Date().toISOString()
             },
             {
-                id: (Date.now() + 1).toString(),
+                id: Date.now() + 1,
                 date: new Date().toISOString().split('T')[0],
                 type: 'transfert_entree',
                 operateur: 'system',
                 groupe: 'system',
                 typeOperation: 'transfert',
                 typeTransaction: 'revenu',
-                caisse: caisseDestination,
-                caisseDestination: caisseSource,
-                description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${description}`,
-                montant: montantTransfert,
+                caisse: caisseDestinationValue,
+                caisseDestination: caisseSourceValue,
+                description: `Transfert de ${this.formaterCaisse(caisseSourceValue)}: ${descriptionValue}`,
+                montant: montantTransfertValue,
                 transfert: true,
-                timestamp: timestamp
+                timestamp: new Date().toISOString()
             }
         ];
 
-        // Sauvegarde immédiate en local
+        // Ajouter aux opérations
         operationsTransfert.forEach(op => {
             this.operations.unshift(op);
         });
 
-        // Tentative Firebase
-        const firebaseSuccess = await this.saveToFirebase(operationsTransfert);
-        
-        if (!firebaseSuccess) {
-            this.sauvegarderLocal();
-        }
+        // Sauvegarder
+        await this.sauvegarderFirebase();
 
-        if (!firebaseSuccess) {
-            this.afficherMessageSucces('Transfert effectué ! (Mode hors ligne)');
-        } else {
-            this.afficherMessageSucces('Transfert effectué avec succès !');
-        }
-
+        this.afficherMessageSucces('Transfert effectué avec succès !');
         document.getElementById('transfertForm').reset();
         this.updateStats();
         this.afficherHistorique(this.currentView);
     }
 
-    async loadData() {
-        console.log('📂 Chargement des données...');
-        
-        // D'abord essayer Firebase
-        if (this.syncEnabled) {
-            try {
-                const snapshot = await this.db.collection('ferme_operations')
-                    .orderBy('timestamp', 'desc')
-                    .limit(1000)
-                    .get();
-                
-                const remoteOperations = [];
-                snapshot.forEach(doc => {
-                    remoteOperations.push({ id: doc.id, ...doc.data() });
-                });
+    async modifierOperation(e) {
+        e.preventDefault();
 
-                if (remoteOperations.length > 0) {
-                    this.operations = remoteOperations;
-                    console.log('✅ Données chargées depuis Firebase:', this.operations.length, 'opérations');
-                    this.sauvegarderLocal(); // Synchroniser local
-                    return;
-                }
-            } catch (error) {
-                console.error('❌ Erreur chargement Firebase:', error);
-            }
+        const operationId = parseInt(document.getElementById('editId').value);
+        const operationIndex = this.operations.findIndex(op => op.id === operationId);
+
+        if (operationIndex === -1) {
+            alert('Opération non trouvée');
+            return;
         }
 
-        // Fallback: charger depuis localStorage
-        this.loadFromLocalStorage();
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+
+        // Validation
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        this.operations[operationIndex] = {
+            ...this.operations[operationIndex],
+            operateur: document.getElementById('editOperateur').value,
+            groupe: document.getElementById('editGroupe').value,
+            typeOperation: document.getElementById('editTypeOperation').value,
+            typeTransaction: typeTransaction,
+            caisse: document.getElementById('editCaisse').value,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            description: document.getElementById('editDescription').value,
+            timestamp: new Date().toISOString()
+        };
+
+        await this.sauvegarderFirebase();
+        this.fermerModal();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        this.afficherMessageSucces('Opération modifiée avec succès !');
     }
 
-    // ... (les autres méthodes restent similaires)
-
+    // Méthodes de sauvegarde locale (fallback)
     sauvegarderLocal() {
         const data = {
             operations: this.operations,
-            lastUpdate: new Date().toISOString(),
-            totalOperations: this.operations.length,
-            version: '2.0-firebase'
+            lastUpdate: new Date().toISOString()
         };
-        
-        try {
-            localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-            console.log('💾 Backup local:', this.operations.length, 'opérations');
-        } catch (error) {
-            console.error('❌ Erreur sauvegarde locale:', error);
-        }
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
     }
 
     loadFromLocalStorage() {
-        try {
-            const saved = localStorage.getItem('gestion_ferme_data');
-            if (saved) {
+        const saved = localStorage.getItem('gestion_ferme_data');
+        if (saved) {
+            try {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log('✅ Données chargées depuis localStorage:', this.operations.length, 'opérations');
-            } else {
-                console.log('ℹ️ Aucune donnée sauvegardée trouvée');
+                console.log(`📁 ${this.operations.length} opérations chargées du localStorage`);
+            } catch (error) {
+                console.error('Erreur chargement localStorage:', error);
                 this.operations = [];
             }
-        } catch (error) {
-            console.error('❌ Erreur chargement local:', error);
-            this.operations = [];
         }
+    }
+
+    // AJOUTER: Méthodes pour les boutons de migration
+    setupEventListeners() {
+        // ... (votre code existant)
+
+        // Ajouter les boutons Firebase
+        this.ajouterBoutonsFirebase();
+    }
+
+    ajouterBoutonsFirebase() {
+        const header = document.querySelector('header');
+        
+        const divBoutons = document.createElement('div');
+        divBoutons.style.marginTop = '15px';
+        divBoutons.style.display = 'flex';
+        divBoutons.style.gap = '10px';
+        divBoutons.style.justifyContent = 'center';
+        divBoutons.style.flexWrap = 'wrap';
+        
+        const btnMigrer = document.createElement('button');
+        btnMigrer.textContent = '🔄 Migrer vers Firebase';
+        btnMigrer.className = 'btn-warning';
+        btnMigrer.onclick = async () => {
+            const { migrerVersFirebase } = await import('./migration.js');
+            await migrerVersFirebase();
+            // Recharger les données après migration
+            await this.initialiserFirebase();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+        };
+        
+        const btnVerifier = document.createElement('button');
+        btnVerifier.textContent = '📊 Vérifier Firebase';
+        btnVerifier.className = 'btn-info';
+        btnVerifier.onclick = async () => {
+            const { verifierDonneesFirebase } = await import('./migration.js');
+            await verifierDonneesFirebase();
+        };
+        
+        divBoutons.appendChild(btnMigrer);
+        divBoutons.appendChild(btnVerifier);
+        header.appendChild(divBoutons);
+    }
+
+    // ... (LE RESTE DE VOTRE CODE EXISTANT RESTE IDENTIQUE)
+    // calculerSoldes(), updateStats(), afficherHistorique(), etc.
+
+    calculerRepartition() {
+        // Votre code existant
+    }
+
+    toggleEditMode(enable = null) {
+        // Votre code existant
+    }
+
+    selectionnerOperation(operationId, checked) {
+        // Votre code existant
+    }
+
+    calculerSoldes() {
+        // Votre code existant
+    }
+
+    updateStats() {
+        // Votre code existant
+    }
+
+    creerCarteCaisse(cleCaisse, nomCaisse) {
+        // Votre code existant
+    }
+
+    afficherHistorique(vue = 'global') {
+        // Votre code existant
+    }
+
+    ouvrirModalModification(operationId) {
+        // Votre code existant
+    }
+
+    fermerModal() {
+        // Votre code existant
+    }
+
+    getTitreVue(vue) {
+        // Votre code existant
+    }
+
+    formaterDate(dateStr) {
+        // Votre code existant
+    }
+
+    formaterOperateur(operateur) {
+        // Votre code existant
+    }
+
+    formaterGroupe(groupe) {
+        // Votre code existant
+    }
+
+    formaterTypeOperation(type) {
+        // Votre code existant
+    }
+
+    formaterTypeTransaction(type) {
+        // Votre code existant
+    }
+
+    formaterCaisse(caisse) {
+        // Votre code existant
+    }
+
+    resetForm() {
+        // Votre code existant
+    }
+
+    afficherMessageSucces(message) {
+        // Votre code existant
     }
 }
 
@@ -375,4 +510,5 @@ class GestionFerme {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+    console.log('Application Gestion Ferme avec Firebase initialisée !');
 });
