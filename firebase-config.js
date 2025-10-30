@@ -10,12 +10,16 @@ const firebaseConfig = {
   messagingSenderId: "668129137491",
   appId: "1:668129137491:web:b56522302ea789044507a6"
 };
-
-
-// Variables globales
-let firebaseApp;
-let db;
-let firebaseDisponible = false;
+// Variables globales - UNIQUEMENT si elles n'existent pas
+if (typeof window.firebaseApp === 'undefined') {
+    window.firebaseApp = null;
+}
+if (typeof window.db === 'undefined') {
+    window.db = null;
+}
+if (typeof window.firebaseDisponible === 'undefined') {
+    window.firebaseDisponible = false;
+}
 
 // Initialiser Firebase
 function initialiserFirebase() {
@@ -26,31 +30,29 @@ function initialiserFirebase() {
             return;
         }
 
+        // Éviter la réinitialisation multiple
+        if (window.firebaseApp) {
+            console.log('✅ Firebase déjà initialisé');
+            return;
+        }
+
         // Initialiser l'application Firebase
-        firebaseApp = firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
+        window.firebaseApp = firebase.initializeApp(firebaseConfig);
+        window.db = firebase.firestore();
+        window.firebaseDisponible = true;
         
-        // Tester la connexion
-        db.collection("test").get().then(() => {
-            console.log('✅ Firebase initialisé avec succès');
-            firebaseDisponible = true;
-            mettreAJourStatutFirebase();
-        }).catch(error => {
-            console.log('🔧 Mode hors ligne - Firebase connecté mais erreur de test:', error);
-            firebaseDisponible = true;
-            mettreAJourStatutFirebase();
-        });
+        console.log('✅ Firebase initialisé avec succès');
+        mettreAJourStatutFirebase();
 
     } catch (error) {
-        console.log('🔧 Mode hors ligne activé - Firebase non disponible:', error.message);
-        firebaseDisponible = false;
+        console.log('🔧 Mode hors ligne - Firebase non disponible:', error.message);
+        window.firebaseDisponible = false;
         mettreAJourStatutFirebase();
     }
 }
 
 // Fonction pour mettre à jour l'affichage du statut
 function mettreAJourStatutFirebase() {
-    // Attendre que le DOM soit chargé
     setTimeout(() => {
         const header = document.querySelector('header');
         if (!header) return;
@@ -61,7 +63,6 @@ function mettreAJourStatutFirebase() {
             ancienStatut.remove();
         }
 
-        // Créer le nouvel élément de statut
         const statutDiv = document.createElement('div');
         statutDiv.id = 'statutFirebase';
         statutDiv.style.marginTop = '10px';
@@ -72,7 +73,7 @@ function mettreAJourStatutFirebase() {
         statutDiv.style.textAlign = 'center';
         statutDiv.style.display = 'inline-block';
         
-        if (firebaseDisponible) {
+        if (window.firebaseDisponible) {
             statutDiv.textContent = '✅ Synchronisé avec le cloud';
             statutDiv.style.background = '#d4edda';
             statutDiv.style.color = '#155724';
@@ -90,14 +91,13 @@ function mettreAJourStatutFirebase() {
 
 // Fonction pour migrer les données vers Firebase
 async function migrerVersFirebase() {
-    if (!firebaseDisponible) {
+    if (!window.firebaseDisponible || !window.db) {
         alert('❌ Firebase non disponible pour la migration');
         return;
     }
 
     console.log('🚀 Début de la migration vers Firebase...');
     
-    // Charger les données existantes du localStorage
     const saved = localStorage.getItem('gestion_ferme_data');
     if (!saved) {
         alert('❌ Aucune donnée trouvée dans le localStorage');
@@ -114,128 +114,40 @@ async function migrerVersFirebase() {
         }
         
         let count = 0;
-        let erreurs = 0;
         
-        // Migrer chaque opération
         for (const operation of operations) {
             try {
-                await db.collection("operations").add({
+                await window.db.collection("operations").add({
                     ...operation,
                     migre: true,
-                    dateMigration: new Date().toISOString(),
-                    timestamp: operation.timestamp || new Date().toISOString()
+                    dateMigration: new Date().toISOString()
                 });
                 count++;
-                
-                // Afficher la progression
-                if (count % 10 === 0) {
-                    console.log(`📦 ${count} opérations migrées...`);
-                }
             } catch (error) {
-                console.error('Erreur migration opération:', operation.id, error);
-                erreurs++;
+                console.error('Erreur migration:', error);
             }
         }
         
-        const message = `✅ Migration terminée !\n${count} opérations migrées\n${erreurs} erreurs`;
-        console.log(message);
-        alert(message);
-        
-        // Recharger la page pour afficher les nouvelles données
-        setTimeout(() => {
-            location.reload();
-        }, 2000);
+        alert(`✅ ${count} opérations migrées vers Firebase !`);
+        console.log(`✅ ${count} opérations migrées`);
         
     } catch (error) {
         console.error('❌ Erreur migration:', error);
-        alert('❌ Erreur lors de la migration: ' + error.message);
+        alert('❌ Erreur lors de la migration');
     }
 }
-
-// Fonction pour vérifier les données Firebase
-async function verifierDonneesFirebase() {
-    if (!firebaseDisponible) {
-        alert('❌ Firebase non disponible');
-        return 0;
-    }
-
-    try {
-        const querySnapshot = await db.collection("operations").get();
-        const count = querySnapshot.size;
-        alert(`📊 Firebase contient ${count} opérations`);
-        return count;
-    } catch (error) {
-        console.error('Erreur vérification:', error);
-        alert('❌ Erreur vérification Firebase');
-        return 0;
-    }
-}
-
-// Fonctions utilitaires Firebase
-async function ajouterOperationFirebase(operation) {
-    if (!firebaseDisponible) return null;
-    
-    try {
-        const docRef = await db.collection("operations").add(operation);
-        return docRef.id;
-    } catch (error) {
-        console.error('Erreur ajout Firebase:', error);
-        return null;
-    }
-}
-
-async function supprimerOperationFirebase(operationId) {
-    if (!firebaseDisponible) return false;
-    
-    try {
-        await db.collection("operations").doc(operationId).delete();
-        return true;
-    } catch (error) {
-        console.error('Erreur suppression Firebase:', error);
-        return false;
-    }
-}
-
-async function mettreAJourOperationFirebase(operationId, nouvellesDonnees) {
-    if (!firebaseDisponible) return false;
-    
-    try {
-        await db.collection("operations").doc(operationId).update(nouvellesDonnees);
-        return true;
-    } catch (error) {
-        console.error('Erreur mise à jour Firebase:', error);
-        return false;
-    }
-}
-
-// Exposer les fonctions globalement
-window.firebaseApp = firebaseApp;
-window.db = db;
-window.firebaseDisponible = firebaseDisponible;
-window.migrerVersFirebase = migrerVersFirebase;
-window.verifierDonneesFirebase = verifierDonneesFirebase;
-window.ajouterOperationFirebase = ajouterOperationFirebase;
-window.supprimerOperationFirebase = supprimerOperationFirebase;
-window.mettreAJourOperationFirebase = mettreAJourOperationFirebase;
 
 // Initialiser Firebase quand la page est chargée
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM chargé, initialisation de Firebase...');
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialiserFirebase);
+} else {
     initialiserFirebase();
-    
-    // Ajouter les boutons de migration après le chargement
-    setTimeout(ajouterBoutonsMigration, 1500);
-});
+}
 
-// Fonction pour ajouter les boutons de migration
-function ajouterBoutonsMigration() {
+// Ajouter les boutons après un délai
+setTimeout(() => {
     const header = document.querySelector('header');
-    if (!header) return;
-
-    // Vérifier si les boutons existent déjà
-    if (document.getElementById('boutonsMigration')) {
-        return;
-    }
+    if (!header || document.getElementById('boutonsMigration')) return;
 
     const divBoutons = document.createElement('div');
     divBoutons.id = 'boutonsMigration';
@@ -245,26 +157,14 @@ function ajouterBoutonsMigration() {
     divBoutons.style.justifyContent = 'center';
     divBoutons.style.flexWrap = 'wrap';
     
-    // Bouton Migration
     const btnMigrer = document.createElement('button');
     btnMigrer.textContent = '🔄 Migrer vers Firebase';
     btnMigrer.className = 'btn-warning';
     btnMigrer.onclick = migrerVersFirebase;
-    btnMigrer.title = 'Transférer les données locales vers le cloud';
-    
-    // Bouton Vérification
-    const btnVerifier = document.createElement('button');
-    btnVerifier.textContent = '📊 Vérifier Firebase';
-    btnVerifier.className = 'btn-info';
-    btnVerifier.onclick = verifierDonneesFirebase;
-    btnVerifier.title = 'Vérifier le nombre d\'opérations dans Firebase';
     
     divBoutons.appendChild(btnMigrer);
-    divBoutons.appendChild(btnVerifier);
     header.appendChild(divBoutons);
     
     console.log('✅ Boutons de migration ajoutés');
-}
+}, 2000);
 
-// Message de confirmation
-console.log('🔧 firebase-config.js chargé - Prêt pour l\'initialisation');
