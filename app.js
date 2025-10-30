@@ -1,66 +1,77 @@
 class SamarcheApp {
     constructor() {
-          // Configuration Firebase EXACTE depuis la console
-    this.firebaseConfig = {
-        apiKey: "AIzaSyDKqudvQPUV_Lh2V2d2PUSEcxchDExw6PE",
-        authDomain: "gestion-fermebenamara.firebaseapp.com",
-        projectId: "gestion-fermebenamara",
-        storageBucket: "gestion-fermebenamara.firebasestorage.app",
-        messagingSenderId: "668129137491",
-        appId: "1:668129137491:web:b56522302ea789844587a6"
-    };
+        // Configuration Firebase EXACTE depuis la console
+        this.firebaseConfig = {
+            apiKey: "AIzaSyDKqudvQPUV_Lh2V2d2PUSEcxchDExw6PE",
+            authDomain: "gestion-fermebenamara.firebaseapp.com",
+            projectId: "gestion-fermebenamara",
+            storageBucket: "gestion-fermebenamara.firebasestorage.app",
+            messagingSenderId: "668129137491",
+            appId: "1:668129137491:web:b56522302ea789844587a6"
+        };
 
-    this.db = null;
-    this.syncEnabled = false;
+        this.db = null;
+        this.syncEnabled = false;
 
-    // Le reste de votre code...
-    this.workbook = null;
-    this.currentView = 'global';
-    this.operations = [];
-    this.editMode = false;
-    this.selectedOperations = new Set();
-    
-    this.sheetsConfig = {
-        'zaitoun': { name: 'Zaitoun', filter: (op) => op.groupe === 'zaitoun' },
-        '3commain': { name: '3Commain', filter: (op) => op.groupe === '3commain' },
-        'abdel': { name: 'Abdel', filter: (op) => op.operateur === 'abdel' },
-        'omar': { name: 'Omar', filter: (op) => op.operateur === 'omar' },
-        'hicham': { name: 'Hicham', filter: (op) => op.operateur === 'hicham' }
-    };
+        // Le reste de votre code...
+        this.workbook = null;
+        this.currentView = 'global';
+        this.operations = [];
+        this.editMode = false;
+        this.selectedOperations = new Set();
+        
+        // NOUVEAU : Ajouter les caisses
+        this.caisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        
+        this.sheetsConfig = {
+            'zaitoun': { name: 'Zaitoun', filter: (op) => op.groupe === 'zaitoun' },
+            '3commain': { name: '3Commain', filter: (op) => op.groupe === '3commain' },
+            'abdel': { name: 'Abdel', filter: (op) => op.operateur === 'abdel' },
+            'omar': { name: 'Omar', filter: (op) => op.operateur === 'omar' },
+            'hicham': { name: 'Hicham', filter: (op) => op.operateur === 'hicham' }
+        };
 
-    this.init();
-}
+        this.init();
+    }
+
     // Initialisation Firebase
     initializeFirebase() {
-    try {
-        console.log('🚀 Initialisation Firebase...');
-        
-        if (typeof firebase === 'undefined') {
-            console.error('❌ Firebase SDK non chargé');
+        try {
+            console.log('🚀 Initialisation Firebase...');
+            
+            if (typeof firebase === 'undefined') {
+                console.error('❌ Firebase SDK non chargé');
+                this.syncEnabled = false;
+                return;
+            }
+
+            console.log('✅ Firebase SDK disponible');
+
+            // Utiliser firebase.initializeApp (v8) au lieu de initializeApp (v9)
+            if (!firebase.apps.length) {
+                firebase.initializeApp(this.firebaseConfig);
+                console.log('✅ Firebase initialisé avec succès');
+            }
+            
+            this.db = firebase.firestore();
+            this.syncEnabled = true;
+            
+            console.log('✅ Firestore disponible');
+            this.startRealtimeSync();
+
+        } catch (error) {
+            console.error('❌ Erreur Firebase:', error);
+            console.error('Détails:', error.message);
             this.syncEnabled = false;
-            return;
         }
-
-        console.log('✅ Firebase SDK disponible');
-
-        // Utiliser firebase.initializeApp (v8) au lieu de initializeApp (v9)
-        if (!firebase.apps.length) {
-            firebase.initializeApp(this.firebaseConfig);
-            console.log('✅ Firebase initialisé avec succès');
-        }
-        
-        this.db = firebase.firestore();
-        this.syncEnabled = true;
-        
-        console.log('✅ Firestore disponible');
-        this.startRealtimeSync();
-
-    } catch (error) {
-        console.error('❌ Erreur Firebase:', error);
-        console.error('Détails:', error.message);
-        this.syncEnabled = false;
     }
-}
+
     startRealtimeSync() {
         if (!this.syncEnabled) return;
 
@@ -193,7 +204,22 @@ class SamarcheApp {
 
         const typeOperation = document.getElementById('typeOperation').value;
         const montantSaisi = parseFloat(document.getElementById('montant').value);
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisseOperateur = document.getElementById('caisseOperateur').value;
+        const caisseGroupe = document.getElementById('caisseGroupe').value;
+        const description = document.getElementById('description').value.trim();
         
+        // VALIDATION CORRIGÉE
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+        
+        if (!description) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
         let operationsACreer = [];
 
         if (typeOperation === 'travailleur_global') {
@@ -207,8 +233,11 @@ class SamarcheApp {
                     operateur: document.getElementById('operateur').value,
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
-                    description: document.getElementById('description').value + ' (Part Zaitoun - 1/3)',
-                    montant: montantZaitoun,
+                    typeTransaction: typeTransaction,
+                    caisseOperateur: caisseOperateur,
+                    caisseGroupe: 'zaitoun_caisse',
+                    description: description + ' (Part Zaitoun - 1/3)',
+                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     operationParent: true
                 },
                 {
@@ -217,8 +246,11 @@ class SamarcheApp {
                     operateur: document.getElementById('operateur').value,
                     groupe: '3commain',
                     typeOperation: '3commain',
-                    description: document.getElementById('description').value + ' (Part 3 Commain - 2/3)',
-                    montant: montant3Commain,
+                    typeTransaction: typeTransaction,
+                    caisseOperateur: caisseOperateur,
+                    caisseGroupe: '3commain_caisse',
+                    description: description + ' (Part 3 Commain - 2/3)',
+                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     operationParent: true
                 }
             ];
@@ -229,14 +261,13 @@ class SamarcheApp {
                 operateur: document.getElementById('operateur').value,
                 groupe: document.getElementById('groupe').value,
                 typeOperation: typeOperation,
-                description: document.getElementById('description').value,
-                montant: montantSaisi,
+                typeTransaction: typeTransaction,
+                caisseOperateur: caisseOperateur,
+                caisseGroupe: caisseGroupe,
+                description: description,
+                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 operationParent: false
             }];
-        }
-
-        if (!this.validerOperation(operationsACreer[0])) {
-            return;
         }
 
         operationsACreer.forEach(op => {
@@ -253,18 +284,6 @@ class SamarcheApp {
         this.resetForm();
         this.showView(this.currentView);
         this.updateStats();
-    }
-
-    validerOperation(operation) {
-        if (operation.montant <= 0) {
-            alert('Le montant doit etre superieur a 0');
-            return false;
-        }
-        if (!operation.description.trim()) {
-            alert('Veuillez saisir une description');
-            return false;
-        }
-        return true;
     }
 
     resetForm() {
@@ -320,7 +339,11 @@ class SamarcheApp {
         document.getElementById('editOperateur').value = operation.operateur;
         document.getElementById('editGroupe').value = operation.groupe;
         document.getElementById('editTypeOperation').value = operation.typeOperation;
-        document.getElementById('editMontant').value = operation.montant;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction || 'revenu';
+        document.getElementById('editCaisseOperateur').value = operation.caisseOperateur || 'aucune';
+        document.getElementById('editCaisseGroupe').value = operation.caisseGroupe || 'aucune';
+        // CORRECTION : Utiliser la valeur absolue pour l'affichage dans le modal
+        document.getElementById('editMontant').value = Math.abs(operation.montant);
         document.getElementById('editDescription').value = operation.description;
 
         document.getElementById('editModal').style.display = 'flex';
@@ -342,12 +365,24 @@ class SamarcheApp {
             return;
         }
 
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+
+        // VALIDATION CORRIGÉE
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
         this.operations[operationIndex] = {
             ...this.operations[operationIndex],
             operateur: document.getElementById('editOperateur').value,
             groupe: document.getElementById('editGroupe').value,
             typeOperation: document.getElementById('editTypeOperation').value,
-            montant: parseFloat(document.getElementById('editMontant').value),
+            typeTransaction: typeTransaction,
+            caisseOperateur: document.getElementById('editCaisseOperateur').value,
+            caisseGroupe: document.getElementById('editCaisseGroupe').value,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
             description: document.getElementById('editDescription').value
         };
 
@@ -388,64 +423,70 @@ class SamarcheApp {
         this.afficherDonnees(viewName);
     }
 
-   afficherDonnees(viewName) {
-    const container = document.getElementById('dataDisplay');
-    let operationsFiltrees = [];
+    afficherDonnees(viewName) {
+        const container = document.getElementById('dataDisplay');
+        let operationsFiltrees = [];
 
-    if (viewName === 'global') {
-        operationsFiltrees = this.operations;
-    } else {
-        const filter = this.sheetsConfig[viewName].filter;
-        operationsFiltrees = this.operations.filter(filter);
-    }
-
-    if (operationsFiltrees.length === 0) {
-        container.innerHTML = '<div class="empty-message"><h3>📭 Aucune donnée</h3><p>Aucune opération trouvée pour cette vue</p></div>';
-        return;
-    }
-
-    const total = operationsFiltrees.reduce((sum, op) => sum + (op.montant || 0), 0);
-
-    // Construction du HTML avec concaténation classique
-    let tableHTML = '<div class="fade-in">';
-    tableHTML += '<h3>' + (viewName === 'global' ? '🌍 Toutes les opérations' : this.sheetsConfig[viewName].name) + '</h3>';
-    tableHTML += '<p><strong>Total: ' + total.toFixed(2) + ' DH</strong> (' + operationsFiltrees.length + ' opérations)</p>';
-    tableHTML += '<table class="data-table"><thead><tr>';
-    
-    if (this.editMode) tableHTML += '<th></th>';
-    tableHTML += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type</th><th>Description</th><th>Montant (DH)</th>';
-    if (!this.editMode) tableHTML += '<th>Actions</th>';
-    tableHTML += '</tr></thead><tbody>';
-
-    operationsFiltrees.forEach(op => {
-        tableHTML += '<tr class="' + (this.selectedOperations.has(op.id) ? 'selected' : '') + '">';
-        
-        if (this.editMode) {
-            tableHTML += '<td><input type="checkbox" class="operation-checkbox" ' + 
-                (this.selectedOperations.has(op.id) ? 'checked' : '') + 
-                ' onchange="app.selectionnerOperation(' + op.id + ', this.checked)"></td>';
+        if (viewName === 'global') {
+            operationsFiltrees = this.operations;
+        } else {
+            const filter = this.sheetsConfig[viewName].filter;
+            operationsFiltrees = this.operations.filter(filter);
         }
-        
-        tableHTML += '<td>' + this.formaterDate(op.date) + '</td>';
-        tableHTML += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
-        tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
-        tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
-        tableHTML += '<td>' + (op.description || '') + '</td>';
-        tableHTML += '<td style="font-weight: bold; color: #27ae60;">' + (op.montant || 0).toFixed(2) + '</td>';
-        
-        if (!this.editMode) {
-            tableHTML += '<td><div class="operation-actions">';
-            tableHTML += '<button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">✏️</button>';
-            tableHTML += '<button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">🗑️</button>';
-            tableHTML += '</div></td>';
-        }
-        
-        tableHTML += '</tr>';
-    });
 
-    tableHTML += '</tbody></table></div>';
-    container.innerHTML = tableHTML;
-}
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><h3>📭 Aucune donnée</h3><p>Aucune opération trouvée pour cette vue</p></div>';
+            return;
+        }
+
+        const total = operationsFiltrees.reduce((sum, op) => sum + (op.montant || 0), 0);
+
+        // Construction du HTML avec concaténation classique
+        let tableHTML = '<div class="fade-in">';
+        tableHTML += '<h3>' + (viewName === 'global' ? '🌍 Toutes les opérations' : this.sheetsConfig[viewName].name) + '</h3>';
+        tableHTML += '<p><strong>Total: ' + total.toFixed(2) + ' DH</strong> (' + operationsFiltrees.length + ' opérations)</p>';
+        tableHTML += '<table class="data-table"><thead><tr>';
+        
+        if (this.editMode) tableHTML += '<th></th>';
+        tableHTML += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type Op.</th><th>Frais/Revenu</th><th>Caisse Op.</th><th>Caisse Gr.</th><th>Description</th><th>Montant (DH)</th>';
+        if (!this.editMode) tableHTML += '<th>Actions</th>';
+        tableHTML += '</tr></thead><tbody>';
+
+        operationsFiltrees.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estFrais = op.montant < 0;
+            
+            tableHTML += '<tr class="' + (this.selectedOperations.has(op.id) ? 'selected' : '') + '">';
+            
+            if (this.editMode) {
+                tableHTML += '<td><input type="checkbox" class="operation-checkbox" ' + 
+                    (this.selectedOperations.has(op.id) ? 'checked' : '') + 
+                    ' onchange="app.selectionnerOperation(' + op.id + ', this.checked)"></td>';
+            }
+            
+            tableHTML += '<td>' + this.formaterDate(op.date) + '</td>';
+            tableHTML += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
+            tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
+            tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
+            tableHTML += '<td class="' + (estFrais ? 'type-frais' : 'type-revenu') + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
+            tableHTML += '<td>' + this.formaterCaisse(op.caisseOperateur) + '</td>';
+            tableHTML += '<td>' + this.formaterCaisse(op.caisseGroupe) + '</td>';
+            tableHTML += '<td>' + (op.description || '') + '</td>';
+            tableHTML += '<td style="font-weight: bold; color: ' + (estFrais ? '#e74c3c' : '#27ae60') + ';">' + (estFrais ? '-' : '') + montantAbsolu.toFixed(2) + '</td>';
+            
+            if (!this.editMode) {
+                tableHTML += '<td><div class="operation-actions">';
+                tableHTML += '<button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">✏️</button>';
+                tableHTML += '<button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">🗑️</button>';
+                tableHTML += '</div></td>';
+            }
+            
+            tableHTML += '</tr>';
+        });
+
+        tableHTML += '</tbody></table></div>';
+        container.innerHTML = tableHTML;
+    }
 
     formaterDate(dateStr) {
         const date = new Date(dateStr);
@@ -472,27 +513,73 @@ class SamarcheApp {
         return types[type] || type;
     }
 
-    updateStats() {
-    const container = document.getElementById('statsContainer');
-    
-    const totalGeneral = this.operations.reduce((sum, op) => sum + (op.montant || 0), 0);
-    const totalZaitoun = this.operations.filter(op => op.groupe === 'zaitoun').reduce((sum, op) => sum + (op.montant || 0), 0);
-    const total3Commain = this.operations.filter(op => op.groupe === '3commain').reduce((sum, op) => sum + (op.montant || 0), 0);
-    
-    const totalAbdel = this.operations.filter(op => op.operateur === 'abdel').reduce((sum, op) => sum + (op.montant || 0), 0);
-    const totalOmar = this.operations.filter(op => op.operateur === 'omar').reduce((sum, op) => sum + (op.montant || 0), 0);
-    const totalHicham = this.operations.filter(op => op.operateur === 'hicham').reduce((sum, op) => sum + (op.montant || 0), 0);
+    formaterTypeTransaction(type) {
+        const types = {
+            'revenu': '💰 Revenu',
+            'frais': '💸 Frais'
+        };
+        return types[type] || type;
+    }
 
-    container.innerHTML = 
-        '<div class="stats-grid">' +
-        '<div class="stat-card"><div class="stat-label">Total Général</div><div class="stat-value">' + totalGeneral.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Zaitoun</div><div class="stat-value">' + totalZaitoun.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '<div class="stat-card"><div class="stat-label">3 Commain</div><div class="stat-value">' + total3Commain.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Abdel</div><div class="stat-value">' + totalAbdel.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Omar</div><div class="stat-value">' + totalOmar.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '<div class="stat-card"><div class="stat-label">Hicham</div><div class="stat-value">' + totalHicham.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
-        '</div>';
-}
+    formaterCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': 'Caisse Abdel',
+            'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham',
+            'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain',
+            'aucune': 'Aucune'
+        };
+        return caisses[caisse] || caisse;
+    }
+
+    updateStats() {
+        const container = document.getElementById('statsContainer');
+        
+        const totalGeneral = this.operations.reduce((sum, op) => sum + (op.montant || 0), 0);
+        const totalZaitoun = this.operations.filter(op => op.groupe === 'zaitoun').reduce((sum, op) => sum + (op.montant || 0), 0);
+        const total3Commain = this.operations.filter(op => op.groupe === '3commain').reduce((sum, op) => sum + (op.montant || 0), 0);
+        
+        const totalAbdel = this.operations.filter(op => op.operateur === 'abdel').reduce((sum, op) => sum + (op.montant || 0), 0);
+        const totalOmar = this.operations.filter(op => op.operateur === 'omar').reduce((sum, op) => sum + (op.montant || 0), 0);
+        const totalHicham = this.operations.filter(op => op.operateur === 'hicham').reduce((sum, op) => sum + (op.montant || 0), 0);
+
+        this.calculerCaisses();
+
+        container.innerHTML = 
+            '<div class="stats-grid">' +
+            '<div class="stat-card"><div class="stat-label">Total Général</div><div class="stat-value">' + totalGeneral.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Zaitoun</div><div class="stat-value">' + totalZaitoun.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">3 Commain</div><div class="stat-value">' + total3Commain.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Abdel</div><div class="stat-value">' + totalAbdel.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Omar</div><div class="stat-value">' + totalOmar.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Hicham</div><div class="stat-value">' + totalHicham.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Caisse Abdel</div><div class="stat-value">' + this.caisses.abdel_caisse.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Caisse Omar</div><div class="stat-value">' + this.caisses.omar_caisse.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Caisse Hicham</div><div class="stat-value">' + this.caisses.hicham_caisse.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Caisse Zaitoun</div><div class="stat-value">' + this.caisses.zaitoun_caisse.toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '<div class="stat-card"><div class="stat-label">Caisse 3 Commain</div><div class="stat-value">' + this.caisses['3commain_caisse'].toFixed(2) + '</div><div class="stat-label">DH</div></div>' +
+            '</div>';
+    }
+
+    calculerCaisses() {
+        this.caisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        
+        this.operations.forEach(op => {
+            if (op.caisseOperateur && op.caisseOperateur !== 'aucune') {
+                this.caisses[op.caisseOperateur] += op.montant || 0;
+            }
+            if (op.caisseGroupe && op.caisseGroupe !== 'aucune') {
+                this.caisses[op.caisseGroupe] += op.montant || 0;
+            }
+        });
+    }
 
     async importerExcel(file) {
         if (!file) return;
@@ -536,6 +623,9 @@ class SamarcheApp {
             operateur: this.trouverOperateurDepuisSource(sourceSheet),
             groupe: row.Groupe || this.trouverGroupeDepuisSource(sourceSheet),
             typeOperation: row.Type || 'autre',
+            typeTransaction: 'revenu',
+            caisseOperateur: 'aucune',
+            caisseGroupe: 'aucune',
             description: row.Description || '',
             montant: parseFloat(row.Montant) || 0,
             operationParent: false
@@ -565,6 +655,9 @@ class SamarcheApp {
             'Operateur': this.formaterOperateur(op.operateur),
             'Groupe': this.formaterGroupe(op.groupe),
             'Type Operation': this.formaterTypeOperation(op.typeOperation),
+            'Type Transaction': this.formaterTypeTransaction(op.typeTransaction),
+            'Caisse Operateur': this.formaterCaisse(op.caisseOperateur),
+            'Caisse Groupe': this.formaterCaisse(op.caisseGroupe),
             'Description': op.description,
             'Montant (DH)': op.montant
         }));
@@ -580,6 +673,9 @@ class SamarcheApp {
                     'Operateur': this.formaterOperateur(op.operateur),
                     'Groupe': this.formaterGroupe(op.groupe),
                     'Type Operation': this.formaterTypeOperation(op.typeOperation),
+                    'Type Transaction': this.formaterTypeTransaction(op.typeTransaction),
+                    'Caisse Operateur': this.formaterCaisse(op.caisseOperateur),
+                    'Caisse Groupe': this.formaterCaisse(op.caisseGroupe),
                     'Description': op.description,
                     'Montant (DH)': op.montant
                 }));
@@ -606,15 +702,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new SamarcheApp();
 });
-
-
-
-
-
-
-
-
-
-
-
-
