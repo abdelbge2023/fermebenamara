@@ -74,8 +74,37 @@
                         <input type="number" id="montant" step="0.01" min="0" required>
                     </div>
                 </div>
-
-                <div class="form-group full-width">
+                    <!-- NOUVEAU CHAMP : Type Frais/Revenu -->
+                <div class="form-group">
+                    <label for="typeTransaction">Type Transaction :</label>
+                    <select id="typeTransaction" required>
+                        <option value="">Sélectionnez</option>
+                        <option value="revenu">💰 Revenu</option>
+                        <option value="frais">💸 Frais</option>
+                    </select>
+                </div>
+                
+                <!-- NOUVEAU CHAMP : Caisse Opérateur -->
+                <div class="form-group">
+                    <label for="caisseOperateur">Caisse Opérateur :</label>
+                    <select id="caisseOperateur">
+                        <option value="aucune">Aucune caisse</option>
+                        <option value="abdel_caisse">Caisse Abdel</option>
+                        <option value="omar_caisse">Caisse Omar</option>
+                        <option value="hicham_caisse">Caisse Hicham</option>
+                    </select>
+                </div>
+                
+                <!-- NOUVEAU CHAMP : Caisse Groupe -->
+                <div class="form-group">
+                    <label for="caisseGroupe">Caisse Groupe :</label>
+                    <select id="caisseGroupe">
+                        <option value="aucune">Aucune caisse</option>
+                        <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                        <option value="3commain_caisse">Caisse 3 Commain</option>
+                    </select>
+                </div>
+                                <div class="form-group full-width">
                     <label for="description">Description :</label>
                     <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
                 </div>
@@ -172,6 +201,32 @@
                     <button type="submit" class="btn-primary">💾 Sauvegarder</button>
                     <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
                 </div>
+                <div class="form-group">
+                    <label for="editTypeTransaction">Type Transaction :</label>
+                    <select id="editTypeTransaction" required>
+                        <option value="revenu">💰 Revenu</option>
+                        <option value="frais">💸 Frais</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editCaisseOperateur">Caisse Opérateur :</label>
+                    <select id="editCaisseOperateur">
+                        <option value="aucune">Aucune caisse</option>
+                        <option value="abdel_caisse">Caisse Abdel</option>
+                        <option value="omar_caisse">Caisse Omar</option>
+                        <option value="hicham_caisse">Caisse Hicham</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editCaisseGroupe">Caisse Groupe :</label>
+                    <select id="editCaisseGroupe">
+                        <option value="aucune">Aucune caisse</option>
+                        <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                        <option value="3commain_caisse">Caisse 3 Commain</option>
+                    </select>
+                </div>
             </form>
         </div>
     </div>
@@ -179,6 +234,7 @@
     <script src="./app.js"></script>
 </body>
 </html>
+
 
 
 
