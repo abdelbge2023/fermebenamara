@@ -3,264 +3,272 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme Ben Amara</title>
-    <link rel="stylesheet" href="./style.css">
+    <title>Gestion Ferme - Synchronisée</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>💰 Gestion Ferme Ben Amara</h1>
-            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
+            <h1>🌾 Gestion Ferme - Synchronisée</h1>
+            <p>Application de gestion avec synchronisation cloud</p>
+            <div id="syncStatus" style="margin-top: 10px; padding: 5px; border-radius: 5px; display: inline-block;">
+                🔄 Chargement...
+            </div>
         </header>
 
         <div class="main-grid">
-            <!-- Section Nouvelle Opération -->
-            <section class="form-section">
+            <!-- Section Saisie -->
+            <div class="form-section">
                 <div class="section-header">
-                    <h2>➕ Nouvelle Opération</h2>
+                    <h2>📝 Saisie des Opérations</h2>
                 </div>
                 <form id="saisieForm" class="saisie-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="operateur">Opérateur :</label>
+                            <label for="operateur">👤 Opérateur *</label>
                             <select id="operateur" required>
-                                <option value="">Choisir l'opérateur</option>
-                                <option value="abdel">Abdel</option>
-                                <option value="omar">Omar</option>
-                                <option value="hicham">Hicham</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="abdel">👨‍💼 Abdel</option>
+                                <option value="omar">👨‍💻 Omar</option>
+                                <option value="hicham">👨‍🔧 Hicham</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="groupe">Groupe :</label>
+                            <label for="groupe">🏷️ Groupe *</label>
                             <select id="groupe" required>
-                                <option value="">Choisir le groupe</option>
-                                <option value="zaitoun">Zaitoun</option>
-                                <option value="3commain">3 Commain</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="zaitoun">🫒 Zaitoun</option>
+                                <option value="3commain">🔧 3 Commain</option>
+                                <option value="autre">📝 Autre</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="typeOperation">Type d'opération :</label>
+                            <label for="typeOperation">🔧 Type Opération *</label>
                             <select id="typeOperation" required>
-                                <option value="">Choisir le type</option>
-                                <option value="travailleur_global">Travailleur global</option>
-                                <option value="zaitoun">Zaitoun seul</option>
-                                <option value="3commain">3 Commain seul</option>
-                                <option value="autre">Autre</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="travailleur_global">🌍 Travailleur global</option>
+                                <option value="zaitoun">🫒 Zaitoun</option>
+                                <option value="3commain">🔧 3 Commain</option>
+                                <option value="autre">📝 Autre</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="typeTransaction">Transaction :</label>
+                            <label for="typeTransaction">💸 Type Transaction *</label>
                             <select id="typeTransaction" required>
-                                <option value="">Choisir</option>
+                                <option value="">Sélectionner...</option>
                                 <option value="revenu">💰 Revenu</option>
                                 <option value="frais">💸 Frais</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="caisse">Caisse concernée :</label>
+                            <label for="caisse">🏦 Caisse *</label>
                             <select id="caisse" required>
-                                <option value="">Choisir la caisse</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="abdel_caisse">👨‍💼 Caisse Abdel</option>
+                                <option value="omar_caisse">👨‍💻 Caisse Omar</option>
+                                <option value="hicham_caisse">👨‍🔧 Caisse Hicham</option>
+                                <option value="zaitoun_caisse">🫒 Caisse Zaitoun</option>
+                                <option value="3commain_caisse">🔧 Caisse 3 Commain</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="montant">Montant (DH) :</label>
-                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
+                            <label for="montant">💰 Montant (DH) *</label>
+                            <input type="number" id="montant" step="0.01" min="0" required>
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label for="description">📄 Description *</label>
+                            <textarea id="description" placeholder="Décrivez l'opération..." required></textarea>
                         </div>
                     </div>
 
-                    <!-- Affichage répartition -->
+                    <!-- Section Répartition -->
                     <div id="repartitionInfo" class="repartition-info" style="display: none;">
-                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
+                        <strong>📊 Répartition automatique :</strong>
                         <div id="repartitionDetails"></div>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label for="description">Description :</label>
-                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
-                    </div>
-
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
-                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
+                        <button type="submit" class="btn-primary">💾 Enregistrer</button>
+                        <button type="button" id="btnReset" class="btn-secondary">🔄 Reset</button>
                     </div>
                 </form>
-            </section>
+            </div>
 
             <!-- Section Transfert -->
-            <section class="form-section">
+            <div class="form-section">
                 <div class="section-header">
                     <h2>🔄 Transfert entre Caisses</h2>
                 </div>
                 <form id="transfertForm" class="saisie-form">
                     <div class="form-grid">
                         <div class="form-group">
-                            <label for="caisseSource">De la caisse :</label>
+                            <label for="caisseSource">📤 Caisse Source *</label>
                             <select id="caisseSource" required>
-                                <option value="">Source</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="abdel_caisse">👨‍💼 Caisse Abdel</option>
+                                <option value="omar_caisse">👨‍💻 Caisse Omar</option>
+                                <option value="hicham_caisse">👨‍🔧 Caisse Hicham</option>
+                                <option value="zaitoun_caisse">🫒 Caisse Zaitoun</option>
+                                <option value="3commain_caisse">🔧 Caisse 3 Commain</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="caisseDestination">Vers la caisse :</label>
+                            <label for="caisseDestination">📥 Caisse Destination *</label>
                             <select id="caisseDestination" required>
-                                <option value="">Destination</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                                <option value="">Sélectionner...</option>
+                                <option value="abdel_caisse">👨‍💼 Caisse Abdel</option>
+                                <option value="omar_caisse">👨‍💻 Caisse Omar</option>
+                                <option value="hicham_caisse">👨‍🔧 Caisse Hicham</option>
+                                <option value="zaitoun_caisse">🫒 Caisse Zaitoun</option>
+                                <option value="3commain_caisse">🔧 Caisse 3 Commain</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="montantTransfert">Montant (DH) :</label>
-                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
+                            <label for="montantTransfert">💰 Montant Transfert (DH) *</label>
+                            <input type="number" id="montantTransfert" step="0.01" min="0" required>
                         </div>
-                    </div>
 
-                    <div class="form-group full-width">
-                        <label for="descriptionTransfert">Description :</label>
-                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
+                        <div class="form-group full-width">
+                            <label for="descriptionTransfert">📄 Description *</label>
+                            <textarea id="descriptionTransfert" placeholder="Raison du transfert..." required></textarea>
+                        </div>
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
+                        <button type="submit" class="btn-success">🔄 Effectuer Transfert</button>
                     </div>
                 </form>
-            </section>
+            </div>
         </div>
 
         <!-- Section Statistiques -->
-        <section class="stats-section">
+        <div class="stats-section">
             <div class="section-header">
                 <h2>📊 Soldes des Caisses</h2>
             </div>
             <div id="statsContainer" class="stats-container">
-                <!-- Les soldes apparaîtront ici -->
+                <!-- Les statistiques seront générées ici -->
             </div>
-        </section>
+        </div>
 
-        <!-- Section Historique -->
-        <section class="navigation-section">
-            <div class="section-header">
-                <div class="header-with-tabs">
-                    <h2>📋 Historique des Opérations</h2>
-                    <div class="nav-tabs">
-                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
-                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
-                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
-                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
-                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
-                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
-                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
-                    </div>
+        <!-- Section Navigation et Données -->
+        <div class="navigation-section">
+            <div class="section-header header-with-tabs">
+                <h2>📋 Historique des Opérations</h2>
+                <div class="nav-tabs">
+                    <button class="tab-btn active" data-sheet="global">🌍 Global</button>
+                    <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
+                    <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
+                    <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
+                    <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
+                    <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
+                    <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
                 </div>
             </div>
 
             <!-- Actions de gestion -->
             <div class="management-actions">
-                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
-                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
-                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
-                
-                <!-- NOUVEAUX BOUTONS EXPORT/IMPORT -->
-                <button id="btnExport" class="btn-info">📤 Exporter</button>
+                <button id="btnSync" class="btn-info">🔄 Synchroniser</button>
+                <button id="btnExport" class="btn-success">📤 Exporter</button>
+                <label for="inputImport" class="btn-warning" style="cursor: pointer; margin: 0;">📥 Importer</label>
                 <input type="file" id="inputImport" accept=".json" style="display: none;">
-                <button onclick="document.getElementById('inputImport').click()" class="btn-info">📥 Importer</button>
+                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
+                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer</button>
+                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
             </div>
 
+            <!-- Affichage des données -->
             <div id="dataDisplay" class="data-display">
-                <!-- L'historique apparaîtra ici -->
+                <!-- Les données seront affichées ici -->
             </div>
-        </section>
+        </div>
     </div>
 
-    <!-- Modal pour modification -->
+    <!-- Modal d'édition -->
     <div id="editModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>✏️ Modifier l'Opération</h3>
+                <h3>✏️ Modifier l'opération</h3>
                 <button class="close-modal">&times;</button>
             </div>
             <form id="editForm" class="modal-form">
                 <input type="hidden" id="editId">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="editOperateur">Opérateur :</label>
+                        <label for="editOperateur">👤 Opérateur</label>
                         <select id="editOperateur" required>
-                            <option value="abdel">Abdel</option>
-                            <option value="omar">Omar</option>
-                            <option value="hicham">Hicham</option>
+                            <option value="abdel">👨‍💼 Abdel</option>
+                            <option value="omar">👨‍💻 Omar</option>
+                            <option value="hicham">👨‍🔧 Hicham</option>
+                            <option value="system">🤖 Système</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editGroupe">Groupe :</label>
+                        <label for="editGroupe">🏷️ Groupe</label>
                         <select id="editGroupe" required>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
+                            <option value="zaitoun">🫒 Zaitoun</option>
+                            <option value="3commain">🔧 3 Commain</option>
+                            <option value="autre">📝 Autre</option>
+                            <option value="transfert">🔄 Transfert</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="editTypeOperation">Type d'Opération :</label>
+                        <label for="editTypeOperation">🔧 Type Opération</label>
                         <select id="editTypeOperation" required>
-                            <option value="travailleur_global">Travailleur global</option>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                            <option value="autre">Autre</option>
+                            <option value="travailleur_global">🌍 Travailleur global</option>
+                            <option value="zaitoun">🫒 Zaitoun</option>
+                            <option value="3commain">🔧 3 Commain</option>
+                            <option value="autre">📝 Autre</option>
+                            <option value="transfert">🔄 Transfert</option>
                         </select>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="editTypeTransaction">Transaction :</label>
+                        <label for="editTypeTransaction">💸 Type Transaction</label>
                         <select id="editTypeTransaction" required>
                             <option value="revenu">💰 Revenu</option>
                             <option value="frais">💸 Frais</option>
                         </select>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="editCaisse">Caisse :</label>
+                        <label for="editCaisse">🏦 Caisse</label>
                         <select id="editCaisse" required>
-                            <option value="abdel_caisse">Caisse Abdel</option>
-                            <option value="omar_caisse">Caisse Omar</option>
-                            <option value="hicham_caisse">Caisse Hicham</option>
-                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                            <option value="abdel_caisse">👨‍💼 Caisse Abdel</option>
+                            <option value="omar_caisse">👨‍💻 Caisse Omar</option>
+                            <option value="hicham_caisse">👨‍🔧 Caisse Hicham</option>
+                            <option value="zaitoun_caisse">🫒 Caisse Zaitoun</option>
+                            <option value="3commain_caisse">🔧 Caisse 3 Commain</option>
                         </select>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="editMontant">Montant (DH) :</label>
+                        <label for="editMontant">💰 Montant (DH)</label>
                         <input type="number" id="editMontant" step="0.01" min="0" required>
                     </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDescription">Description :</label>
-                    <textarea id="editDescription" rows="3" required></textarea>
+                    <div class="form-group full-width">
+                        <label for="editDescription">📄 Description</label>
+                        <textarea id="editDescription" required></textarea>
+                    </div>
                 </div>
                 <div class="modal-actions">
-                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
+                    <button type="submit" class="btn-success">💾 Sauvegarder</button>
                     <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="./app.js"></script>
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
