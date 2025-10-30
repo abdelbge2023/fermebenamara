@@ -14,4 +14,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    console.log('✅ Firebase configuré');
+} else {
+    console.error('❌ Firebase non chargé');
+}
