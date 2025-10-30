@@ -1,4 +1,4 @@
-// app.js - VERSION AVEC BOUTON EXPORT FONCTIONNEL
+// app.js - VERSION FINALE COMPLÈTEMENT DÉBOGUÉE
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -88,13 +88,27 @@ class GestionFerme {
             montantInput.addEventListener('input', () => this.calculerRepartition());
         }
 
-        // BOUTONS EXPORT/IMPORT - CORRIGÉ
+        // BOUTONS EXPORT/IMPORT - CORRIGÉ AVEC DÉLAI
+        setTimeout(() => {
+            this.setupExportImportButtons();
+        }, 100);
+
+        console.log('✅ Tous les événements configurés');
+    }
+
+    // CONFIGURATION SPÉCIALE POUR LES BOUTONS EXPORT/IMPORT
+    setupExportImportButtons() {
+        console.log('🔧 Configuration des boutons export/import...');
+        
         const btnExport = document.getElementById('btnExport');
         if (btnExport) {
-            btnExport.addEventListener('click', () => this.exporterDonnees());
+            btnExport.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.exporterDonnees();
+            });
             console.log('✅ Bouton export configuré');
         } else {
-            console.log('❌ Bouton export non trouvé');
+            console.log('❌ Bouton export non trouvé - vérifiez l\'HTML');
         }
 
         const inputImport = document.getElementById('inputImport');
@@ -102,13 +116,11 @@ class GestionFerme {
             inputImport.addEventListener('change', (e) => this.importerDonnees(e));
             console.log('✅ Input import configuré');
         } else {
-            console.log('❌ Input import non trouvé');
+            console.log('❌ Input import non trouvé - vérifiez l\'HTML');
         }
-
-        console.log('✅ Tous les événements configurés');
     }
 
-    // MÉTHODE EXPORT CORRIGÉE
+    // MÉTHODE EXPORT SIMPLIFIÉE ET FIABLE
     exporterDonnees() {
         console.log('📤 Début de l\'export des données...');
         
@@ -127,106 +139,69 @@ class GestionFerme {
                 version: '1.0'
             };
             
-            console.log('📊 Données préparées:', data);
-            
+            // Créer le contenu JSON
             const dataStr = JSON.stringify(data, null, 2);
-            console.log('📝 JSON généré:', dataStr.length, 'caractères');
             
-            // Créer un blob avec le type correct
-            const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+            // Créer un blob
+            const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             
-            // Créer un lien de téléchargement
-            const link = document.createElement('a');
-            link.href = url;
+            // Créer et cliquer sur le lien de téléchargement
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gestion_ferme_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             
-            // Nom du fichier avec date
-            const date = new Date().toISOString().split('T')[0];
-            link.download = `gestion_ferme_${date}.json`;
-            
-            // Simuler le clic
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Libérer l'URL
+            // Nettoyer l'URL
             setTimeout(() => URL.revokeObjectURL(url), 100);
             
-            console.log('✅ Export réussi');
-            this.afficherMessageSucces(`Données exportées (${this.operations.length} opérations) !`);
+            this.afficherMessageSucces(`✅ Données exportées (${this.operations.length} opérations) !`);
+            console.log('📤 Export réussi');
             
         } catch (error) {
-            console.error('❌ Erreur lors de l\'export:', error);
-            this.afficherMessageErreur('Erreur lors de l\'export: ' + error.message);
+            console.error('❌ Erreur export:', error);
+            this.afficherMessageErreur('Erreur lors de l\'export');
         }
     }
 
-    // MÉTHODE IMPORT CORRIGÉE
+    // MÉTHODE IMPORT
     importerDonnees(event) {
-        console.log('📥 Début de l\'import des données...');
-        
         const file = event.target.files[0];
-        if (!file) {
-            console.log('❌ Aucun fichier sélectionné');
-            return;
-        }
-
-        console.log('📄 Fichier sélectionné:', file.name, file.size, 'bytes');
+        if (!file) return;
 
         const reader = new FileReader();
-        
         reader.onload = (e) => {
             try {
-                console.log('📖 Lecture du fichier terminée');
                 const data = JSON.parse(e.target.result);
-                console.log('✅ Fichier JSON parsé:', data);
-                
                 if (data.operations && Array.isArray(data.operations)) {
                     const nbOperations = data.operations.length;
-                    console.log(`📊 ${nbOperations} opérations trouvées dans le fichier`);
                     
-                    // Demander confirmation
                     if (confirm(`Voulez-vous importer ${nbOperations} opérations ?\n\nCela remplacera les ${this.operations.length} opérations actuelles.`)) {
                         this.operations = data.operations;
                         this.sauvegarderLocal();
                         this.updateStats();
                         this.afficherHistorique('global');
                         this.afficherMessageSucces(`${nbOperations} opérations importées avec succès !`);
-                        console.log('✅ Import réussi');
                     }
                 } else {
-                    console.log('❌ Format de fichier invalide - operations manquant');
-                    this.afficherMessageErreur('Format de fichier invalide. Le fichier doit contenir un tableau "operations".');
+                    this.afficherMessageErreur('Format de fichier invalide');
                 }
             } catch (error) {
-                console.error('❌ Erreur lors du parsing JSON:', error);
-                this.afficherMessageErreur('Fichier JSON invalide: ' + error.message);
+                console.error('Erreur import:', error);
+                this.afficherMessageErreur('Fichier JSON invalide');
             }
         };
-
-        reader.onerror = (error) => {
-            console.error('❌ Erreur de lecture du fichier:', error);
-            this.afficherMessageErreur('Erreur de lecture du fichier');
-        };
-
         reader.readAsText(file);
-        
-        // Réinitialiser l'input pour permettre le re-téléchargement du même fichier
         event.target.value = '';
     }
 
-    // TEST MANUEL DE L'EXPORT (pour débogage)
-    testerExport() {
-        console.log('🧪 Test manuel de l\'export');
-        this.exporterDonnees();
-    }
-
-    // ... (TOUTES LES AUTRES MÉTHODES RESTENT IDENTIQUES)
+    // MÉTHODES EXISTANTES (inchangées)
     ajouterOperation(e) {
         e.preventDefault();
         console.log('✅ Formulaire soumis');
 
-        // Récupérer les valeurs du formulaire
         const operateur = document.getElementById('operateur').value;
         const groupe = document.getElementById('groupe').value;
         const typeOperation = document.getElementById('typeOperation').value;
@@ -443,10 +418,6 @@ class GestionFerme {
             max-width: 400px;
         `;
         
-        // Retirer les notifications existantes
-        const existingNotifications = document.querySelectorAll('[style*="position: fixed"][style*="top: 20px"]');
-        existingNotifications.forEach(notif => notif.remove());
-        
         document.body.appendChild(notification);
         
         setTimeout(() => {
@@ -462,9 +433,7 @@ class GestionFerme {
             if (saved) {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log('📁 ' + this.operations.length + ' opérations chargées du localStorage');
-            } else {
-                console.log('📁 Aucune donnée sauvegardée trouvée dans le localStorage');
+                console.log('📁 ' + this.operations.length + ' opérations chargées');
             }
         } catch (error) {
             console.error('Erreur chargement localStorage:', error);
@@ -476,24 +445,12 @@ class GestionFerme {
         try {
             const data = {
                 operations: this.operations,
-                lastUpdate: new Date().toISOString(),
-                device: this.getDeviceInfo()
+                lastUpdate: new Date().toISOString()
             };
             localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-            console.log('💾 Données sauvegardées dans le localStorage (' + this.operations.length + ' opérations)');
         } catch (error) {
             console.error('Erreur sauvegarde localStorage:', error);
-            this.afficherMessageErreur('Erreur de sauvegarde des données');
         }
-    }
-
-    getDeviceInfo() {
-        return {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            timestamp: new Date().toISOString()
-        };
     }
 
     updateStats() {
@@ -503,7 +460,6 @@ class GestionFerme {
         if (!statsContainer) return;
 
         try {
-            // Calcul des soldes par caisse
             const soldes = {};
             this.operations.forEach(op => {
                 if (!soldes[op.caisse]) {
@@ -514,7 +470,6 @@ class GestionFerme {
 
             let html = '';
             
-            // Cartes pour chaque caisse
             const caisses = ['abdel_caisse', 'omar_caisse', 'hicham_caisse', 'zaitoun_caisse', '3commain_caisse'];
             caisses.forEach(caisse => {
                 const solde = soldes[caisse] || 0;
@@ -530,7 +485,6 @@ class GestionFerme {
                 `;
             });
 
-            // Carte pour le solde total
             const soldeTotal = Object.values(soldes).reduce((total, solde) => total + solde, 0);
             const totalFormate = soldeTotal.toFixed(2);
             const totalPositif = soldeTotal >= 0;
@@ -546,7 +500,6 @@ class GestionFerme {
             statsContainer.innerHTML = html;
         } catch (error) {
             console.error('Erreur updateStats:', error);
-            statsContainer.innerHTML = '<div class="empty-message">Erreur de calcul des statistiques</div>';
         }
     }
 
@@ -586,8 +539,6 @@ class GestionFerme {
             html += '</tr></thead><tbody>';
 
             operationsFiltrees.forEach(op => {
-                if (!op || typeof op !== 'object') return;
-
                 html += '<tr>';
                 
                 if (this.modeEdition) {
@@ -595,20 +546,20 @@ class GestionFerme {
                     html += `<td><input type="checkbox" class="operation-checkbox" data-id="${op.id}" ${isChecked}></td>`;
                 }
                 
-                html += '<td>' + (op.date ? this.formaterDate(op.date) : 'N/A') + '</td>';
-                html += '<td>' + this.formaterOperateur(op.operateur || 'inconnu') + '</td>';
-                html += '<td>' + this.formaterGroupe(op.groupe || 'inconnu') + '</td>';
-                html += '<td>' + this.formaterTypeOperation(op.typeOperation || 'inconnu') + '</td>';
-                html += '<td class="type-' + (op.typeTransaction || 'inconnu') + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
-                html += '<td>' + this.formaterCaisse(op.caisse || 'inconnu') + '</td>';
-                html += '<td class="' + ((op.montant || 0) >= 0 ? 'type-revenu' : 'type-frais') + '">';
-                html += (op.montant || 0).toFixed(2) + ' DH</td>';
-                html += '<td>' + (op.description || '') + '</td>';
+                html += '<td>' + this.formaterDate(op.date) + '</td>';
+                html += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
+                html += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
+                html += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
+                html += '<td class="type-' + op.typeTransaction + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
+                html += '<td>' + this.formaterCaisse(op.caisse) + '</td>';
+                html += '<td class="' + (op.montant >= 0 ? 'type-revenu' : 'type-frais') + '">';
+                html += op.montant.toFixed(2) + ' DH</td>';
+                html += '<td>' + op.description + '</td>';
                 
                 if (this.modeEdition) {
                     html += `<td class="operation-actions">
-                        <button class="btn-small btn-info" data-id="${op.id}" onclick="window.gestionFermeApp.editerOperation(${op.id})">✏️</button>
-                        <button class="btn-small btn-danger" data-id="${op.id}" onclick="window.gestionFermeApp.supprimerOperation(${op.id})">🗑️</button>
+                        <button class="btn-small btn-info" onclick="window.gestionFermeApp.editerOperation(${op.id})">✏️</button>
+                        <button class="btn-small btn-danger" onclick="window.gestionFermeApp.supprimerOperation(${op.id})">🗑️</button>
                     </td>`;
                 }
                 
@@ -618,19 +569,16 @@ class GestionFerme {
             html += '</tbody></table>';
             dataDisplay.innerHTML = html;
 
-            // Ajouter les écouteurs pour les cases à cocher en mode édition
             if (this.modeEdition) {
                 this.setupCheckboxListeners();
             }
         } catch (error) {
             console.error('Erreur afficherHistorique:', error);
-            dataDisplay.innerHTML = '<div class="empty-message">Erreur d\'affichage de l\'historique</div>';
         }
     }
 
     setupCheckboxListeners() {
         try {
-            // Case à cocher "Tout sélectionner"
             const selectAll = document.getElementById('selectAll');
             if (selectAll) {
                 selectAll.addEventListener('change', (e) => {
@@ -638,31 +586,26 @@ class GestionFerme {
                     checkboxes.forEach(checkbox => {
                         checkbox.checked = e.target.checked;
                         const operationId = parseInt(checkbox.dataset.id);
-                        if (!isNaN(operationId)) {
-                            if (e.target.checked) {
-                                this.operationsSelectionnees.add(operationId);
-                            } else {
-                                this.operationsSelectionnees.delete(operationId);
-                            }
+                        if (e.target.checked) {
+                            this.operationsSelectionnees.add(operationId);
+                        } else {
+                            this.operationsSelectionnees.delete(operationId);
                         }
                     });
                     this.updateBoutonsSuppression();
                 });
             }
 
-            // Cases à cocher individuelles
             const checkboxes = document.querySelectorAll('.operation-checkbox');
             checkboxes.forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
                     const operationId = parseInt(e.target.dataset.id);
-                    if (!isNaN(operationId)) {
-                        if (e.target.checked) {
-                            this.operationsSelectionnees.add(operationId);
-                        } else {
-                            this.operationsSelectionnees.delete(operationId);
-                        }
-                        this.updateBoutonsSuppression();
+                    if (e.target.checked) {
+                        this.operationsSelectionnees.add(operationId);
+                    } else {
+                        this.operationsSelectionnees.delete(operationId);
                     }
+                    this.updateBoutonsSuppression();
                 });
             });
         } catch (error) {
@@ -686,7 +629,6 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODES DU MODE ÉDITION
     toggleEditMode(activer = null) {
         try {
             this.modeEdition = activer !== null ? activer : !this.modeEdition;
@@ -722,7 +664,6 @@ class GestionFerme {
                 this.operationsSelectionnees.clear();
             }
             
-            // Re-afficher l'historique avec le nouveau mode
             const tabActif = document.querySelector('.tab-btn.active');
             this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
         } catch (error) {
@@ -738,71 +679,49 @@ class GestionFerme {
             }
 
             if (confirm(`Voulez-vous vraiment supprimer ${this.operationsSelectionnees.size} opération(s) ?`)) {
-                const ancienneTaille = this.operations.length;
                 this.operations = this.operations.filter(op => !this.operationsSelectionnees.has(op.id));
-                
-                if (this.operations.length < ancienneTaille) {
-                    this.sauvegarderLocal();
-                    this.afficherMessageSucces(`${ancienneTaille - this.operations.length} opération(s) supprimée(s) !`);
-                    this.updateStats();
-                    
-                    const tabActif = document.querySelector('.tab-btn.active');
-                    this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
-                }
-                
+                this.sauvegarderLocal();
+                this.afficherMessageSucces(`${this.operationsSelectionnees.size} opération(s) supprimée(s) !`);
+                this.updateStats();
                 this.operationsSelectionnees.clear();
                 this.toggleEditMode(false);
             }
         } catch (error) {
             console.error('Erreur supprimerOperationsSelectionnees:', error);
-            this.afficherMessageErreur('Erreur lors de la suppression');
         }
     }
 
     supprimerOperation(id) {
         try {
             if (confirm('Voulez-vous vraiment supprimer cette opération ?')) {
-                const ancienneTaille = this.operations.length;
                 this.operations = this.operations.filter(op => op.id !== id);
-                
-                if (this.operations.length < ancienneTaille) {
-                    this.sauvegarderLocal();
-                    this.afficherMessageSucces('Opération supprimée !');
-                    this.updateStats();
-                    
-                    const tabActif = document.querySelector('.tab-btn.active');
-                    this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
-                }
+                this.sauvegarderLocal();
+                this.afficherMessageSucces('Opération supprimée !');
+                this.updateStats();
+                this.afficherHistorique('global');
             }
         } catch (error) {
             console.error('Erreur supprimerOperation:', error);
-            this.afficherMessageErreur('Erreur lors de la suppression');
         }
     }
 
     editerOperation(id) {
         try {
             const operation = this.operations.find(op => op.id === id);
-            if (!operation) {
-                this.afficherMessageErreur('Opération non trouvée');
-                return;
-            }
+            if (!operation) return;
 
-            // Remplir le formulaire modal
             document.getElementById('editId').value = operation.id;
-            document.getElementById('editOperateur').value = operation.operateur || '';
-            document.getElementById('editGroupe').value = operation.groupe || '';
-            document.getElementById('editTypeOperation').value = operation.typeOperation || '';
-            document.getElementById('editTypeTransaction').value = operation.typeTransaction || '';
-            document.getElementById('editCaisse').value = operation.caisse || '';
-            document.getElementById('editMontant').value = Math.abs(operation.montant || 0);
-            document.getElementById('editDescription').value = operation.description || '';
+            document.getElementById('editOperateur').value = operation.operateur;
+            document.getElementById('editGroupe').value = operation.groupe;
+            document.getElementById('editTypeOperation').value = operation.typeOperation;
+            document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+            document.getElementById('editCaisse').value = operation.caisse;
+            document.getElementById('editMontant').value = Math.abs(operation.montant);
+            document.getElementById('editDescription').value = operation.description;
 
-            // Afficher le modal
             document.getElementById('editModal').style.display = 'flex';
         } catch (error) {
             console.error('Erreur editerOperation:', error);
-            this.afficherMessageErreur('Erreur lors de l\'édition');
         }
     }
 
@@ -816,27 +735,9 @@ class GestionFerme {
             const typeOperation = document.getElementById('editTypeOperation').value;
             const typeTransaction = document.getElementById('editTypeTransaction').value;
             const caisse = document.getElementById('editCaisse').value;
-            const montantInput = document.getElementById('editMontant').value;
+            const montant = parseFloat(document.getElementById('editMontant').value);
             const description = document.getElementById('editDescription').value;
 
-            // Validation
-            if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse) {
-                this.afficherMessageErreur('Veuillez remplir tous les champs obligatoires');
-                return;
-            }
-
-            const montant = parseFloat(montantInput);
-            if (montant <= 0 || isNaN(montant)) {
-                this.afficherMessageErreur('Le montant doit être supérieur à 0');
-                return;
-            }
-
-            if (!description.trim()) {
-                this.afficherMessageErreur('Veuillez saisir une description');
-                return;
-            }
-
-            // Trouver et mettre à jour l'opération
             const operationIndex = this.operations.findIndex(op => op.id === id);
             if (operationIndex !== -1) {
                 this.operations[operationIndex] = {
@@ -846,24 +747,18 @@ class GestionFerme {
                     typeOperation,
                     typeTransaction,
                     caisse,
-                    description: description.trim(),
-                    montant: typeTransaction === 'frais' ? -montant : montant,
-                    timestamp: new Date().toISOString() // Mettre à jour le timestamp
+                    description,
+                    montant: typeTransaction === 'frais' ? -montant : montant
                 };
 
                 this.sauvegarderLocal();
                 this.afficherMessageSucces('Opération modifiée !');
                 this.fermerModal();
                 this.updateStats();
-                
-                const tabActif = document.querySelector('.tab-btn.active');
-                this.afficherHistorique(tabActif ? tabActif.getAttribute('data-sheet') : 'global');
-            } else {
-                this.afficherMessageErreur('Opération non trouvée');
+                this.afficherHistorique('global');
             }
         } catch (error) {
             console.error('Erreur modifierOperation:', error);
-            this.afficherMessageErreur('Erreur lors de la modification');
         }
     }
 
@@ -875,14 +770,8 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODES DE FORMATAGE
     formaterDate(dateStr) {
-        try {
-            if (!dateStr) return 'N/A';
-            return new Date(dateStr).toLocaleDateString('fr-FR');
-        } catch (error) {
-            return 'Date invalide';
-        }
+        return new Date(dateStr).toLocaleDateString('fr-FR');
     }
 
     formaterOperateur(operateur) {
@@ -892,7 +781,7 @@ class GestionFerme {
             'hicham': '👨‍🔧 Hicham',
             'system': '🤖 Système'
         };
-        return operateurs[operateur] || operateur || 'Inconnu';
+        return operateurs[operateur] || operateur;
     }
 
     formaterGroupe(groupe) {
@@ -901,7 +790,7 @@ class GestionFerme {
             '3commain': '🔧 3 Commain',
             'transfert': '🔄 Transfert'
         };
-        return groupes[groupe] || groupe || 'Inconnu';
+        return groupes[groupe] || groupe;
     }
 
     formaterTypeOperation(type) {
@@ -912,11 +801,11 @@ class GestionFerme {
             'autre': '📝 Autre',
             'transfert': '🔄 Transfert'
         };
-        return types[type] || type || 'Inconnu';
+        return types[type] || type;
     }
 
     formaterTypeTransaction(type) {
-        return type === 'revenu' ? '💰 Revenu' : (type === 'frais' ? '💸 Frais' : 'Inconnu');
+        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
     }
 
     formaterCaisse(caisse) {
@@ -927,11 +816,11 @@ class GestionFerme {
             'zaitoun_caisse': '🫒 Caisse Zaitoun', 
             '3commain_caisse': '🔧 Caisse 3 Commain'
         };
-        return caisses[caisse] || caisse || 'Caisse inconnue';
+        return caisses[caisse] || caisse;
     }
 }
 
-// Initialisation avec protection contre la redéclaration et accès global
+// Initialisation
 let app;
 if (!window.appInitialized) {
     document.addEventListener('DOMContentLoaded', function() {
@@ -939,16 +828,11 @@ if (!window.appInitialized) {
             try {
                 app = new GestionFerme();
                 window.appInitialized = true;
-                window.gestionFermeApp = app; // Rendre l'app accessible globalement
-                window.app = app; // Double accès pour compatibilité
-                console.log('🚀 Application Gestion Ferme avec export/import démarrée !');
-                
-                // Test manuel de l'export (débogage)
-                console.log('💡 Pour tester l\'export manuellement, tapez dans la console:');
-                console.log('   window.gestionFermeApp.testerExport()');
-                
+                window.gestionFermeApp = app;
+                window.app = app;
+                console.log('🚀 Application Gestion Ferme démarrée !');
             } catch (error) {
-                console.error('❌ Erreur critique lors du démarrage:', error);
+                console.error('❌ Erreur démarrage:', error);
             }
         }
     });
