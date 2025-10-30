@@ -1,4 +1,4 @@
-// app.js - Version corrigée avec gestion d'erreurs
+// app.js - Version corrigée sans modules ES6
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -12,7 +12,7 @@ class GestionFerme {
         this.editMode = false;
         this.selectedOperations = new Set();
         this.currentView = 'global';
-        this.firebaseDisponible = false;
+        this.firebaseDisponible = window.firebaseDisponible || false;
 
         this.init();
     }
@@ -27,42 +27,48 @@ class GestionFerme {
 
     async chargerDonnees() {
         // Essayer Firebase d'abord
-        try {
-            await this.chargerDepuisFirebase();
-            this.firebaseDisponible = true;
-            console.log('✅ Données chargées depuis Firebase');
-        } catch (error) {
-            console.log('❌ Firebase non disponible, utilisation du localStorage');
+        if (this.firebaseDisponible) {
+            try {
+                await this.chargerDepuisFirebase();
+                console.log('✅ Données chargées depuis Firebase');
+            } catch (error) {
+                console.log('❌ Erreur Firebase, utilisation du localStorage');
+                this.chargerDepuisLocalStorage();
+                this.firebaseDisponible = false;
+            }
+        } else {
+            console.log('🔧 Mode hors ligne, utilisation du localStorage');
             this.chargerDepuisLocalStorage();
-            this.firebaseDisponible = false;
         }
     }
 
     async chargerDepuisFirebase() {
-        try {
-            const { db, collection, getDocs, query, orderBy } = await import('./firebase.js');
-            
-            if (!db) {
-                throw new Error('Firebase non configuré');
+        return new Promise((resolve, reject) => {
+            if (!window.db) {
+                reject(new Error('Firebase non disponible'));
+                return;
             }
 
-            const querySnapshot = await getDocs(query(collection(db, 'operations'), orderBy('timestamp', 'desc')));
-            
-            this.operations = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                this.operations.push({
-                    firebaseId: doc.id,
-                    ...data
+            window.db.collection("operations")
+                .orderBy("timestamp", "desc")
+                .get()
+                .then((querySnapshot) => {
+                    this.operations = [];
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        this.operations.push({
+                            firebaseId: doc.id,
+                            ...data
+                        });
+                    });
+                    console.log(`📡 ${this.operations.length} opérations chargées depuis Firebase`);
+                    resolve();
+                })
+                .catch((error) => {
+                    console.error("Erreur chargement Firebase:", error);
+                    reject(error);
                 });
-            });
-            
-            console.log(`📡 ${this.operations.length} opérations chargées depuis Firebase`);
-            
-        } catch (error) {
-            console.error('Erreur chargement Firebase:', error);
-            throw error; // Propager l'erreur
-        }
+        });
     }
 
     chargerDepuisLocalStorage() {
@@ -90,20 +96,18 @@ class GestionFerme {
     }
 
     async sauvegarderFirebase() {
-        if (!this.firebaseDisponible) return;
+        if (!this.firebaseDisponible || !window.db) return;
         
         try {
-            const { db, collection, addDoc, updateDoc, doc } = await import('./firebase.js');
-            
             for (const operation of this.operations) {
                 if (!operation.firebaseId) {
                     // Nouvelle opération
-                    const docRef = await addDoc(collection(db, 'operations'), operation);
+                    const docRef = await window.db.collection("operations").add(operation);
                     operation.firebaseId = docRef.id;
                     console.log('➕ Opération ajoutée à Firebase:', docRef.id);
                 } else {
                     // Mettre à jour l'opération existante
-                    await updateDoc(doc(db, 'operations', operation.firebaseId), operation);
+                    await window.db.collection("operations").doc(operation.firebaseId).update(operation);
                 }
             }
         } catch (error) {
@@ -120,31 +124,18 @@ class GestionFerme {
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
     }
 
-    // MÉTHODES PRINCIPALES (garder votre code existant)
+    // MÉTHODE AJOUTER OPÉRATION (version simplifiée)
     async ajouterOperation(e) {
         e.preventDefault();
 
-        // VOTRE CODE EXISTANT POUR RÉCUPÉRER LES DONNÉES DU FORMULAIRE
-        const operateur = document.getElementById('operateur');
-        const groupe = document.getElementById('groupe');
-        const typeOperation = document.getElementById('typeOperation');
-        const typeTransaction = document.getElementById('typeTransaction');
-        const caisse = document.getElementById('caisse');
-        const montant = document.getElementById('montant');
-        const description = document.getElementById('description');
-
-        if (!operateur || !groupe || !typeOperation || !typeTransaction || !caisse || !montant || !description) {
-            alert('Erreur: Formulaire non trouvé');
-            return;
-        }
-
-        const operateurValue = operateur.value;
-        const groupeValue = groupe.value;
-        const typeOperationValue = typeOperation.value;
-        const typeTransactionValue = typeTransaction.value;
-        const caisseValue = caisse.value;
-        const montantSaisi = parseFloat(montant.value);
-        const descriptionValue = description.value.trim();
+        const formData = new FormData(e.target);
+        const operateur = document.getElementById('operateur').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisse = document.getElementById('caisse').value;
+        const montantSaisi = parseFloat(document.getElementById('montant').value);
+        const descriptionValue = document.getElementById('description').value.trim();
 
         // Validation
         if (montantSaisi <= 0 || isNaN(montantSaisi)) {
@@ -159,7 +150,7 @@ class GestionFerme {
 
         let operationsACreer = [];
 
-        if (typeOperationValue === 'travailleur_global') {
+        if (typeOperation === 'travailleur_global') {
             // RÉPARTITION AUTOMATIQUE 1/3 - 2/3
             const montantZaitoun = montantSaisi / 3;
             const montant3Commain = (montantSaisi * 2) / 3;
@@ -168,42 +159,42 @@ class GestionFerme {
                 {
                     id: Date.now(),
                     date: new Date().toISOString().split('T')[0],
-                    operateur: operateurValue,
+                    operateur: operateur,
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
-                    typeTransaction: typeTransactionValue,
-                    caisse: caisseValue,
+                    typeTransaction: typeTransaction,
+                    caisse: caisse,
                     description: descriptionValue + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransactionValue === 'frais' ? -montantZaitoun : montantZaitoun,
+                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
                     timestamp: new Date().toISOString()
                 },
                 {
                     id: Date.now() + 1,
                     date: new Date().toISOString().split('T')[0],
-                    operateur: operateurValue,
+                    operateur: operateur,
                     groupe: '3commain',
                     typeOperation: '3commain',
-                    typeTransaction: typeTransactionValue,
-                    caisse: caisseValue,
+                    typeTransaction: typeTransaction,
+                    caisse: caisse,
                     description: descriptionValue + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransactionValue === 'frais' ? -montant3Commain : montant3Commain,
+                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
                     timestamp: new Date().toISOString()
                 }
             ];
         } else {
-            // Opération normale sans répartition
+            // Opération normale
             operationsACreer = [{
                 id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
-                operateur: operateurValue,
-                groupe: groupeValue,
-                typeOperation: typeOperationValue,
-                typeTransaction: typeTransactionValue,
-                caisse: caisseValue,
+                operateur: operateur,
+                groupe: groupe,
+                typeOperation: typeOperation,
+                typeTransaction: typeTransaction,
+                caisse: caisse,
                 description: descriptionValue,
-                montant: typeTransactionValue === 'frais' ? -montantSaisi : montantSaisi,
+                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
                 timestamp: new Date().toISOString()
             }];
@@ -218,42 +209,37 @@ class GestionFerme {
         await this.sauvegarderDonnees();
 
         this.afficherMessageSucces(
-            typeOperationValue === 'travailleur_global' 
+            typeOperation === 'travailleur_global' 
                 ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
                 : 'Opération enregistrée avec succès !'
         );
+        
         this.resetForm();
         this.updateStats();
         this.afficherHistorique(this.currentView);
     }
 
-    async supprimerOperation(operationId) {
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            const operation = this.operations.find(op => op.id === operationId);
-            
-            // Supprimer de Firebase si disponible
-            if (operation && operation.firebaseId && this.firebaseDisponible) {
-                try {
-                    const { db, doc, deleteDoc } = await import('./firebase.js');
-                    await deleteDoc(doc(db, 'operations', operation.firebaseId));
-                } catch (error) {
-                    console.error('Erreur suppression Firebase:', error);
-                }
-            }
-            
-            // Supprimer localement
-            this.operations = this.operations.filter(op => op.id !== operationId);
-            await this.sauvegarderDonnees();
-            this.updateStats();
-            this.afficherHistorique(this.currentView);
-            this.afficherMessageSucces('Opération supprimée avec succès');
-        }
-    }
-
-    // AJOUTER L'AFFICHAGE DU STATUT FIREBASE
+    // AJOUTER L'AFFICHAGE DU STATUT
     setupEventListeners() {
         // VOTRE CODE EXISTANT...
+        const saisieForm = document.getElementById('saisieForm');
+        const transfertForm = document.getElementById('transfertForm');
+        const btnReset = document.getElementById('btnReset');
         
+        if (saisieForm) {
+            saisieForm.addEventListener('submit', (e) => this.ajouterOperation(e));
+        }
+        
+        if (transfertForm) {
+            transfertForm.addEventListener('submit', (e) => this.effectuerTransfert(e));
+        }
+        
+        if (btnReset) {
+            btnReset.addEventListener('click', () => this.resetForm());
+        }
+
+        // ... (le reste de votre code)
+
         // Ajouter l'affichage du statut
         this.afficherStatutFirebase();
     }
@@ -274,7 +260,7 @@ class GestionFerme {
             statutDiv.style.color = '#155724';
             statutDiv.style.border = '2px solid #c3e6cb';
         } else {
-            statutDiv.textContent = '⚠️ Mode hors ligne (local)';
+            statutDiv.textContent = '🔧 Mode hors ligne (données locales)';
             statutDiv.style.background = '#fff3cd';
             statutDiv.style.color = '#856404';
             statutDiv.style.border = '2px solid #ffeaa7';
@@ -285,34 +271,285 @@ class GestionFerme {
 
     // GARDER TOUTES VOS AUTRES MÉTHODES EXISTANTES
     calculerRepartition() {
-        // Votre code existant
+        const typeOperation = document.getElementById('typeOperation');
+        const montant = document.getElementById('montant');
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+
+        if (!typeOperation || !montant || !repartitionInfo || !repartitionDetails) return;
+
+        const typeOpValue = typeOperation.value;
+        const montantValue = parseFloat(montant.value) || 0;
+
+        if (typeOpValue === 'travailleur_global' && montantValue > 0) {
+            const montantZaitoun = (montantValue / 3).toFixed(2);
+            const montant3Commain = ((montantValue * 2) / 3).toFixed(2);
+
+            repartitionDetails.innerHTML = 
+                '<div class="repartition-details">' +
+                    '<div class="repartition-item zaitoun">' +
+                        '<strong>Zaitoun</strong><br>' +
+                        '<span style="color: #ff9800; font-weight: bold;">' + montantZaitoun + ' DH</span><br>' +
+                        '<small>(1/3 du montant)</small>' +
+                    '</div>' +
+                    '<div class="repartition-item commain">' +
+                        '<strong>3 Commain</strong><br>' +
+                        '<span style="color: #2196f3; font-weight: bold;">' + montant3Commain + ' DH</span><br>' +
+                        '<small>(2/3 du montant)</small>' +
+                    '</div>' +
+                '</div>';
+            repartitionInfo.style.display = 'block';
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
     }
 
     toggleEditMode(enable = null) {
-        // Votre code existant
+        this.editMode = enable !== null ? enable : !this.editMode;
+        
+        document.body.classList.toggle('edit-mode', this.editMode);
+        
+        const btnEditMode = document.getElementById('btnEditMode');
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        
+        if (btnEditMode) btnEditMode.style.display = this.editMode ? 'none' : 'block';
+        if (btnDeleteSelected) btnDeleteSelected.style.display = this.editMode ? 'block' : 'none';
+        if (btnCancelEdit) btnCancelEdit.style.display = this.editMode ? 'block' : 'none';
+        
+        this.selectedOperations.clear();
+        this.afficherHistorique(this.currentView);
     }
 
     selectionnerOperation(operationId, checked) {
-        // Votre code existant
+        if (checked) {
+            this.selectedOperations.add(operationId);
+        } else {
+            this.selectedOperations.delete(operationId);
+        }
+        
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected) {
+            btnDeleteSelected.textContent = 'Supprimer (' + this.selectedOperations.size + ')';
+        }
     }
 
     calculerSoldes() {
-        // Votre code existant
+        // Réinitialiser les soldes
+        this.caisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+
+        // Calculer les soldes actuels
+        this.operations.forEach(op => {
+            this.caisses[op.caisse] += op.montant;
+        });
     }
 
     updateStats() {
-        // Votre code existant
+        this.calculerSoldes();
+        const container = document.getElementById('statsContainer');
+
+        if (!container) return;
+
+        container.innerHTML = 
+            '<div class="stats-grid">' +
+            this.creerCarteCaisse('abdel_caisse', 'Caisse Abdel') +
+            this.creerCarteCaisse('omar_caisse', 'Caisse Omar') +
+            this.creerCarteCaisse('hicham_caisse', 'Caisse Hicham') +
+            this.creerCarteCaisse('zaitoun_caisse', 'Caisse Zaitoun') +
+            this.creerCarteCaisse('3commain_caisse', 'Caisse 3 Commain') +
+            '</div>';
+    }
+
+    creerCarteCaisse(cleCaisse, nomCaisse) {
+        const solde = this.caisses[cleCaisse];
+        const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+        
+        return '<div class="stat-card ' + classeCouleur + '">' +
+            '<div class="stat-label">' + nomCaisse + '</div>' +
+            '<div class="stat-value">' + solde.toFixed(2) + '</div>' +
+            '<div class="stat-label">DH</div>' +
+        '</div>';
     }
 
     afficherHistorique(vue = 'global') {
-        // Votre code existant
+        const container = document.getElementById('dataDisplay');
+        if (!container) return;
+
+        let operationsFiltrees = [];
+
+        // Mettre à jour les onglets actifs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sheet === vue);
+        });
+
+        switch(vue) {
+            case 'zaitoun':
+                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                break;
+            case '3commain':
+                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                break;
+            case 'abdel':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                break;
+            case 'omar':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                break;
+            case 'hicham':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                break;
+            case 'transferts':
+                operationsFiltrees = this.operations.filter(op => op.transfert);
+                break;
+            default:
+                operationsFiltrees = this.operations;
+        }
+
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><h3>📭 Aucune opération</h3><p>Aucune opération trouvée pour cette vue</p></div>';
+            return;
+        }
+
+        let tableHTML = '<div class="fade-in">';
+        tableHTML += '<h3>' + this.getTitreVue(vue) + '</h3>';
+        tableHTML += '<table class="data-table"><thead><tr>';
+        
+        if (this.editMode) tableHTML += '<th></th>';
+        tableHTML += '<th>Date</th><th>Opérateur</th><th>Groupe</th><th>Type Op.</th><th>Transaction</th><th>Caisse</th><th>Description</th><th>Montant (DH)</th>';
+        if (!this.editMode) tableHTML += '<th>Actions</th>';
+        tableHTML += '</tr></thead><tbody>';
+
+        operationsFiltrees.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            
+            tableHTML += '<tr class="' + (this.selectedOperations.has(op.id) ? 'selected' : '') + '">';
+            
+            if (this.editMode) {
+                tableHTML += '<td><input type="checkbox" class="operation-checkbox" ' + 
+                    (this.selectedOperations.has(op.id) ? 'checked' : '') + 
+                    ' onchange="app.selectionnerOperation(' + op.id + ', this.checked)"></td>';
+            }
+            
+            tableHTML += '<td>' + this.formaterDate(op.date) + '</td>';
+            tableHTML += '<td>' + this.formaterOperateur(op.operateur) + '</td>';
+            tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
+            tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
+            tableHTML += '<td class="' + (estNegatif ? 'type-frais' : 'type-revenu') + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
+            tableHTML += '<td>' + this.formaterCaisse(op.caisse) + '</td>';
+            tableHTML += '<td>' + op.description + '</td>';
+            tableHTML += '<td style="font-weight: bold; color: ' + (estNegatif ? '#e74c3c' : '#27ae60') + ';">' + 
+                        (estNegatif ? '-' : '') + montantAbsolu.toFixed(2) + '</td>';
+            
+            if (!this.editMode) {
+                tableHTML += '<td><div class="operation-actions">';
+                tableHTML += '<button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">✏️</button>';
+                tableHTML += '<button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">🗑️</button>';
+                tableHTML += '</div></td>';
+            }
+            
+            tableHTML += '</tr>';
+        });
+
+        tableHTML += '</tbody></table></div>';
+        container.innerHTML = tableHTML;
     }
 
-    // ... (toutes vos autres méthodes)
+    // ... (GARDER TOUTES VOS AUTRES MÉTHODES EXISTANTES)
+
+    resetForm() {
+        const saisieForm = document.getElementById('saisieForm');
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        
+        if (saisieForm) saisieForm.reset();
+        if (repartitionInfo) repartitionInfo.style.display = 'none';
+    }
+
+    afficherMessageSucces(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'success-message';
+        messageDiv.textContent = message;
+        
+        const saisieSection = document.querySelector('.saisie-section');
+        if (saisieSection) {
+            saisieSection.insertBefore(messageDiv, saisieSection.querySelector('h2').nextSibling);
+        }
+        
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 4000);
+    }
+
+    formaterDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR');
+    }
+
+    formaterOperateur(operateur) {
+        const noms = { 'abdel': 'Abdel', 'omar': 'Omar', 'hicham': 'Hicham', 'system': 'Système' };
+        return noms[operateur] || operateur;
+    }
+
+    formaterGroupe(groupe) {
+        const noms = { 'zaitoun': 'Zaitoun', '3commain': '3 Commain', 'system': 'Système' };
+        return noms[groupe] || groupe;
+    }
+
+    formaterTypeOperation(type) {
+        const types = {
+            'travailleur_global': 'Travailleur Global',
+            'zaitoun': 'Zaitoun',
+            '3commain': '3 Commain',
+            'autre': 'Autre',
+            'transfert': 'Transfert'
+        };
+        return types[type] || type;
+    }
+
+    formaterTypeTransaction(type) {
+        const types = {
+            'revenu': '💰 Revenu',
+            'frais': '💸 Frais'
+        };
+        return types[type] || type;
+    }
+
+    formaterCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': 'Caisse Abdel',
+            'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham',
+            'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return caisses[caisse] || caisse;
+    }
+
+    getTitreVue(vue) {
+        const titres = {
+            'global': '🌍 Toutes les opérations',
+            'zaitoun': '🫒 Opérations Zaitoun',
+            '3commain': '🔧 Opérations 3 Commain',
+            'abdel': '👨‍💼 Opérations Abdel',
+            'omar': '👨‍💻 Opérations Omar',
+            'hicham': '👨‍🔧 Opérations Hicham',
+            'transferts': '🔄 Transferts entre caisses'
+        };
+        return titres[vue] || 'Vue';
+    }
 }
 
 // Initialisation
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+    console.log('Application Gestion Ferme initialisée !');
 });
