@@ -421,11 +421,15 @@ class GestionFerme {
         if (window.firebaseReady && window.firebaseDb) {
             try {
                 for (const op of operationsACreer) {
-                    await window.firebaseDb.collection("operations").add(op);
+                    await window.firebaseDb.collection("operations").add({
+                        ...op,
+                        synchronise: true,
+                        dateSynchronisation: new Date().toISOString()
+                    });
                 }
                 console.log('✅ Données sauvegardées dans Firebase');
             } catch (error) {
-                console.log('⚠️ Données sauvegardées localement seulement');
+                console.log('⚠️ Données sauvegardées localement seulement:', error);
             }
         }
 
@@ -771,4 +775,5 @@ class GestionFerme {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+
 });
