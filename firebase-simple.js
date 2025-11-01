@@ -1,5 +1,5 @@
 // firebase-simple.js - Configuration Firebase pour GitHub Pages
-console.log('🔧 Chargement de Firebase Simple');
+console.log('🔧 Chargement de Firebase Simple - Mode Auto Sync');
 
 // Configuration Firebase - À PERSONNALISER AVEC VOS CLÉS
 const firebaseConfig = {
@@ -11,218 +11,297 @@ const firebaseConfig = {
   appId: "1:668129137491:web:b56522302ea789044507a6"
 };
 
-// Variables globales
-let firebaseApp;
 let db;
-let firebaseDisponible = false;
+let firebaseReady = false;
+let isOnline = true;
 
-// Initialiser Firebase
-function initialiserFirebase() {
+// Initialiser Firebase avec synchro automatique
+async function initialiserFirebase() {
     try {
-        // Vérifier si Firebase est chargé
         if (typeof firebase === 'undefined') {
             console.log('❌ Firebase non chargé');
             return;
         }
 
-        // Initialiser l'application Firebase
-        firebaseApp = firebase.initializeApp(firebaseConfig);
+        // Initialiser Firebase
+        const firebaseApp = firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         
-        // Tester la connexion
-        db.collection("test").get().then(() => {
-            console.log('✅ Firebase initialisé avec succès');
-            firebaseDisponible = true;
-            mettreAJourStatutFirebase();
-        }).catch(error => {
-            console.log('🔧 Mode hors ligne - Firebase connecté mais erreur de test:', error);
-            firebaseDisponible = true;
-            mettreAJourStatutFirebase();
+        // Activer la persistance pour le mode hors ligne
+        await db.enablePersistence().catch(err => {
+            console.log('⚠️ Persistance non disponible:', err);
         });
 
+        // Écouter les changements de connexion
+        firebase.firestore().enableNetwork();
+        
+        // Vérifier la connexion
+        await db.collection("test").doc("connection").set({
+            test: true,
+            timestamp: new Date().toISOString()
+        }).then(() => {
+            console.log('✅ Firebase connecté et opérationnel');
+            firebaseReady = true;
+            isOnline = true;
+        }).catch(error => {
+            console.log('🔧 Mode dégradé - Firebase accessible mais erreur:', error);
+            firebaseReady = true;
+            isOnline = false;
+        });
+
+        // Configurer les variables globales
+        window.firebaseReady = firebaseReady;
+        window.firebaseDb = db;
+        window.firebaseApp = firebaseApp;
+        
+        // Synchroniser automatiquement au chargement
+        synchroniserAutomatiquement();
+        mettreAJourStatutFirebase();
+        
     } catch (error) {
-        console.log('🔧 Mode hors ligne activé - Firebase non disponible:', error.message);
-        firebaseDisponible = false;
+        console.log('❌ Erreur initialisation Firebase:', error);
+        firebaseReady = false;
+        window.firebaseReady = false;
         mettreAJourStatutFirebase();
     }
 }
 
-// Fonction pour mettre à jour l'affichage du statut
+// SYNCHRONISATION AUTOMATIQUE
+async function synchroniserAutomatiquement() {
+    if (!firebaseReady || !db) return;
+    
+    console.log('🔄 Début synchronisation automatique...');
+    
+    try {
+        // 1. Charger les données Firebase (priorité cloud)
+        const querySnapshot = await db.collection("operations")
+            .orderBy("timestamp", "desc")
+            .get();
+        
+        let operationsCloud = [];
+        querySnapshot.forEach(doc => {
+            const data = doc.data();
+            operationsCloud.push({
+                ...data,
+                firebaseId: doc.id  // Garder l'ID Firebase
+            });
+        });
+        
+        // 2. Charger les données locales
+        const saved = localStorage.getItem('gestion_ferme_data');
+        let operationsLocales = [];
+        
+        if (saved) {
+            const dataLocal = JSON.parse(saved);
+            operationsLocales = dataLocal.operations || [];
+        }
+        
+        // 3. Fusion intelligente (éviter les doublons)
+        const operationsFusionnees = fusionnerOperations(operationsCloud, operationsLocales);
+        
+        // 4. Sauvegarder la fusion localement
+        const dataFusion = {
+            operations: operationsFusionnees,
+            lastSync: new Date().toISOString(),
+            syncCount: operationsFusionnees.length
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(dataFusion));
+        
+        console.log(`✅ Synchronisation réussie: ${operationsFusionnees.length} opérations`);
+        
+        // 5. Forcer le rechargement de l'interface
+        if (window.app && window.app.afficherHistorique) {
+            window.app.operations = operationsFusionnees;
+            window.app.updateStats();
+            window.app.afficherHistorique(window.app.currentView);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur synchronisation automatique:', error);
+    }
+}
+
+// Fusionner les opérations cloud et locales
+function fusionnerOperations(cloudOps, localOps) {
+    const operationsUniques = [];
+    const idsTraites = new Set();
+    
+    // Priorité au cloud
+    cloudOps.forEach(op => {
+        if (!idsTraites.has(op.id)) {
+            operationsUniques.push(op);
+            idsTraites.add(op.id);
+        }
+    });
+    
+    // Ajouter les locales manquantes
+    localOps.forEach(op => {
+        if (!idsTraites.has(op.id)) {
+            operationsUniques.push(op);
+            idsTraites.add(op.id);
+        }
+    });
+    
+    // Trier par date
+    return operationsUniques.sort((a, b) => 
+        new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
+    );
+}
+
+// SYNCHRONISATION MANUELLE (bouton sync)
+window.synchroniserDonnees = async function() {
+    if (!firebaseReady || !db) {
+        alert('❌ Firebase non disponible');
+        return;
+    }
+    
+    const btnSync = document.querySelector('[onclick="synchroniserDonnees()"]');
+    if (btnSync) {
+        btnSync.innerHTML = '⏳ Synchronisation...';
+        btnSync.disabled = true;
+    }
+    
+    try {
+        await synchroniserAutomatiquement();
+        alert('✅ Synchronisation manuelle réussie !');
+    } catch (error) {
+        alert('❌ Erreur synchronisation: ' + error.message);
+    } finally {
+        if (btnSync) {
+            btnSync.innerHTML = '🔄 Sync';
+            btnSync.disabled = false;
+        }
+    }
+}
+
+// CHARGER DEPUIS FIREBASE
+window.chargerDonneesFirebase = async function() {
+    if (!firebaseReady || !db) {
+        alert('❌ Firebase non disponible');
+        return;
+    }
+    
+    try {
+        const querySnapshot = await db.collection("operations")
+            .orderBy("timestamp", "desc")
+            .get();
+        
+        const operations = [];
+        querySnapshot.forEach(doc => {
+            operations.push(doc.data());
+        });
+
+        // Remplacer les données locales
+        const data = {
+            operations: operations,
+            lastSync: new Date().toISOString(),
+            source: 'firebase'
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+        
+        alert(`✅ ${operations.length} opérations chargées depuis Firebase`);
+        
+        // Recharger l'application
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('❌ Erreur chargement Firebase:', error);
+        alert('❌ Erreur lors du chargement: ' + error.message);
+    }
+}
+
+// SAUVEGARDER AUTOMATIQUEMENT DANS FIREBASE
+window.sauvegarderDansFirebase = async function(operation) {
+    if (!firebaseReady || !db) return false;
+    
+    try {
+        // Vérifier si l'opération existe déjà
+        const querySnapshot = await db.collection("operations")
+            .where("id", "==", operation.id)
+            .get();
+        
+        if (querySnapshot.empty) {
+            // Ajouter la nouvelle opération
+            await db.collection("operations").add({
+                ...operation,
+                synchronise: true,
+                dateSynchronisation: new Date().toISOString()
+            });
+            console.log('✅ Opération sauvegardée dans Firebase:', operation.id);
+            return true;
+        } else {
+            console.log('⚠️ Opération déjà dans Firebase:', operation.id);
+            return true;
+        }
+    } catch (error) {
+        console.error('❌ Erreur sauvegarde Firebase:', error);
+        return false;
+    }
+}
+
+// Mettre à jour l'interface
 function mettreAJourStatutFirebase() {
-    // Attendre que le DOM soit chargé
     setTimeout(() => {
         const header = document.querySelector('header');
         if (!header) return;
 
-        // Supprimer l'ancien statut s'il existe
+        // Supprimer l'ancien statut
         const ancienStatut = document.getElementById('statutFirebase');
-        if (ancienStatut) {
-            ancienStatut.remove();
-        }
+        if (ancienStatut) ancienStatut.remove();
 
-        // Créer le nouvel élément de statut
         const statutDiv = document.createElement('div');
         statutDiv.id = 'statutFirebase';
         statutDiv.style.marginTop = '10px';
-        statutDiv.style.padding = '8px 16px';
-        statutDiv.style.borderRadius = '20px';
-        statutDiv.style.fontSize = '14px';
+        statutDiv.style.padding = '12px';
+        statutDiv.style.borderRadius = '10px';
         statutDiv.style.fontWeight = 'bold';
         statutDiv.style.textAlign = 'center';
-        statutDiv.style.display = 'inline-block';
-        
-        if (firebaseDisponible) {
-            statutDiv.textContent = '✅ Synchronisé avec le cloud';
+        statutDiv.style.fontSize = '16px';
+
+        if (firebaseReady) {
+            statutDiv.innerHTML = 
+                '✅ <strong>Synchronisé Cloud</strong> | ' +
+                '<button onclick="synchroniserDonnees()" class="btn-success" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Synchroniser</button>' +
+                '<button onclick="chargerDonneesFirebase()" class="btn-info" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">📥 Charger Cloud</button>';
             statutDiv.style.background = '#d4edda';
             statutDiv.style.color = '#155724';
-            statutDiv.style.border = '2px solid #c3e6cb';
+            statutDiv.style.border = '2px solid #28a745';
         } else {
-            statutDiv.textContent = '🔧 Mode hors ligne (données locales)';
+            statutDiv.innerHTML = 
+                '🔧 <strong>Mode Local</strong> | ' +
+                '<button onclick="initialiserFirebase()" class="btn-warning" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Réessayer Firebase</button>';
             statutDiv.style.background = '#fff3cd';
             statutDiv.style.color = '#856404';
-            statutDiv.style.border = '2px solid #ffeaa7';
+            statutDiv.style.border = '2px solid #ffc107';
         }
-        
+
         header.appendChild(statutDiv);
     }, 1000);
 }
 
-// Fonction pour migrer les données vers Firebase
-window.migrerVersFirebase = async function() {
-    if (!firebaseDisponible) {
-        alert('❌ Firebase non disponible pour la migration');
-        return;
-    }
-
-    console.log('🚀 Début de la migration vers Firebase...');
+// Écouter les changements en temps réel
+function ecouterChangementsTempsReel() {
+    if (!firebaseReady || !db) return;
     
-    // Charger les données existantes du localStorage
-    const saved = localStorage.getItem('gestion_ferme_data');
-    if (!saved) {
-        alert('❌ Aucune donnée trouvée dans le localStorage');
-        return;
-    }
-    
-    try {
-        const data = JSON.parse(saved);
-        const operations = data.operations || [];
-        
-        if (operations.length === 0) {
-            alert('❌ Aucune opération à migrer');
-            return;
-        }
-        
-        let count = 0;
-        let erreurs = 0;
-        
-        // Migrer chaque opération
-        for (const operation of operations) {
-            try {
-                await db.collection("operations").add({
-                    ...operation,
-                    migre: true,
-                    dateMigration: new Date().toISOString(),
-                    timestamp: operation.timestamp || new Date().toISOString()
-                });
-                count++;
-                
-                // Afficher la progression
-                if (count % 10 === 0) {
-                    console.log(`📦 ${count} opérations migrées...`);
-                }
-            } catch (error) {
-                console.error('Erreur migration opération:', operation.id, error);
-                erreurs++;
-            }
-        }
-        
-        const message = `✅ Migration terminée !\n${count} opérations migrées\n${erreurs} erreurs`;
-        console.log(message);
-        alert(message);
-        
-        // Recharger la page pour afficher les nouvelles données
-        setTimeout(() => {
-            location.reload();
-        }, 2000);
-        
-    } catch (error) {
-        console.error('❌ Erreur migration:', error);
-        alert('❌ Erreur lors de la migration: ' + error.message);
-    }
+    db.collection("operations")
+        .orderBy("timestamp", "desc")
+        .onSnapshot((snapshot) => {
+            console.log('🔄 Mise à jour temps réel détectée');
+            synchroniserAutomatiquement();
+        }, (error) => {
+            console.error('❌ Erreur écoute temps réel:', error);
+        });
 }
 
-// Fonction pour vérifier les données Firebase
-window.verifierDonneesFirebase = async function() {
-    if (!firebaseDisponible) {
-        alert('❌ Firebase non disponible');
-        return 0;
-    }
-
-    try {
-        const querySnapshot = await db.collection("operations").get();
-        const count = querySnapshot.size;
-        alert(`📊 Firebase contient ${count} opérations`);
-        return count;
-    } catch (error) {
-        console.error('Erreur vérification:', error);
-        alert('❌ Erreur vérification Firebase');
-        return 0;
-    }
-}
-
-// Exposer les fonctions globalement
-window.firebaseApp = firebaseApp;
-window.db = db;
-window.firebaseDisponible = firebaseDisponible;
-
-// Initialiser Firebase quand la page est chargée
+// Initialisation
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM chargé, initialisation de Firebase...');
+    console.log('📄 DOM chargé, initialisation Firebase...');
     initialiserFirebase();
     
-    // Ajouter les boutons de migration après le chargement
-    setTimeout(ajouterBoutonsMigration, 1500);
+    // Écouter les changements après un délai
+    setTimeout(ecouterChangementsTempsReel, 3000);
 });
 
-// Fonction pour ajouter les boutons de migration
-function ajouterBoutonsMigration() {
-    const header = document.querySelector('header');
-    if (!header) return;
-
-    // Vérifier si les boutons existent déjà
-    if (document.getElementById('boutonsMigration')) {
-        return;
-    }
-
-    const divBoutons = document.createElement('div');
-    divBoutons.id = 'boutonsMigration';
-    divBoutons.style.marginTop = '15px';
-    divBoutons.style.display = 'flex';
-    divBoutons.style.gap = '10px';
-    divBoutons.style.justifyContent = 'center';
-    divBoutons.style.flexWrap = 'wrap';
-    
-    // Bouton Migration
-    const btnMigrer = document.createElement('button');
-    btnMigrer.textContent = '🔄 Migrer vers Firebase';
-    btnMigrer.className = 'btn-warning';
-    btnMigrer.onclick = migrerVersFirebase;
-    btnMigrer.title = 'Transférer les données locales vers le cloud';
-    
-    // Bouton Vérification
-    const btnVerifier = document.createElement('button');
-    btnVerifier.textContent = '📊 Vérifier Firebase';
-    btnVerifier.className = 'btn-info';
-    btnVerifier.onclick = verifierDonneesFirebase;
-    btnVerifier.title = 'Vérifier le nombre d\'opérations dans Firebase';
-    
-    divBoutons.appendChild(btnMigrer);
-    divBoutons.appendChild(btnVerifier);
-    header.appendChild(divBoutons);
-    
-    console.log('✅ Boutons de migration ajoutés');
-}
-
-// Message de confirmation
-
-console.log('🔧 firebase-simple.js chargé - Prêt pour l\'initialisation');
+console.log('🔧 firebase-simple.js chargé - Synchronisation automatique activée');
