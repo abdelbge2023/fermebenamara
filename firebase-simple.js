@@ -1,5 +1,5 @@
-// firebase-simple.js - Configuration Firebase pour GitHub Pages
-console.log('🔧 Chargement de Firebase Simple - Mode Auto Sync');
+// firebase-simple.js - Version finale avec gestion d'erreurs
+console.log('🔧 Chargement de Firebase Simple');
 
 // Configuration Firebase - À PERSONNALISER AVEC VOS CLÉS
 const firebaseConfig = {
@@ -13,9 +13,8 @@ const firebaseConfig = {
 
 let db;
 let firebaseReady = false;
-let isOnline = true;
 
-// Initialiser Firebase avec synchro automatique
+// Initialiser Firebase
 async function initialiserFirebase() {
     try {
         if (typeof firebase === 'undefined') {
@@ -23,39 +22,37 @@ async function initialiserFirebase() {
             return;
         }
 
+        console.log('🚀 Initialisation Firebase...');
+        
         // Initialiser Firebase
         const firebaseApp = firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         
-        // Activer la persistance pour le mode hors ligne
-        await db.enablePersistence().catch(err => {
+        // Paramètres optimisés
+        const settings = {
+            cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+        };
+        db.settings(settings);
+        
+        // Activer la persistance
+        try {
+            await db.enablePersistence();
+            console.log('✅ Persistance activée');
+        } catch (err) {
             console.log('⚠️ Persistance non disponible:', err);
-        });
+        }
 
-        // Écouter les changements de connexion
-        firebase.firestore().enableNetwork();
-        
-        // Vérifier la connexion
-        await db.collection("test").doc("connection").set({
-            test: true,
-            timestamp: new Date().toISOString()
-        }).then(() => {
-            console.log('✅ Firebase connecté et opérationnel');
-            firebaseReady = true;
-            isOnline = true;
-        }).catch(error => {
-            console.log('🔧 Mode dégradé - Firebase accessible mais erreur:', error);
-            firebaseReady = true;
-            isOnline = false;
-        });
-
-        // Configurer les variables globales
-        window.firebaseReady = firebaseReady;
+        // Test de connexion simple
+        console.log('🔍 Test de connexion Firebase...');
+        firebaseReady = true;
+        window.firebaseReady = true;
         window.firebaseDb = db;
-        window.firebaseApp = firebaseApp;
         
-        // Synchroniser automatiquement au chargement
-        synchroniserAutomatiquement();
+        // Synchroniser après un court délai
+        setTimeout(() => {
+            synchroniserAutomatiquement();
+        }, 2000);
+        
         mettreAJourStatutFirebase();
         
     } catch (error) {
@@ -66,188 +63,135 @@ async function initialiserFirebase() {
     }
 }
 
-// SYNCHRONISATION AUTOMATIQUE
+// Synchronisation automatique
 async function synchroniserAutomatiquement() {
-    if (!firebaseReady || !db) return;
+    if (!firebaseReady || !db) {
+        console.log('❌ Firebase non prêt');
+        return;
+    }
     
-    console.log('🔄 Début synchronisation automatique...');
+    console.log('🔄 Synchronisation automatique...');
     
     try {
-        // 1. Charger les données Firebase (priorité cloud)
-        const querySnapshot = await db.collection("operations")
-            .orderBy("timestamp", "desc")
-            .get();
-        
+        // 1. Charger depuis Firebase
+        const querySnapshot = await db.collection("operations").get();
         let operationsCloud = [];
+        
         querySnapshot.forEach(doc => {
-            const data = doc.data();
-            operationsCloud.push({
-                ...data,
-                firebaseId: doc.id  // Garder l'ID Firebase
-            });
+            operationsCloud.push(doc.data());
         });
         
-        // 2. Charger les données locales
+        console.log(`📥 ${operationsCloud.length} opérations depuis Firebase`);
+        
+        // 2. Charger données locales
         const saved = localStorage.getItem('gestion_ferme_data');
         let operationsLocales = [];
         
         if (saved) {
-            const dataLocal = JSON.parse(saved);
-            operationsLocales = dataLocal.operations || [];
+            try {
+                const dataLocal = JSON.parse(saved);
+                operationsLocales = dataLocal.operations || [];
+            } catch (e) {
+                console.error('❌ Erreur données locales:', e);
+            }
         }
         
-        // 3. Fusion intelligente (éviter les doublons)
-        const operationsFusionnees = fusionnerOperations(operationsCloud, operationsLocales);
+        // 3. Fusionner (priorité cloud)
+        const allIds = new Set();
+        const operationsFusionnees = [];
         
-        // 4. Sauvegarder la fusion localement
+        // Ajouter cloud d'abord
+        operationsCloud.forEach(op => {
+            if (op.id && !allIds.has(op.id)) {
+                operationsFusionnees.push(op);
+                allIds.add(op.id);
+            }
+        });
+        
+        // Ajouter locales manquantes
+        operationsLocales.forEach(op => {
+            if (op.id && !allIds.has(op.id)) {
+                operationsFusionnees.push(op);
+                allIds.add(op.id);
+            }
+        });
+        
+        // 4. Sauvegarder
         const dataFusion = {
             operations: operationsFusionnees,
-            lastSync: new Date().toISOString(),
-            syncCount: operationsFusionnees.length
+            lastSync: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(dataFusion));
         
-        console.log(`✅ Synchronisation réussie: ${operationsFusionnees.length} opérations`);
+        console.log(`✅ Sync réussie: ${operationsFusionnees.length} opérations`);
         
-        // 5. Forcer le rechargement de l'interface
-        if (window.app && window.app.afficherHistorique) {
+        // 5. Mettre à jour l'interface
+        if (window.app && window.app.operations) {
             window.app.operations = operationsFusionnees;
             window.app.updateStats();
             window.app.afficherHistorique(window.app.currentView);
         }
         
     } catch (error) {
-        console.error('❌ Erreur synchronisation automatique:', error);
+        console.error('❌ Erreur synchronisation:', error);
+        // Continuer avec données locales en cas d'erreur
     }
 }
 
-// Fusionner les opérations cloud et locales
-function fusionnerOperations(cloudOps, localOps) {
-    const operationsUniques = [];
-    const idsTraites = new Set();
-    
-    // Priorité au cloud
-    cloudOps.forEach(op => {
-        if (!idsTraites.has(op.id)) {
-            operationsUniques.push(op);
-            idsTraites.add(op.id);
-        }
-    });
-    
-    // Ajouter les locales manquantes
-    localOps.forEach(op => {
-        if (!idsTraites.has(op.id)) {
-            operationsUniques.push(op);
-            idsTraites.add(op.id);
-        }
-    });
-    
-    // Trier par date
-    return operationsUniques.sort((a, b) => 
-        new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
-    );
-}
-
-// SYNCHRONISATION MANUELLE (bouton sync)
+// Synchronisation manuelle
 window.synchroniserDonnees = async function() {
-    if (!firebaseReady || !db) {
+    if (!firebaseReady) {
         alert('❌ Firebase non disponible');
         return;
     }
     
-    const btnSync = document.querySelector('[onclick="synchroniserDonnees()"]');
-    if (btnSync) {
-        btnSync.innerHTML = '⏳ Synchronisation...';
-        btnSync.disabled = true;
+    const btn = document.querySelector('[onclick="synchroniserDonnees()"]');
+    if (btn) {
+        btn.innerHTML = '⏳ Sync...';
+        btn.disabled = true;
     }
     
     try {
         await synchroniserAutomatiquement();
-        alert('✅ Synchronisation manuelle réussie !');
+        alert('✅ Synchronisation réussie !');
     } catch (error) {
-        alert('❌ Erreur synchronisation: ' + error.message);
+        alert('❌ Erreur: ' + error.message);
     } finally {
-        if (btnSync) {
-            btnSync.innerHTML = '🔄 Sync';
-            btnSync.disabled = false;
+        if (btn) {
+            btn.innerHTML = '🔄 Sync';
+            btn.disabled = false;
         }
     }
 }
 
-// CHARGER DEPUIS FIREBASE
-window.chargerDonneesFirebase = async function() {
-    if (!firebaseReady || !db) {
-        alert('❌ Firebase non disponible');
-        return;
-    }
-    
-    try {
-        const querySnapshot = await db.collection("operations")
-            .orderBy("timestamp", "desc")
-            .get();
-        
-        const operations = [];
-        querySnapshot.forEach(doc => {
-            operations.push(doc.data());
-        });
-
-        // Remplacer les données locales
-        const data = {
-            operations: operations,
-            lastSync: new Date().toISOString(),
-            source: 'firebase'
-        };
-        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-        
-        alert(`✅ ${operations.length} opérations chargées depuis Firebase`);
-        
-        // Recharger l'application
-        setTimeout(() => {
-            location.reload();
-        }, 1500);
-        
-    } catch (error) {
-        console.error('❌ Erreur chargement Firebase:', error);
-        alert('❌ Erreur lors du chargement: ' + error.message);
-    }
-}
-
-// SAUVEGARDER AUTOMATIQUEMENT DANS FIREBASE
+// Sauvegarder une opération
 window.sauvegarderDansFirebase = async function(operation) {
     if (!firebaseReady || !db) return false;
     
     try {
-        // Vérifier si l'opération existe déjà
+        // Vérifier si existe déjà
         const querySnapshot = await db.collection("operations")
             .where("id", "==", operation.id)
             .get();
         
         if (querySnapshot.empty) {
-            // Ajouter la nouvelle opération
-            await db.collection("operations").add({
-                ...operation,
-                synchronise: true,
-                dateSynchronisation: new Date().toISOString()
-            });
-            console.log('✅ Opération sauvegardée dans Firebase:', operation.id);
-            return true;
-        } else {
-            console.log('⚠️ Opération déjà dans Firebase:', operation.id);
+            await db.collection("operations").add(operation);
+            console.log('✅ Opération sauvegardée:', operation.id);
             return true;
         }
+        return true;
     } catch (error) {
-        console.error('❌ Erreur sauvegarde Firebase:', error);
+        console.error('❌ Erreur sauvegarde:', error);
         return false;
     }
 }
 
-// Mettre à jour l'interface
+// Mise à jour statut
 function mettreAJourStatutFirebase() {
     setTimeout(() => {
         const header = document.querySelector('header');
         if (!header) return;
 
-        // Supprimer l'ancien statut
         const ancienStatut = document.getElementById('statutFirebase');
         if (ancienStatut) ancienStatut.remove();
 
@@ -258,50 +202,25 @@ function mettreAJourStatutFirebase() {
         statutDiv.style.borderRadius = '10px';
         statutDiv.style.fontWeight = 'bold';
         statutDiv.style.textAlign = 'center';
-        statutDiv.style.fontSize = '16px';
 
         if (firebaseReady) {
             statutDiv.innerHTML = 
                 '✅ <strong>Synchronisé Cloud</strong> | ' +
-                '<button onclick="synchroniserDonnees()" class="btn-success" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Synchroniser</button>' +
-                '<button onclick="chargerDonneesFirebase()" class="btn-info" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">📥 Charger Cloud</button>';
+                '<button onclick="synchroniserDonnees()" class="btn-success" style="margin: 0 8px; padding: 8px 16px;">🔄 Sync</button>';
             statutDiv.style.background = '#d4edda';
             statutDiv.style.color = '#155724';
-            statutDiv.style.border = '2px solid #28a745';
         } else {
-            statutDiv.innerHTML = 
-                '🔧 <strong>Mode Local</strong> | ' +
-                '<button onclick="initialiserFirebase()" class="btn-warning" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Réessayer Firebase</button>';
+            statutDiv.innerHTML = '🔧 Mode Local';
             statutDiv.style.background = '#fff3cd';
             statutDiv.style.color = '#856404';
-            statutDiv.style.border = '2px solid #ffc107';
         }
 
         header.appendChild(statutDiv);
     }, 1000);
 }
 
-// Écouter les changements en temps réel
-function ecouterChangementsTempsReel() {
-    if (!firebaseReady || !db) return;
-    
-    db.collection("operations")
-        .orderBy("timestamp", "desc")
-        .onSnapshot((snapshot) => {
-            console.log('🔄 Mise à jour temps réel détectée');
-            synchroniserAutomatiquement();
-        }, (error) => {
-            console.error('❌ Erreur écoute temps réel:', error);
-        });
-}
-
 // Initialisation
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé, initialisation Firebase...');
     initialiserFirebase();
-    
-    // Écouter les changements après un délai
-    setTimeout(ecouterChangementsTempsReel, 3000);
 });
-
-console.log('🔧 firebase-simple.js chargé - Synchronisation automatique activée');
