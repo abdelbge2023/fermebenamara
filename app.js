@@ -161,7 +161,7 @@ class GestionFerme {
             const montantAbsolu = Math.abs(op.montant);
             const estNegatif = op.montant < 0;
             
-            // CORRECTION : Utiliser op.id directement sans guillemets
+            // CORRECTION : Utiliser op.id avec guillemets pour les strings
             tableHTML += `
                 <tr>
                     <td>${this.formaterDate(op.date)}</td>
@@ -194,7 +194,7 @@ class GestionFerme {
 
     // MÉTHODE SUPPRIMER OPÉRATION (CORRIGÉE)
     async supprimerOperation(operationId) {
-        console.log('🔧 Supprimer opération appelée avec ID:', operationId);
+        console.log('🔧 Supprimer opération appelée avec ID:', operationId, 'Type:', typeof operationId);
         
         if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
             // Sauvegarder l'opération avant suppression
@@ -221,12 +221,22 @@ class GestionFerme {
             
             this.updateStats();
             this.afficherMessageSucces('Opération supprimée avec succès');
+            
+            // Synchroniser avec Firebase si disponible
+            if (window.firebaseSync) {
+                try {
+                    await firebaseSync.deleteDocument('operations', operationId);
+                    console.log('✅ Opération supprimée de Firebase');
+                } catch (error) {
+                    console.error('❌ Erreur suppression Firebase:', error);
+                }
+            }
         }
     }
 
     // MÉTHODE OUVRIRE MODAL MODIFICATION (CORRIGÉE)
     ouvrirModalModification(operationId) {
-        console.log('🔧 Ouvrir modal modification avec ID:', operationId);
+        console.log('🔧 Ouvrir modal modification avec ID:', operationId, 'Type:', typeof operationId);
         
         const operation = this.operations.find(op => op.id === operationId);
         console.log('📋 Opération trouvée:', operation);
@@ -273,7 +283,7 @@ class GestionFerme {
         }
 
         // Mettre à jour l'opération
-        this.operations[operationIndex] = {
+        const operationModifiee = {
             ...this.operations[operationIndex],
             operateur: document.getElementById('editOperateur').value,
             groupe: document.getElementById('editGroupe').value,
@@ -285,6 +295,7 @@ class GestionFerme {
             timestamp: new Date().toISOString()
         };
 
+        this.operations[operationIndex] = operationModifiee;
         this.sauvegarderDonnees();
         this.fermerModal();
 
@@ -297,6 +308,16 @@ class GestionFerme {
         
         this.updateStats();
         this.afficherMessageSucces('✅ Opération modifiée avec succès !');
+        
+        // Synchroniser avec Firebase si disponible
+        if (window.firebaseSync) {
+            try {
+                await firebaseSync.updateDocument('operations', operationId, operationModifiee);
+                console.log('✅ Opération modifiée dans Firebase');
+            } catch (error) {
+                console.error('❌ Erreur modification Firebase:', error);
+            }
+        }
     }
 
     // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES (CORRIGÉE)
@@ -310,6 +331,17 @@ class GestionFerme {
             // Supprimer localement
             this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
             this.sauvegarderDonnees();
+            
+            // Synchroniser avec Firebase si disponible
+            if (window.firebaseSync) {
+                for (const opId of this.selectedOperations) {
+                    try {
+                        await firebaseSync.deleteDocument('operations', opId);
+                    } catch (error) {
+                        console.error('❌ Erreur suppression Firebase:', error);
+                    }
+                }
+            }
             
             this.selectedOperations.clear();
             this.toggleEditMode(false);
@@ -486,7 +518,7 @@ class GestionFerme {
                         (estNegatif ? '-' : '') + montantAbsolu.toFixed(2) + '</td>';
             
             if (!this.editMode) {
-                // CORRECTION : Utiliser op.id directement sans guillemets
+                // CORRECTION : Utiliser op.id directement
                 tableHTML += '<td><div class="operation-actions">';
                 tableHTML += '<button class="btn-small btn-warning" onclick="app.ouvrirModalModification(' + op.id + ')">✏️</button>';
                 tableHTML += '<button class="btn-small btn-danger" onclick="app.supprimerOperation(' + op.id + ')">🗑️</button>';
@@ -500,7 +532,7 @@ class GestionFerme {
         container.innerHTML = tableHTML;
     }
 
-    // ... (les autres méthodes restent identiques)
+    // ... (les autres méthodes restent identiques mais corrigées)
     chargerDonnees() {
         const saved = localStorage.getItem('gestion_ferme_data');
         if (saved) {
@@ -508,10 +540,27 @@ class GestionFerme {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
                 console.log(`📁 ${this.operations.length} opérations chargées`);
+                
+                // Synchroniser avec Firebase si disponible
+                if (window.firebaseSync) {
+                    this.synchroniserAvecFirebase();
+                }
             } catch (error) {
                 console.error('Erreur chargement:', error);
                 this.operations = [];
             }
+        }
+    }
+
+    async synchroniserAvecFirebase() {
+        try {
+            const operationsFirebase = await firebaseSync.getCollection('operations');
+            if (operationsFirebase.length > 0) {
+                console.log(`🔄 Synchronisation: ${operationsFirebase.length} opérations depuis Firebase`);
+                // Fusionner les données (à implémenter selon votre logique)
+            }
+        } catch (error) {
+            console.error('❌ Erreur synchronisation Firebase:', error);
         }
     }
 
@@ -732,7 +781,7 @@ class GestionFerme {
         }
     }
 
-    // ... (les autres méthodes comme ajouterOperation, effectuerTransfert, etc.)
+    // ... (les autres méthodes comme ajouterOperation, effectuerTransfert, etc. restent identiques)
     async ajouterOperation(e) {
         e.preventDefault();
 
@@ -808,6 +857,16 @@ class GestionFerme {
         // Ajouter aux opérations
         for (const op of operationsACreer) {
             this.operations.unshift(op);
+            
+            // Synchroniser avec Firebase si disponible
+            if (window.firebaseSync) {
+                try {
+                    await firebaseSync.addDocument('operations', op);
+                    console.log('✅ Opération ajoutée à Firebase');
+                } catch (error) {
+                    console.error('❌ Erreur ajout Firebase:', error);
+                }
+            }
         }
 
         this.sauvegarderDonnees();
@@ -927,6 +986,16 @@ class GestionFerme {
         // Ajouter aux opérations
         for (const op of operationsTransfert) {
             this.operations.unshift(op);
+            
+            // Synchroniser avec Firebase si disponible
+            if (window.firebaseSync) {
+                try {
+                    await firebaseSync.addDocument('operations', op);
+                    console.log('✅ Transfert ajouté à Firebase');
+                } catch (error) {
+                    console.error('❌ Erreur ajout Firebase:', error);
+                }
+            }
         }
 
         this.sauvegarderDonnees();
@@ -938,6 +1007,7 @@ class GestionFerme {
 
     exporterDetailsCaisse(caisse) {
         // ... (méthode d'export PDF identique)
+        alert('Fonction d\'export PDF pour ' + this.formaterCaisse(caisse));
     }
 }
 
@@ -946,22 +1016,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
-// Test de synchronisation
-async function testSynchronisation() {
-    console.log('🧪 Test de synchronisation...');
-    
-    // Tester l'ajout d'un document
-    try {
-        await firebaseSync.addDocument('test', {
-            message: 'Test de synchronisation',
-            timestamp: new Date(),
-            status: 'actif'
-        });
-        console.log('✅ Test réussi - Synchronisation OK');
-    } catch (error) {
-        console.error('❌ Test échoué:', error);
-    }
-}
-
-// Appeler le test après l'initialisation
-setTimeout(testSynchronisation, 2000);
