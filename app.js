@@ -1,4 +1,4 @@
-// app.js - Application complète avec synchronisation automatique
+// app.js - Application complète avec synchronisation automatique corrigée
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -12,6 +12,7 @@ class GestionFerme {
         this.caisseSelectionnee = null;
         this.firebaseInitialized = false;
         this.synchronisationEnCours = false;
+        this.suppressionsLocales = new Set(); // Pour suivre les suppressions locales
 
         this.init();
     }
@@ -33,9 +34,9 @@ class GestionFerme {
         this.chargerDepuisLocalStorage();
         
         // 2. Synchroniser avec Firebase en arrière-plan
-        this.synchroniserAvecFirebase();
+        await this.synchroniserAvecFirebase();
         
-        console.log(`📁 ${this.operations.length} opérations chargées (local)`);
+        console.log(`📁 ${this.operations.length} opérations chargées`);
     }
 
     // CHARGEMENT LOCAL (RAPIDE)
@@ -45,10 +46,13 @@ class GestionFerme {
             try {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
+                this.suppressionsLocales = new Set(data.suppressionsLocales || []);
                 console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
+                console.log(`🗑️ ${this.suppressionsLocales.size} suppressions locales mémorisées`);
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
                 this.operations = [];
+                this.suppressionsLocales = new Set();
             }
         }
     }
@@ -78,9 +82,17 @@ class GestionFerme {
                 
                 let nouvellesOperations = 0;
                 let operationsMiseAJour = 0;
+                let operationsIgnorees = 0;
 
-                // 2. Fusionner les données
+                // 2. Fusionner les données en ignorant les suppressions locales
                 operationsFirebase.forEach(opFirebase => {
+                    // Vérifier si cette opération a été supprimée localement
+                    if (this.suppressionsLocales.has(opFirebase.id)) {
+                        operationsIgnorees++;
+                        console.log(`🚫 Opération ${opFirebase.id} ignorée (supprimée localement)`);
+                        return;
+                    }
+
                     const indexLocal = this.operations.findIndex(op => op.id === opFirebase.id);
                     
                     if (indexLocal === -1) {
@@ -106,7 +118,7 @@ class GestionFerme {
                 // 4. Sauvegarder localement
                 this.sauvegarderLocalement();
 
-                console.log(`✅ Synchronisation automatique: ${nouvellesOperations} nouvelles, ${operationsMiseAJour} mises à jour`);
+                console.log(`✅ Synchronisation: ${nouvellesOperations} nouvelles, ${operationsMiseAJour} mises à jour, ${operationsIgnorees} ignorées`);
                 
                 if (nouvellesOperations > 0 || operationsMiseAJour > 0) {
                     this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} nouvelles opérations`);
@@ -137,13 +149,28 @@ class GestionFerme {
         console.log('👂 Activation de l écoute temps réel pour synchronisation automatique');
         
         // Écouter les changements en temps réel sur Firebase
-        firebaseSync.listenToCollection('operations', (changes, snapshot) => {
+        this.unsubscribeFirebase = firebaseSync.listenToCollection('operations', (changes, snapshot) => {
             if (changes.length > 0) {
                 console.log(`🔄 Synchronisation temps réel: ${changes.length} changement(s)`);
                 
                 let modifications = 0;
+                let suppressionsBloquees = 0;
                 
                 changes.forEach(change => {
+                    // Vérifier si c'est une suppression que NOUS avons initiée
+                    if (change.type === 'removed' && firebaseSync.isSuppressionEnCours(change.id)) {
+                        console.log(`🔕 Suppression ${change.id} ignorée (initiée localement)`);
+                        suppressionsBloquees++;
+                        return;
+                    }
+
+                    // Vérifier si l'opération a été supprimée localement
+                    if (this.suppressionsLocales.has(change.id)) {
+                        console.log(`🚫 Changement ${change.type} sur ${change.id} ignoré (supprimé localement)`);
+                        suppressionsBloquees++;
+                        return;
+                    }
+
                     if (change.type === 'added') {
                         this.ajouterOperationSynchro(change.data);
                         modifications++;
@@ -151,6 +178,7 @@ class GestionFerme {
                         this.mettreAJourOperationSynchro(change.id, change.data);
                         modifications++;
                     } else if (change.type === 'removed') {
+                        console.log(`🗑️ Suppression ${change.id} détectée depuis Firebase`);
                         this.supprimerOperationSynchro(change.id);
                         modifications++;
                     }
@@ -161,12 +189,22 @@ class GestionFerme {
                     this.mettreAJourAffichage();
                     console.log(`✅ ${modifications} opération(s) synchronisée(s) en temps réel`);
                 }
+                
+                if (suppressionsBloquees > 0) {
+                    console.log(`🔕 ${suppressionsBloquees} changement(s) bloqué(s) (suppressions locales)`);
+                }
             }
         });
     }
 
     // AJOUT AUTOMATIQUE DEPUIS LA SYNCHRO
     ajouterOperationSynchro(data) {
+        // Vérifier si l'opération n'a pas été supprimée localement
+        if (this.suppressionsLocales.has(data.id)) {
+            console.log(`🚫 Opération ${data.id} ignorée (supprimée localement)`);
+            return;
+        }
+
         const operation = {
             id: data.id,
             date: data.date,
@@ -192,6 +230,12 @@ class GestionFerme {
 
     // MISE À JOUR AUTOMATIQUE DEPUIS LA SYNCHRO
     mettreAJourOperationSynchro(operationId, newData) {
+        // Vérifier si l'opération n'a pas été supprimée localement
+        if (this.suppressionsLocales.has(operationId)) {
+            console.log(`🚫 Mise à jour ${operationId} ignorée (supprimée localement)`);
+            return;
+        }
+
         const index = this.operations.findIndex(op => op.id === operationId);
         if (index !== -1) {
             this.operations[index] = {
@@ -204,6 +248,12 @@ class GestionFerme {
 
     // SUPPRESSION AUTOMATIQUE DEPUIS LA SYNCHRO
     supprimerOperationSynchro(operationId) {
+        // Vérifier si la suppression n'a pas été initiée localement
+        if (firebaseSync.isSuppressionEnCours(operationId)) {
+            console.log(`🔕 Suppression ${operationId} ignorée (initiée localement)`);
+            return;
+        }
+
         const ancienNombre = this.operations.length;
         this.operations = this.operations.filter(op => op.id !== operationId);
         if (this.operations.length < ancienNombre) {
@@ -224,6 +274,7 @@ class GestionFerme {
     sauvegarderLocalement() {
         const data = {
             operations: this.operations,
+            suppressionsLocales: Array.from(this.suppressionsLocales),
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
@@ -250,9 +301,11 @@ class GestionFerme {
                     if (!existeSurFirebase) {
                         // Ajouter l'opération à Firebase
                         await firebaseSync.addDocument('operations', operation);
+                        console.log(`✅ Opération ${operation.id} ajoutée à Firebase`);
                     } else {
                         // Mettre à jour l'opération sur Firebase
                         await firebaseSync.updateDocument('operations', operation.id, operation);
+                        console.log(`✅ Opération ${operation.id} mise à jour sur Firebase`);
                     }
                 } catch (error) {
                     console.error(`❌ Erreur synchro opération ${operation.id}:`, error);
@@ -274,6 +327,96 @@ class GestionFerme {
             this.afficherHistorique(this.currentView);
         }
     }
+
+    // MÉTHODE SUPPRIMER OPÉRATION CORRIGÉE (suppression permanente)
+    async supprimerOperation(operationId) {
+        console.log('🔧 Supprimer opération:', operationId);
+        
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ? Cette action est définitive.')) {
+            const operationASupprimer = this.operations.find(op => op.id === operationId);
+            
+            if (!operationASupprimer) {
+                alert('❌ Opération non trouvée');
+                return;
+            }
+            
+            // 1. Ajouter à la liste des suppressions locales (EMPÊCHE LA RÉSURRECTION)
+            this.suppressionsLocales.add(operationId);
+            console.log(`📝 Opération ${operationId} marquée comme supprimée localement`);
+            
+            // 2. Supprimer localement
+            this.operations = this.operations.filter(op => op.id !== operationId);
+            
+            // 3. Sauvegarder localement (inclut la liste des suppressions)
+            this.sauvegarderLocalement();
+            
+            // 4. Supprimer de Firebase
+            if (window.firebaseSync) {
+                try {
+                    await firebaseSync.deleteDocument('operations', operationId);
+                    console.log(`✅ Opération ${operationId} supprimée de Firebase`);
+                } catch (error) {
+                    console.error(`❌ Erreur suppression Firebase ${operationId}:`, error);
+                }
+            }
+            
+            this.mettreAJourAffichage();
+            this.afficherMessageSucces('Opération supprimée définitivement');
+        }
+    }
+
+    // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES CORRIGÉE
+    async supprimerOperationsSelectionnees() {
+        if (this.selectedOperations.size === 0) {
+            alert('❌ Aucune opération sélectionnée');
+            return;
+        }
+
+        if (confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) définitivement ?`)) {
+            // 1. Marquer toutes les opérations comme supprimées localement
+            this.selectedOperations.forEach(opId => {
+                this.suppressionsLocales.add(opId);
+            });
+            
+            console.log(`📝 ${this.selectedOperations.size} opérations marquées comme supprimées localement`);
+            
+            // 2. Supprimer localement
+            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+            
+            // 3. Sauvegarder localement
+            this.sauvegarderLocalement();
+            
+            // 4. Supprimer de Firebase
+            if (window.firebaseSync) {
+                for (const opId of this.selectedOperations) {
+                    try {
+                        await firebaseSync.deleteDocument('operations', opId);
+                    } catch (error) {
+                        console.error(`❌ Erreur suppression Firebase ${opId}:`, error);
+                    }
+                }
+            }
+            
+            this.selectedOperations.clear();
+            this.toggleEditMode(false);
+            this.mettreAJourAffichage();
+            
+            this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s) définitivement`);
+        }
+    }
+
+    // MÉTHODE POUR VIDER LES SUPPRESSIONS LOCALES (en cas de besoin)
+    viderSuppressionsLocales() {
+        if (confirm('Vider l historique des suppressions locales ? Les opérations supprimées pourront réapparaître.')) {
+            this.suppressionsLocales.clear();
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Historique des suppressions vidé');
+            this.synchroniserAvecFirebase(); // Resynchroniser
+        }
+    }
+
+    // ... (TOUTES LES AUTRES MÉTHODES RESTENT IDENTIQUES)
+    // [Les méthodes updateStats, afficherHistorique, etc. restent les mêmes]
 
     // MÉTHODE AJOUTER OPÉRATION AVEC SYNCHRO AUTO
     async ajouterOperation(e) {
@@ -358,29 +501,6 @@ class GestionFerme {
         this.afficherMessageSucces('Opération enregistrée et synchronisée !');
         this.resetForm();
         this.mettreAJourAffichage();
-    }
-
-    // MÉTHODE SUPPRIMER OPÉRATION AVEC SYNCHRO AUTO
-    async supprimerOperation(operationId) {
-        console.log('🔧 Supprimer opération:', operationId);
-        
-        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            const operationASupprimer = this.operations.find(op => op.id === operationId);
-            
-            if (!operationASupprimer) {
-                alert('❌ Opération non trouvée');
-                return;
-            }
-            
-            // Supprimer localement
-            this.operations = this.operations.filter(op => op.id !== operationId);
-            
-            // Sauvegarder et synchroniser automatiquement
-            await this.sauvegarderDonnees();
-            
-            this.mettreAJourAffichage();
-            this.afficherMessageSucces('Opération supprimée et synchronisée');
-        }
     }
 
     // MÉTHODE MODIFIER OPÉRATION AVEC SYNCHRO AUTO
@@ -505,29 +625,9 @@ class GestionFerme {
         this.mettreAJourAffichage();
     }
 
-    // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES AVEC SYNCHRO AUTO
-    async supprimerOperationsSelectionnees() {
-        if (this.selectedOperations.size === 0) {
-            alert('❌ Aucune opération sélectionnée');
-            return;
-        }
-
-        if (confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-            // Supprimer localement
-            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
-            
-            // Sauvegarder et synchroniser automatiquement
-            await this.sauvegarderDonnees();
-            
-            this.selectedOperations.clear();
-            this.toggleEditMode(false);
-            this.mettreAJourAffichage();
-            
-            this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s) et synchronisée(s)`);
-        }
-    }
-
     // ... (TOUTES LES AUTRES MÉTHODES RESTENT IDENTIQUES)
+    // [updateStats, afficherDetailsCaisse, creerTableauDetailsCaisse, etc.]
+
     updateStats() {
         this.calculerSoldes();
         const container = document.getElementById('statsContainer');
