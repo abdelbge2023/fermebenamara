@@ -44,6 +44,15 @@ class GestionFerme {
                 });
             }
 
+            // Écouteur pour le formulaire de transfert
+            const transferForm = document.getElementById('transferForm');
+            if (transferForm) {
+                transferForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.effectuerTransfert();
+                });
+            }
+
             // Écouteurs pour les boutons d'action
             document.addEventListener('click', (e) => {
                 if (e.target.id === 'toggleEditMode') {
@@ -478,6 +487,86 @@ class GestionFerme {
         console.log('✅ Opération ajoutée:', nouvelleOperation);
     }
 
+    // MÉTHODE POUR EFFECTUER UN TRANSFERT
+    effectuerTransfert() {
+        const formData = new FormData(document.getElementById('transferForm'));
+        
+        const sourceCaisse = formData.get('sourceCaisse');
+        const destinationCaisse = formData.get('destinationCaisse');
+        const montant = parseFloat(formData.get('transfertMontant'));
+        const description = formData.get('transfertDescription');
+
+        // Validation
+        if (!sourceCaisse || !destinationCaisse || !montant || !description) {
+            alert('❌ Veuillez remplir tous les champs du transfert');
+            return;
+        }
+
+        if (sourceCaisse === destinationCaisse) {
+            alert('❌ La source et la destination doivent être différentes');
+            return;
+        }
+
+        if (montant <= 0) {
+            alert('❌ Le montant doit être positif');
+            return;
+        }
+
+        // Vérifier que la source a assez d'argent
+        const soldeSource = this.caisses[sourceCaisse] || 0;
+        if (soldeSource < montant) {
+            alert(`❌ Solde insuffisant dans ${this.getNomCaisse(sourceCaisse)} (${soldeSource.toFixed(2)} DH)`);
+            return;
+        }
+
+        // Créer les deux opérations de transfert
+        const date = new Date().toISOString().split('T')[0];
+        const idBase = Date.now();
+
+        // Opération de retrait (source)
+        const operationRetrait = {
+            id: idBase,
+            date: date,
+            operateur: 'system',
+            groupe: 'transfert',
+            typeOperation: 'frais',
+            typeTransaction: 'virement',
+            caisse: sourceCaisse,
+            description: `Transfert vers ${this.getNomCaisse(destinationCaisse)} - ${description}`,
+            montant: -montant,
+            transfert: true
+        };
+
+        // Opération de dépôt (destination)
+        const operationDepot = {
+            id: idBase + 1,
+            date: date,
+            operateur: 'system',
+            groupe: 'transfert',
+            typeOperation: 'vente',
+            typeTransaction: 'virement',
+            caisse: destinationCaisse,
+            description: `Transfert de ${this.getNomCaisse(sourceCaisse)} - ${description}`,
+            montant: montant,
+            transfert: true
+        };
+
+        // Ajouter les opérations
+        this.operations.push(operationRetrait);
+        this.operations.push(operationDepot);
+        
+        // Sauvegarder et mettre à jour
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+
+        // Réinitialiser le formulaire
+        document.getElementById('transferForm').reset();
+
+        alert(`✅ Transfert de ${montant.toFixed(2)} DH effectué avec succès !`);
+        console.log('🔄 Transfert effectué:', { sourceCaisse, destinationCaisse, montant });
+    }
+
     ouvrirModalModification(id) {
         const operation = this.operations.find(op => op.id === id);
         if (!operation) return;
@@ -491,7 +580,7 @@ class GestionFerme {
         document.getElementById('caisse').value = operation.caisse;
         document.getElementById('description').value = operation.description;
         document.getElementById('montant').value = Math.abs(operation.montant);
-        document.getElementById('transfert').value = operation.transfert;
+        document.getElementById('transfert').checked = operation.transfert;
 
         // Changer le comportement du formulaire pour la modification
         const form = document.getElementById('operationForm');
@@ -560,6 +649,13 @@ class GestionFerme {
         this.editMode = !this.editMode;
         this.selectedOperations.clear();
         this.afficherHistorique(this.currentView);
+        
+        // Afficher/masquer le bouton de suppression
+        const deleteBtn = document.getElementById('deleteSelected');
+        if (deleteBtn) {
+            deleteBtn.style.display = this.editMode ? 'block' : 'none';
+        }
+        
         console.log('🔧 Mode édition:', this.editMode ? 'activé' : 'désactivé');
     }
 
