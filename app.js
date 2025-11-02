@@ -1,4 +1,4 @@
-// app.js - Gestion Ferme Ben Amara - Version Complète Corrigée
+// app.js - Gestion Ferme Ben Amara - Version COMPLÈTE
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -30,31 +30,23 @@ class GestionFerme {
             this.detecterMobile();
             this.demarrerAutoSync();
             
-            // Initialiser Firebase
-            await this.initialiserFirebase();
-            if (this.firebaseInitialized) {
-                await this.chargerDepuisFirebase();
-            }
+            setTimeout(async () => {
+                await this.initialiserFirebase();
+            }, 1000);
             
             console.log('✅ Application Gestion Ferme initialisée');
         } catch (error) {
             console.error('❌ Erreur dans init:', error);
-            this.afficherNotification('Erreur démarrage application', 'error');
         }
     }
 
-    // MÉTHODES FIREBASE
+    // ==================== FIREBASE ====================
     initialiserFirebase = async () => {
         try {
-            console.log('🔥 Initialisation Firebase...');
-            
-            // Vérifier si Firebase est disponible
             if (typeof firebase === 'undefined') {
-                console.warn('⚠️ Firebase non disponible');
                 return false;
             }
 
-            // Configuration Firebase - À PERSONNALISER
             const firebaseConfig = {
                 apiKey: "AIzaSyAklFf8exemple123456789",
                 authDomain: "votre-projet.firebaseapp.com",
@@ -64,25 +56,23 @@ class GestionFerme {
                 appId: "1:123456789:web:abcdef123456"
             };
 
-            // Initialiser Firebase
-            if (!firebase.apps.length) {
+            if (firebase.apps.length === 0) {
                 firebase.initializeApp(firebaseConfig);
             }
             
             this.db = firebase.firestore();
             
-            // Activer la persistance
-            await this.db.enablePersistence()
-                .then(() => {
-                    console.log('✅ Persistance Firebase activée');
-                    this.firebaseInitialized = true;
-                })
-                .catch((err) => {
-                    console.warn('⚠️ Persistance non supportée:', err);
-                    this.firebaseInitialized = true;
-                });
+            try {
+                await this.db.enablePersistence();
+                console.log('✅ Persistance Firebase activée');
+            } catch (err) {
+                console.warn('⚠️ Persistance non disponible');
+            }
 
+            this.firebaseInitialized = true;
             this.ecouterChangementsFirebase();
+            await this.chargerDepuisFirebase();
+            
             return true;
             
         } catch (error) {
@@ -94,24 +84,16 @@ class GestionFerme {
     ecouterChangementsFirebase = () => {
         if (!this.db) return;
 
-        console.log('👂 Écoute des changements Firebase...');
-        
         this.db.collection('operations')
             .onSnapshot((snapshot) => {
                 const changes = snapshot.docChanges();
                 console.log('🔄 Mise à jour depuis Firebase:', changes.length, 'changements');
                 
-                let updated = false;
                 changes.forEach((change) => {
                     if (change.type === 'added' || change.type === 'modified') {
                         this.traiterOperationFirebase(change.doc.data());
-                        updated = true;
                     }
                 });
-                
-                if (updated) {
-                    this.afficherNotification('Données synchronisées cloud', 'info');
-                }
             }, (error) => {
                 console.error('❌ Erreur écoute Firebase:', error);
             });
@@ -122,10 +104,8 @@ class GestionFerme {
         
         if (index === -1) {
             this.operations.push(data);
-            console.log('➕ Opération ajoutée depuis Firebase:', data.id);
         } else {
             this.operations[index] = data;
-            console.log('🔄 Opération mise à jour depuis Firebase:', data.id);
         }
         
         this.sauvegarderDonneesLocale();
@@ -134,20 +114,15 @@ class GestionFerme {
     }
 
     synchroniserAvecFirebase = async () => {
-        if (!this.db || !this.firebaseInitialized) {
-            return;
-        }
+        if (!this.db || !this.firebaseInitialized) return;
 
         try {
-            console.log('🔄 Début synchronisation Firebase...');
-            
             const promises = this.operations.map(async (operation) => {
                 await this.db.collection('operations').doc(operation.id).set(operation, { merge: true });
             });
             
             await Promise.all(promises);
-            
-            console.log('✅ Synchronisation Firebase terminée:', this.operations.length, 'opérations');
+            console.log('✅ Synchronisation Firebase terminée');
             
         } catch (error) {
             console.error('❌ Erreur synchronisation Firebase:', error);
@@ -155,22 +130,15 @@ class GestionFerme {
     }
 
     chargerDepuisFirebase = async () => {
-        if (!this.db || !this.firebaseInitialized) {
-            return;
-        }
+        if (!this.db || !this.firebaseInitialized) return;
 
         try {
-            console.log('📥 Chargement depuis Firebase...');
-            
             const snapshot = await this.db.collection('operations').get();
             const operationsFirebase = [];
             
             snapshot.forEach(doc => {
                 operationsFirebase.push(doc.data());
             });
-            
-            console.log('📋 Opérations Firebase:', operationsFirebase.length);
-            console.log('📋 Opérations locales:', this.operations.length);
             
             this.fusionnerDonnees(operationsFirebase);
             
@@ -193,116 +161,12 @@ class GestionFerme {
         this.operations = Array.from(operationsMap.values());
         this.operations.sort((a, b) => new Date(b.date) - new Date(a.date));
         
-        console.log('🔄 Fusion terminée:', this.operations.length, 'opérations total');
         this.sauvegarderDonneesLocale();
         this.updateStats();
         this.afficherHistorique(this.currentView);
     }
 
-    // MÉTHODES CORRIGÉES POUR LES ERREURS
-    afficherHistorique = (vue = 'global') => {
-        this.currentView = vue;
-        this.caisseSelectionnee = null;
-        this.updateStats();
-        
-        const container = document.getElementById('dataDisplay');
-        if (!container) return;
-
-        let operationsFiltrees = [];
-        let totalRevenus = 0;
-        let totalFrais = 0;
-        let soldeTotal = 0;
-
-        // Corriger les onglets
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.sheet === vue);
-        });
-
-        switch(vue) {
-            case 'zaitoun':
-                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
-                break;
-            case '3commain':
-                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
-                break;
-            case 'abdel':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
-                break;
-            case 'omar':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
-                break;
-            case 'hicham':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
-                break;
-            case 'transferts':
-                operationsFiltrees = this.operations.filter(op => op.transfert);
-                break;
-            default:
-                operationsFiltrees = this.operations;
-        }
-
-        operationsFiltrees.forEach(op => {
-            if (op.montant > 0) {
-                totalRevenus += op.montant;
-            } else {
-                totalFrais += Math.abs(op.montant);
-            }
-            soldeTotal += op.montant;
-        });
-
-        if (operationsFiltrees.length === 0) {
-            container.innerHTML = '<div class="empty-message"><h3>📭 Aucune opération</h3><p>Aucune opération trouvée pour cette vue</p></div>';
-            return;
-        }
-
-        let contentHTML = '<div class="fade-in">';
-        
-        contentHTML += '<div class="vue-header">';
-        contentHTML += '<div class="vue-header-top">';
-        contentHTML += '<h3>' + this.getTitreVue(vue) + '</h3>';
-        contentHTML += '<div class="header-badge">' + operationsFiltrees.length + ' opérations</div>';
-        contentHTML += '</div>';
-        contentHTML += '<div class="totals-container ' + (this.isMobile ? 'mobile-totals' : '') + '">';
-        contentHTML += '<div class="total-item">';
-        contentHTML += '<span class="total-label">💰 Revenus:</span>';
-        contentHTML += '<span class="total-value positive">+' + totalRevenus.toFixed(2) + ' DH</span>';
-        contentHTML += '</div>';
-        contentHTML += '<div class="total-item">';
-        contentHTML += '<span class="total-label">💸 Frais:</span>';
-        contentHTML += '<span class="total-value negative">-' + totalFrais.toFixed(2) + ' DH</span>';
-        contentHTML += '</div>';
-        contentHTML += '<div class="total-item">';
-        contentHTML += '<span class="total-label">⚖️ Solde:</span>';
-        contentHTML += '<span class="total-value ' + (soldeTotal >= 0 ? 'positive' : 'negative') + '">' + 
-                     (soldeTotal >= 0 ? '+' : '') + soldeTotal.toFixed(2) + ' DH</span>';
-        contentHTML += '</div>';
-        contentHTML += '</div>';
-        contentHTML += '</div>';
-        
-        if (vue === 'global') {
-            contentHTML += this.afficherResumeCaisses();
-        }
-        
-        if (this.isMobile) {
-            contentHTML += this.creerListeMobile(operationsFiltrees);
-        } else {
-            contentHTML += this.creerTableauDesktop(operationsFiltrees);
-        }
-
-        contentHTML += '</div>';
-        container.innerHTML = contentHTML;
-    }
-
-    detecterMobile = () => {
-        this.isMobile = window.innerWidth < 768;
-        if (this.isMobile) {
-            document.body.classList.add('mobile-view');
-        } else {
-            document.body.classList.remove('mobile-view');
-        }
-    }
-
-    // MÉTHODES DE GESTION DES DONNÉES
+    // ==================== GESTION DES DONNÉES ====================
     chargerDonnees = () => {
         try {
             const donnees = localStorage.getItem('gestionFermeOperations');
@@ -350,7 +214,6 @@ class GestionFerme {
             }
         ];
         this.sauvegarderDonneesLocale();
-        console.log('📝 Données d\'exemple chargées');
     }
 
     sauvegarderDonnees = () => {
@@ -373,7 +236,6 @@ class GestionFerme {
         localStorage.setItem('gestionFermeLastSync', new Date().toISOString());
     }
 
-    // SYNCHRONISATION AUTOMATIQUE
     demarrerAutoSync = () => {
         this.autoSaveInterval = setInterval(() => {
             this.synchroniserDonnees();
@@ -392,7 +254,7 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODES D'AFFICHAGE
+    // ==================== AFFICHAGE ====================
     updateStats = () => {
         this.calculerSoldes();
         const container = document.getElementById('statsContainer');
@@ -474,6 +336,9 @@ class GestionFerme {
                             <button class="btn-secondary" onclick="app.afficherHistorique('global')">
                                 ↩️ Retour au global
                             </button>
+                            <button class="btn-danger" onclick="app.effacerCaisse('${caisse}')">
+                                🗑️ Effacer cette caisse
+                            </button>
                         </div>
                     </div>
                     <div class="totals-container ${this.isMobile ? 'mobile-totals' : ''}">
@@ -496,6 +361,7 @@ class GestionFerme {
 
                 <div class="section-title">
                     <h4>📋 Historique des opérations</h4>
+                    <div class="section-badge">${operationsCaisse.length} opérations</div>
                 </div>
                 
                 ${operationsCaisse.length === 0 ? 
@@ -508,7 +374,366 @@ class GestionFerme {
         container.innerHTML = detailsHTML;
     }
 
-    // MÉTHODES D'INTERACTION
+    afficherHistorique = (vue = 'global') => {
+        this.currentView = vue;
+        this.caisseSelectionnee = null;
+        this.updateStats();
+        
+        const container = document.getElementById('dataDisplay');
+        if (!container) return;
+
+        let operationsFiltrees = [];
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let soldeTotal = 0;
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.sheet === vue);
+        });
+
+        switch(vue) {
+            case 'zaitoun':
+                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                break;
+            case '3commain':
+                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                break;
+            case 'abdel':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                break;
+            case 'omar':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                break;
+            case 'hicham':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                break;
+            case 'transferts':
+                operationsFiltrees = this.operations.filter(op => op.transfert);
+                break;
+            default:
+                operationsFiltrees = this.operations;
+        }
+
+        operationsFiltrees.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+            soldeTotal += op.montant;
+        });
+
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><h3>📭 Aucune opération</h3><p>Aucune opération trouvée pour cette vue</p></div>';
+            return;
+        }
+
+        let contentHTML = '<div class="fade-in">';
+        
+        contentHTML += '<div class="vue-header">';
+        contentHTML += '<div class="vue-header-top">';
+        contentHTML += '<h3>' + this.getTitreVue(vue) + '</h3>';
+        contentHTML += '<div class="header-badge">' + operationsFiltrees.length + ' opérations</div>';
+        contentHTML += '</div>';
+        contentHTML += '<div class="totals-container ' + (this.isMobile ? 'mobile-totals' : '') + '">';
+        contentHTML += '<div class="total-item">';
+        contentHTML += '<span class="total-label">💰 Revenus:</span>';
+        contentHTML += '<span class="total-value positive">+' + totalRevenus.toFixed(2) + ' DH</span>';
+        contentHTML += '</div>';
+        contentHTML += '<div class="total-item">';
+        contentHTML += '<span class="total-label">💸 Frais:</span>';
+        contentHTML += '<span class="total-value negative">-' + totalFrais.toFixed(2) + ' DH</span>';
+        contentHTML += '</div>';
+        contentHTML += '<div class="total-item">';
+        contentHTML += '<span class="total-label">⚖️ Solde:</span>';
+        contentHTML += '<span class="total-value ' + (soldeTotal >= 0 ? 'positive' : 'negative') + '">' + 
+                     (soldeTotal >= 0 ? '+' : '') + soldeTotal.toFixed(2) + ' DH</span>';
+        contentHTML += '</div>';
+        contentHTML += '</div>';
+        contentHTML += '</div>';
+        
+        if (vue === 'global') {
+            contentHTML += this.afficherResumeCaisses();
+        }
+        
+        contentHTML += this.creerTableauOperations(operationsFiltrees);
+        contentHTML += '</div>';
+        container.innerHTML = contentHTML;
+    }
+
+    // ==================== BOUTONS ÉDITION ET SUPPRESSION ====================
+    creerTableauOperations = (operations) => {
+        if (this.isMobile) {
+            return this.creerListeMobile(operations);
+        } else {
+            return this.creerTableauDesktop(operations);
+        }
+    }
+
+    creerTableauDesktop = (operations) => {
+        let tableHTML = `
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Montant</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        operations.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            
+            tableHTML += `
+                <tr>
+                    <td>${this.formaterDate(op.date)}</td>
+                    <td>${this.formaterOperateur(op.operateur)}</td>
+                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                    <td class="description-cell">${op.description}</td>
+                    <td class="montant-cell ${estNegatif ? 'negatif' : 'positif'}">
+                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)} DH
+                    </td>
+                    <td>
+                        <div class="operation-actions">
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">
+                                ✏️ Modifier
+                            </button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">
+                                🗑️ Supprimer
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        return tableHTML;
+    }
+
+    creerListeMobile = (operations) => {
+        let listeHTML = '<div class="mobile-operations-list">';
+        
+        operations.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            
+            listeHTML += `
+                <div class="operation-card ${estNegatif ? 'frais' : 'revenu'}">
+                    <div class="operation-header">
+                        <div class="operation-date">${this.formaterDate(op.date)}</div>
+                        <div class="operation-montant ${estNegatif ? 'negatif' : 'positif'}">
+                            ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)} DH
+                        </div>
+                    </div>
+                    <div class="operation-details">
+                        <div class="operation-type">${this.formaterTypeOperation(op.typeOperation)}</div>
+                        <div class="operation-description">${op.description}</div>
+                        <div class="operation-operateur">${this.formaterOperateur(op.operateur)}</div>
+                    </div>
+                    <div class="operation-actions">
+                        <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">
+                            ✏️ Modifier
+                        </button>
+                        <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">
+                            🗑️ Supprimer
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        listeHTML += '</div>';
+        return listeHTML;
+    }
+
+    // ==================== MÉTHODES ÉDITION/SUPPRESSION ====================
+    ouvrirModalModification = (id) => {
+        console.log('🔧 Ouverture modification ID:', id);
+        const operation = this.operations.find(op => op.id === id);
+        
+        if (!operation) {
+            this.afficherNotification('Opération non trouvée', 'error');
+            return;
+        }
+
+        // Remplir le formulaire avec les données de l'opération
+        document.getElementById('date').value = operation.date;
+        document.getElementById('operateur').value = operation.operateur;
+        document.getElementById('groupe').value = operation.groupe;
+        document.getElementById('typeOperation').value = operation.typeOperation;
+        document.getElementById('typeTransaction').value = operation.typeTransaction;
+        document.getElementById('caisse').value = operation.caisse;
+        document.getElementById('description').value = operation.description;
+        document.getElementById('montant').value = Math.abs(operation.montant);
+
+        // Marquer comme en mode édition
+        document.getElementById('operationForm').dataset.editingId = id;
+
+        // Changer le bouton
+        const submitBtn = document.querySelector('#operationForm button[type="submit"]');
+        submitBtn.textContent = '💾 Modifier l\'opération';
+        submitBtn.className = 'btn-primary btn-warning';
+
+        // Scroll vers le formulaire
+        document.getElementById('operationForm').scrollIntoView({ behavior: 'smooth' });
+
+        this.afficherNotification('Mode modification activé', 'info');
+    }
+
+    modifierOperation = () => {
+        const id = document.getElementById('operationForm').dataset.editingId;
+        
+        if (!id) {
+            this.afficherNotification('Aucune opération en cours de modification', 'error');
+            return;
+        }
+
+        const formData = new FormData(document.getElementById('operationForm'));
+        const operationIndex = this.operations.findIndex(op => op.id === id);
+
+        if (operationIndex === -1) {
+            this.afficherNotification('Opération non trouvée', 'error');
+            return;
+        }
+
+        this.operations[operationIndex] = {
+            ...this.operations[operationIndex],
+            date: formData.get('date'),
+            operateur: formData.get('operateur'),
+            groupe: formData.get('groupe'),
+            typeOperation: formData.get('typeOperation'),
+            typeTransaction: formData.get('typeTransaction'),
+            caisse: formData.get('caisse'),
+            description: formData.get('description'),
+            montant: this.calculerMontantAvecSigne(
+                parseFloat(formData.get('montant')), 
+                formData.get('typeOperation')
+            ),
+            timestamp: new Date().toISOString()
+        };
+
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        
+        this.reinitialiserFormulaire();
+        this.afficherNotification('✅ Opération modifiée avec succès', 'success');
+    }
+
+    supprimerOperation = (id) => {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            return;
+        }
+
+        const operationIndex = this.operations.findIndex(op => op.id === id);
+        
+        if (operationIndex === -1) {
+            this.afficherNotification('Opération non trouvée', 'error');
+            return;
+        }
+
+        this.operations.splice(operationIndex, 1);
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        
+        this.afficherNotification('✅ Opération supprimée avec succès', 'success');
+    }
+
+    reinitialiserFormulaire = () => {
+        document.getElementById('operationForm').reset();
+        delete document.getElementById('operationForm').dataset.editingId;
+        
+        const submitBtn = document.querySelector('#operationForm button[type="submit"]');
+        submitBtn.textContent = '✅ Ajouter l\'opération';
+        submitBtn.className = 'btn-primary';
+    }
+
+    // ==================== EFFACEMENT ====================
+    effacerToutesDonnees = () => {
+        if (!confirm('⚠️ ATTENTION ! Cette action va supprimer TOUTES les opérations. Continuer ?')) {
+            return;
+        }
+
+        if (!confirm('❌ Êtes-vous ABSOLUMENT SÛR ? Toutes vos données seront perdues !')) {
+            return;
+        }
+
+        try {
+            this.operations = [];
+            localStorage.removeItem('gestionFermeOperations');
+            localStorage.removeItem('gestionFermeLastSync');
+            
+            if (this.firebaseInitialized) {
+                this.effacerDonneesFirebase();
+            }
+            
+            this.chargerDonneesExemple();
+            this.updateStats();
+            this.afficherHistorique('global');
+            
+            this.afficherNotification('✅ Toutes les données ont été effacées', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de l\'effacement:', error);
+            this.afficherNotification('❌ Erreur lors de l\'effacement', 'error');
+        }
+    }
+
+    effacerDonneesFirebase = async () => {
+        if (!this.db || !this.firebaseInitialized) return;
+
+        try {
+            const snapshot = await this.db.collection('operations').get();
+            const deletePromises = [];
+            snapshot.forEach(doc => {
+                deletePromises.push(this.db.collection('operations').doc(doc.id).delete());
+            });
+            
+            await Promise.all(deletePromises);
+            console.log('✅ Données Firebase effacées');
+            
+        } catch (error) {
+            console.error('❌ Erreur effacement Firebase:', error);
+        }
+    }
+
+    effacerCaisse = (caisse) => {
+        if (!confirm(`Êtes-vous sûr de vouloir effacer toutes les opérations de la ${this.getNomCaisse(caisse)} ?`)) {
+            return;
+        }
+
+        try {
+            const operationsAvant = this.operations.length;
+            this.operations = this.operations.filter(op => op.caisse !== caisse);
+            const operationsSupprimees = operationsAvant - this.operations.length;
+            
+            this.sauvegarderDonnees();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            
+            this.afficherNotification(`✅ ${operationsSupprimees} opérations effacées de ${this.getNomCaisse(caisse)}`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur effacement caisse:', error);
+            this.afficherNotification('❌ Erreur lors de l\'effacement', 'error');
+        }
+    }
+
+    // ==================== ÉVÉNEMENTS ====================
     setupEventListeners = () => {
         try {
             window.addEventListener('resize', () => {
@@ -526,16 +751,35 @@ class GestionFerme {
             if (form) {
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    this.ajouterOperation();
+                    if (form.dataset.editingId) {
+                        this.modifierOperation();
+                    } else {
+                        this.ajouterOperation();
+                    }
                 });
             }
 
+            // Boutons d'administration
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'effacerDonnees') {
+                    this.effacerToutesDonnees();
+                }
+                if (e.target.id === 'exportData') {
+                    this.exporterDonnees();
+                }
+                if (e.target.id === 'importData') {
+                    this.importerDonnees();
+                }
+            });
+
             console.log('✅ Écouteurs d\'événements initialisés');
+
         } catch (error) {
             console.error('❌ Erreur initialisation écouteurs:', error);
         }
     }
 
+    // ==================== OPÉRATIONS ====================
     ajouterOperation = () => {
         const formData = new FormData(document.getElementById('operationForm'));
         const operateur = formData.get('operateur');
@@ -577,8 +821,8 @@ class GestionFerme {
         this.updateStats();
         this.afficherHistorique(this.currentView);
         
-        document.getElementById('operationForm').reset();
-        this.afficherNotification(`Opération enregistrée dans ${this.getNomCaisse(caisseAuto)}`, 'success');
+        this.reinitialiserFormulaire();
+        this.afficherNotification(`✅ Opération enregistrée dans ${this.getNomCaisse(caisseAuto)}`, 'success');
     }
 
     calculerMontantAvecSigne = (montant, typeOperation) => {
@@ -589,7 +833,52 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODES DE NOTIFICATION
+    // ==================== UTILITAIRES ====================
+    afficherResumeCaisses = () => {
+        let resumeHTML = '<div class="resume-caisses">';
+        resumeHTML += '<h4>📋 Résumé par Caisse</h4>';
+        resumeHTML += '<div class="caisses-grid">';
+        
+        const totauxCaisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0, 
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        
+        this.operations.forEach(op => {
+            if (totauxCaisses[op.caisse] !== undefined) {
+                totauxCaisses[op.caisse] += op.montant;
+            }
+        });
+        
+        for (const [caisse, solde] of Object.entries(totauxCaisses)) {
+            const nomCaisse = this.getNomCaisse(caisse);
+            const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+            
+            resumeHTML += `
+                <div class="resume-caisse ${classeCouleur}" onclick="app.afficherDetailsCaisse('${caisse}')">
+                    <div class="resume-caisse-header">
+                        <div class="resume-caisse-nom">${nomCaisse}</div>
+                    </div>
+                    <div class="resume-caisse-solde">${solde.toFixed(2)} DH</div>
+                </div>`;
+        }
+        
+        resumeHTML += '</div></div>';
+        return resumeHTML;
+    }
+
+    detecterMobile = () => {
+        this.isMobile = window.innerWidth < 768;
+        if (this.isMobile) {
+            document.body.classList.add('mobile-view');
+        } else {
+            document.body.classList.remove('mobile-view');
+        }
+    }
+
     afficherNotification = (message, type = 'info') => {
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
@@ -611,7 +900,7 @@ class GestionFerme {
         }, 5000);
     }
 
-    // MÉTHODES DE FORMATAGE
+    // ==================== FORMATAGE ====================
     formaterDate = (dateStr) => {
         const date = new Date(dateStr);
         return this.isMobile ? 
@@ -660,144 +949,72 @@ class GestionFerme {
         return titres[vue] || 'Vue';
     }
 
-    // MÉTHODES D'AFFICHAGE DES TABLEAUX
-    creerTableauDetailsCaisse = (operations) => {
-        if (this.isMobile) {
-            return this.creerListeMobile(operations);
-        } else {
-            return this.creerTableauDesktop(operations);
-        }
-    }
-
-    creerTableauDesktop = (operations) => {
-        let tableHTML = `
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Opérateur</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                            <th>Montant</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-        
-        operations.forEach(op => {
-            const montantAbsolu = Math.abs(op.montant);
-            const estNegatif = op.montant < 0;
+    // ==================== EXPORT/IMPORT ====================
+    exporterDonnees = () => {
+        try {
+            const donneesJSON = JSON.stringify(this.operations, null, 2);
+            const blob = new Blob([donneesJSON], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             
-            tableHTML += `
-                <tr>
-                    <td>${this.formaterDate(op.date)}</td>
-                    <td>${this.formaterOperateur(op.operateur)}</td>
-                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                    <td class="description-cell">${op.description}</td>
-                    <td class="montant-cell ${estNegatif ? 'negatif' : 'positif'}">
-                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)} DH
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tableHTML += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-        
-        return tableHTML;
-    }
-
-    creerListeMobile = (operations) => {
-        let listeHTML = '<div class="mobile-operations-list">';
-        
-        operations.forEach(op => {
-            const montantAbsolu = Math.abs(op.montant);
-            const estNegatif = op.montant < 0;
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gestion-ferme-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             
-            listeHTML += `
-                <div class="operation-card ${estNegatif ? 'frais' : 'revenu'}">
-                    <div class="operation-header">
-                        <div class="operation-date">${this.formaterDate(op.date)}</div>
-                        <div class="operation-montant ${estNegatif ? 'negatif' : 'positif'}">
-                            ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)} DH
-                        </div>
-                    </div>
-                    <div class="operation-details">
-                        <div class="operation-type">${this.formaterTypeOperation(op.typeOperation)}</div>
-                        <div class="operation-description">${op.description}</div>
-                        <div class="operation-operateur">${this.formaterOperateur(op.operateur)}</div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        listeHTML += '</div>';
-        return listeHTML;
-    }
-
-    afficherResumeCaisses = () => {
-        let resumeHTML = '<div class="resume-caisses">';
-        resumeHTML += '<h4>📋 Résumé par Caisse</h4>';
-        resumeHTML += '<div class="caisses-grid">';
-        
-        const totauxCaisses = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0, 
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-        
-        this.operations.forEach(op => {
-            if (totauxCaisses[op.caisse] !== undefined) {
-                totauxCaisses[op.caisse] += op.montant;
-            }
-        });
-        
-        for (const [caisse, solde] of Object.entries(totauxCaisses)) {
-            const nomCaisse = this.getNomCaisse(caisse);
-            const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+            URL.revokeObjectURL(url);
+            this.afficherNotification('✅ Données exportées avec succès', 'success');
             
-            resumeHTML += `
-                <div class="resume-caisse ${classeCouleur}" onclick="app.afficherDetailsCaisse('${caisse}')">
-                    <div class="resume-caisse-header">
-                        <div class="resume-caisse-nom">${nomCaisse}</div>
-                    </div>
-                    <div class="resume-caisse-solde">${solde.toFixed(2)} DH</div>
-                </div>`;
+        } catch (error) {
+            console.error('❌ Erreur export:', error);
+            this.afficherNotification('❌ Erreur lors de l\'export', 'error');
         }
-        
-        resumeHTML += '</div></div>';
-        return resumeHTML;
     }
 
-    // MÉTHODES SIMPLIFIÉES POUR ÉVITER LES ERREURS
-    supprimerOperation = (id) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            return;
+    importerDonnees = () => {
+        try {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const donnees = JSON.parse(event.target.result);
+                        if (Array.isArray(donnees)) {
+                            this.operations = donnees;
+                            this.sauvegarderDonnees();
+                            this.updateStats();
+                            this.afficherHistorique(this.currentView);
+                            this.afficherNotification('✅ Données importées avec succès', 'success');
+                        } else {
+                            throw new Error('Format invalide');
+                        }
+                    } catch (error) {
+                        console.error('❌ Erreur import:', error);
+                        this.afficherNotification('❌ Fichier invalide', 'error');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+            
+        } catch (error) {
+            console.error('❌ Erreur import:', error);
+            this.afficherNotification('❌ Erreur lors de l\'import', 'error');
         }
-
-        const operationIndex = this.operations.findIndex(op => op.id === id);
-        
-        if (operationIndex === -1) {
-            this.afficherNotification('Opération non trouvée', 'error');
-            return;
-        }
-
-        this.operations.splice(operationIndex, 1);
-        this.sauvegarderDonnees();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-        
-        this.afficherNotification('Opération supprimée avec succès', 'success');
     }
 }
 
-// Initialisation globale SIMPLIFIÉE
+// Initialisation
 let app;
 document.addEventListener('DOMContentLoaded', function() {
     try {
@@ -806,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('🚀 Application démarrée avec succès');
     } catch (error) {
         console.error('💥 Erreur démarrage application:', error);
-        // Afficher un message d'erreur simple
         alert('Erreur lors du démarrage. Veuillez actualiser la page.');
     }
 });
