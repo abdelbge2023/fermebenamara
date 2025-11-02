@@ -1,5 +1,5 @@
-// firebase-simple.js - Version complète avec synchronisation des suppressions
-console.log('🔧 Chargement de Firebase Simple - Synchronisation complète');
+// firebase-simple.js - Synchronisation automatique sans boutons
+console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
 
 // ⚠️ REMPLACEZ AVEC VOS VRAIES CLÉS FIREBASE ⚠️
 const firebaseConfig = {
@@ -48,18 +48,16 @@ async function initialiserFirebase() {
         window.firebaseReady = true;
         window.firebaseDb = db;
         
-        // Synchroniser après un court délai
-        setTimeout(() => {
-            synchroniserAutomatiquement();
-        }, 2000);
+        // Synchroniser automatiquement
+        synchroniserAutomatiquement();
         
-        mettreAJourStatutFirebase();
+        // Écouter les changements en temps réel
+        ecouterChangementsTempsReel();
         
     } catch (error) {
         console.log('❌ Erreur initialisation Firebase:', error);
         firebaseReady = false;
         window.firebaseReady = false;
-        mettreAJourStatutFirebase();
     }
 }
 
@@ -74,8 +72,6 @@ function fusionnerOperationsAvecSuppressions(cloudOps, localOps) {
     // Priorité au cloud MAIS filtrer les suppressions
     cloudOps.forEach(op => {
         if (op.id && !idsTraites.has(op.id) && !op.supprime) {
-            // Si l'opération cloud existe localement, on la garde
-            // Si elle n'existe pas localement mais a été supprimée, on vérifie la date
             if (idsLocaux.has(op.id)) {
                 operationsFusionnees.push(op);
                 idsTraites.add(op.id);
@@ -85,13 +81,11 @@ function fusionnerOperationsAvecSuppressions(cloudOps, localOps) {
                 const maintenant = new Date();
                 const diffJours = (maintenant - dateOp) / (1000 * 60 * 60 * 24);
                 
-                // Si l'opération a moins de 2 jours, on la garde (évite resync de vieilles données)
+                // Si l'opération a moins de 2 jours, on la garde
                 if (diffJours < 2) {
                     operationsFusionnees.push(op);
                     idsTraites.add(op.id);
                     console.log('🔄 Opération restaurée:', op.id);
-                } else {
-                    console.log('🚫 Opération ancienne ignorée:', op.id);
                 }
             }
         }
@@ -120,7 +114,7 @@ async function synchroniserAutomatiquement() {
         return;
     }
     
-    console.log('🔄 Début synchronisation automatique...');
+    console.log('🔄 Synchronisation automatique...');
     
     try {
         // 1. Charger depuis Firebase
@@ -137,7 +131,7 @@ async function synchroniserAutomatiquement() {
             });
         });
         
-        console.log(`📥 ${operationsCloud.length} opérations chargées depuis Firebase`);
+        console.log(`📥 ${operationsCloud.length} opérations depuis Firebase`);
         
         // 2. Charger les données locales
         const saved = localStorage.getItem('gestion_ferme_data');
@@ -164,7 +158,7 @@ async function synchroniserAutomatiquement() {
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(dataFusion));
         
-        console.log(`✅ Synchronisation: ${operationsFusionnees.length} opérations total`);
+        console.log(`✅ Sync: ${operationsFusionnees.length} opérations`);
         
         // 5. Mettre à jour l'interface
         if (window.app && typeof window.app.afficherHistorique === 'function') {
@@ -174,40 +168,25 @@ async function synchroniserAutomatiquement() {
         }
         
     } catch (error) {
-        console.error('❌ Erreur synchronisation automatique:', error);
+        console.error('❌ Erreur synchronisation:', error);
     }
 }
 
-// SYNCHRONISATION MANUELLE
-window.synchroniserDonnees = async function() {
-    if (!firebaseReady || !db) {
-        alert('❌ Firebase non disponible');
-        return;
-    }
+// ÉCOUTER LES CHANGEMENTS EN TEMPS RÉEL
+function ecouterChangementsTempsReel() {
+    if (!firebaseReady || !db) return;
     
-    const btnSync = document.querySelector('[onclick="synchroniserDonnees()"]');
-    const texteOriginal = btnSync ? btnSync.innerHTML : '';
-    
-    if (btnSync) {
-        btnSync.innerHTML = '⏳ Synchronisation...';
-        btnSync.disabled = true;
-    }
-    
-    try {
-        await synchroniserAutomatiquement();
-        alert('✅ Synchronisation réussie !');
-    } catch (error) {
-        console.error('❌ Erreur synchronisation manuelle:', error);
-        alert('⚠️ Synchronisation partielle: ' + error.message);
-    } finally {
-        if (btnSync) {
-            btnSync.innerHTML = texteOriginal;
-            btnSync.disabled = false;
-        }
-    }
+    db.collection("operations")
+        .orderBy("timestamp", "desc")
+        .onSnapshot((snapshot) => {
+            console.log('🔄 Mise à jour temps réel détectée');
+            synchroniserAutomatiquement();
+        }, (error) => {
+            console.error('❌ Erreur écoute temps réel:', error);
+        });
 }
 
-// SAUVEGARDER DANS FIREBASE
+// SAUVEGARDER DANS FIREBASE (automatique)
 window.sauvegarderDansFirebase = async function(operation) {
     if (!firebaseReady || !db) {
         console.log('❌ Firebase non disponible pour sauvegarde');
@@ -251,7 +230,7 @@ window.marquerCommeSupprime = async function(operationId) {
             .where("id", "==", operationId)
             .get();
         
-        // Marquer comme supprimé au lieu de supprimer
+        // Marquer comme supprimé
         const updatePromises = [];
         querySnapshot.forEach(doc => {
             updatePromises.push(
@@ -271,159 +250,10 @@ window.marquerCommeSupprime = async function(operationId) {
     }
 }
 
-// CHARGER DEPUIS FIREBASE
-window.chargerDonneesFirebase = async function() {
-    if (!firebaseReady || !db) {
-        alert('❌ Firebase non disponible');
-        return;
-    }
-    
-    try {
-        const querySnapshot = await db.collection("operations")
-            .orderBy("timestamp", "desc")
-            .get();
-        
-        const operations = [];
-        querySnapshot.forEach(doc => {
-            operations.push(doc.data());
-        });
-
-        // Sauvegarder localement
-        const data = {
-            operations: operations,
-            lastSync: new Date().toISOString(),
-            source: 'firebase'
-        };
-        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-        
-        alert(`✅ ${operations.length} opérations chargées depuis Firebase`);
-        
-        // Recharger l'application
-        location.reload();
-        
-    } catch (error) {
-        console.error('❌ Erreur chargement Firebase:', error);
-        alert('❌ Erreur chargement: ' + error.message);
-    }
-}
-
-// MIGRER VERS FIREBASE
-window.migrerVersFirebase = async function() {
-    if (!firebaseReady || !db) {
-        alert('❌ Firebase non disponible');
-        return;
-    }
-
-    console.log('🚀 Début migration vers Firebase...');
-    
-    // Charger les données existantes du localStorage
-    const saved = localStorage.getItem('gestion_ferme_data');
-    if (!saved) {
-        alert('❌ Aucune donnée trouvée dans le localStorage');
-        return;
-    }
-    
-    try {
-        const data = JSON.parse(saved);
-        const operations = data.operations || [];
-        
-        if (operations.length === 0) {
-            alert('❌ Aucune opération à migrer');
-            return;
-        }
-        
-        let count = 0;
-        let erreurs = 0;
-        
-        // Migrer chaque opération
-        for (const operation of operations) {
-            try {
-                await window.sauvegarderDansFirebase(operation);
-                count++;
-                
-                // Afficher la progression
-                if (count % 10 === 0) {
-                    console.log(`📦 ${count} opérations migrées...`);
-                }
-            } catch (error) {
-                console.error('Erreur migration opération:', operation.id, error);
-                erreurs++;
-            }
-        }
-        
-        const message = `✅ Migration terminée !\n${count} opérations migrées\n${erreurs} erreurs`;
-        console.log(message);
-        alert(message);
-        
-    } catch (error) {
-        console.error('❌ Erreur migration:', error);
-        alert('❌ Erreur lors de la migration: ' + error.message);
-    }
-}
-
-// VÉRIFIER DONNÉES FIREBASE
-window.verifierDonneesFirebase = async function() {
-    if (!firebaseReady || !db) {
-        alert('❌ Firebase non disponible');
-        return 0;
-    }
-
-    try {
-        const querySnapshot = await db.collection("operations").get();
-        const count = querySnapshot.size;
-        alert(`📊 Firebase contient ${count} opérations`);
-        return count;
-    } catch (error) {
-        console.error('Erreur vérification:', error);
-        alert('❌ Erreur vérification Firebase');
-        return 0;
-    }
-}
-
-// MISE À JOUR DU STATUT
-function mettreAJourStatutFirebase() {
-    setTimeout(() => {
-        const header = document.querySelector('header');
-        if (!header) return;
-
-        // Supprimer l'ancien statut
-        const ancienStatut = document.getElementById('statutFirebase');
-        if (ancienStatut) ancienStatut.remove();
-
-        const statutDiv = document.createElement('div');
-        statutDiv.id = 'statutFirebase';
-        statutDiv.style.marginTop = '10px';
-        statutDiv.style.padding = '12px';
-        statutDiv.style.borderRadius = '10px';
-        statutDiv.style.fontWeight = 'bold';
-        statutDiv.style.textAlign = 'center';
-        statutDiv.style.fontSize = '16px';
-
-        if (firebaseReady) {
-            statutDiv.innerHTML = 
-                '✅ <strong>Synchronisé Cloud</strong> | ' +
-                '<button onclick="synchroniserDonnees()" class="btn-success" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Synchroniser</button>' +
-                '<button onclick="chargerDonneesFirebase()" class="btn-info" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">📥 Charger Cloud</button>';
-            statutDiv.style.background = '#d4edda';
-            statutDiv.style.color = '#155724';
-            statutDiv.style.border = '2px solid #28a745';
-        } else {
-            statutDiv.innerHTML = 
-                '🔧 <strong>Mode Local</strong> | ' +
-                '<button onclick="initialiserFirebase()" class="btn-warning" style="margin: 0 8px; padding: 8px 16px; font-size: 14px;">🔄 Réessayer Firebase</button>';
-            statutDiv.style.background = '#fff3cd';
-            statutDiv.style.color = '#856404';
-            statutDiv.style.border = '2px solid #ffc107';
-        }
-
-        header.appendChild(statutDiv);
-    }, 1000);
-}
-
 // Initialisation
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé, initialisation Firebase...');
     initialiserFirebase();
 });
 
-console.log('🔧 firebase-simple.js chargé - Synchronisation complète activée');
+console.log('🔧 firebase-simple.js chargé - Synchronisation automatique activée');
