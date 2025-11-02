@@ -1,4 +1,4 @@
-// app.js - Version complète avec synchronisation des suppressions
+// app.js - Version complète avec totaux par vue
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -421,13 +421,11 @@ class GestionFerme {
         if (window.firebaseReady && window.firebaseDb) {
             try {
                 for (const op of operationsACreer) {
-                    const succes = await window.sauvegarderDansFirebase(op);
-                    if (succes) {
-                        console.log('✅ Opération synchronisée avec Firebase:', op.id);
-                    }
+                    await window.firebaseDb.collection("operations").add(op);
                 }
+                console.log('✅ Données sauvegardées dans Firebase');
             } catch (error) {
-                console.log('⚠️ Données sauvegardées localement seulement:', error);
+                console.log('⚠️ Données sauvegardées localement seulement');
             }
         }
 
@@ -533,88 +531,25 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODE SUPPRIMER OPÉRATION AVEC SYNCHRO FIREBASE
-    async supprimerOperation(operationId) {
+    supprimerOperation(operationId) {
         if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            // Sauvegarder l'opération avant suppression pour Firebase
-            const operationASupprimer = this.operations.find(op => op.id === operationId);
-            
-            // Supprimer localement
             this.operations = this.operations.filter(op => op.id !== operationId);
             this.sauvegarderDonnees();
-            
-            // Supprimer dans Firebase si disponible
-            if (window.firebaseReady && window.firebaseDb && operationASupprimer) {
-                try {
-                    await this.supprimerDansFirebase(operationASupprimer);
-                } catch (error) {
-                    console.log('⚠️ Suppression Firebase échouée:', error);
-                }
-            }
-            
             this.updateStats();
             this.afficherHistorique(this.currentView);
             this.afficherMessageSucces('Opération supprimée avec succès');
         }
     }
 
-    // MÉTHODE POUR SUPPRIMER DANS FIREBASE
-    async supprimerDansFirebase(operation) {
-        if (!window.firebaseReady || !window.firebaseDb) return false;
-        
-        try {
-            // Option 1: Marquer comme supprimé (recommandé)
-            if (window.marquerCommeSupprime) {
-                return await window.marquerCommeSupprime(operation.id);
-            }
-            
-            // Option 2: Supprimer définitivement
-            const querySnapshot = await window.firebaseDb.collection("operations")
-                .where("id", "==", operation.id)
-                .get();
-            
-            const deletePromises = [];
-            querySnapshot.forEach(doc => {
-                deletePromises.push(doc.ref.delete());
-            });
-            
-            await Promise.all(deletePromises);
-            console.log('✅ Opération supprimée de Firebase:', operation.id);
-            return true;
-        } catch (error) {
-            console.error('❌ Erreur suppression Firebase:', error);
-            return false;
-        }
-    }
-
-    // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES AVEC SYNCHRO FIREBASE
-    async supprimerOperationsSelectionnees() {
+    supprimerOperationsSelectionnees() {
         if (this.selectedOperations.size === 0) {
             alert('Aucune opération sélectionnée');
             return;
         }
 
         if (confirm('Êtes-vous sûr de vouloir supprimer ' + this.selectedOperations.size + ' opération(s) ?')) {
-            // Sauvegarder les opérations avant suppression
-            const operationsASupprimer = this.operations.filter(op => 
-                this.selectedOperations.has(op.id)
-            );
-            
-            // Supprimer localement
             this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
             this.sauvegarderDonnees();
-            
-            // Supprimer dans Firebase
-            if (window.firebaseReady && window.firebaseDb) {
-                try {
-                    for (const operation of operationsASupprimer) {
-                        await this.supprimerDansFirebase(operation);
-                    }
-                } catch (error) {
-                    console.log('⚠️ Suppressions Firebase échouées:', error);
-                }
-            }
-            
             this.selectedOperations.clear();
             this.toggleEditMode(false);
             this.updateStats();
@@ -643,7 +578,7 @@ class GestionFerme {
         document.getElementById('editModal').style.display = 'none';
     }
 
-    async modifierOperation(e) {
+    modifierOperation(e) {
         e.preventDefault();
 
         const operationId = parseInt(document.getElementById('editId').value);
@@ -663,8 +598,6 @@ class GestionFerme {
             return;
         }
 
-        const ancienneOperation = this.operations[operationIndex];
-        
         this.operations[operationIndex] = {
             ...this.operations[operationIndex],
             operateur: document.getElementById('editOperateur').value,
@@ -678,26 +611,13 @@ class GestionFerme {
         };
 
         this.sauvegarderDonnees();
-
-        // Mettre à jour dans Firebase
-        if (window.firebaseReady && window.firebaseDb) {
-            try {
-                // Supprimer l'ancienne version
-                await this.supprimerDansFirebase(ancienneOperation);
-                // Ajouter la nouvelle version
-                await window.sauvegarderDansFirebase(this.operations[operationIndex]);
-            } catch (error) {
-                console.log('⚠️ Modification Firebase échouée:', error);
-            }
-        }
-
         this.fermerModal();
         this.updateStats();
         this.afficherHistorique(this.currentView);
         this.afficherMessageSucces('Opération modifiée avec succès !');
     }
 
-    async effectuerTransfert(e) {
+    effectuerTransfert(e) {
         e.preventDefault();
 
         const caisseSource = document.getElementById('caisseSource').value;
@@ -763,23 +683,11 @@ class GestionFerme {
         ];
 
         // Ajouter aux opérations
-        for (const op of operationsTransfert) {
+        operationsTransfert.forEach(op => {
             this.operations.unshift(op);
-        }
+        });
 
         this.sauvegarderDonnees();
-
-        // Sauvegarder dans Firebase
-        if (window.firebaseReady && window.firebaseDb) {
-            try {
-                for (const op of operationsTransfert) {
-                    await window.sauvegarderDansFirebase(op);
-                }
-            } catch (error) {
-                console.log('⚠️ Transfert Firebase échoué:', error);
-            }
-        }
-
         this.afficherMessageSucces('Transfert effectué avec succès !');
         document.getElementById('transfertForm').reset();
         this.updateStats();
