@@ -1,10 +1,13 @@
-// app.js - Détails automatiques lors de la sélection de caisse
+// app.js - Gestion Ferme Ben Amara
 class GestionFerme {
     constructor() {
         this.operations = [];
         this.caisses = {
-            'abdel_caisse': 0, 'omar_caisse': 0, 'hicham_caisse': 0, 
-            'zaitoun_caisse': 0, '3commain_caisse': 0
+            'abdel_caisse': 0, 
+            'omar_caisse': 0, 
+            'hicham_caisse': 0, 
+            'zaitoun_caisse': 0, 
+            '3commain_caisse': 0
         };
         this.editMode = false;
         this.selectedOperations = new Set();
@@ -20,6 +23,63 @@ class GestionFerme {
         this.updateStats();
         this.afficherHistorique('global');
         console.log('✅ Application Gestion Ferme initialisée');
+    }
+
+    setupEventListeners() {
+        // Écouteurs pour les onglets
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const vue = e.target.dataset.sheet;
+                this.afficherHistorique(vue);
+            });
+        });
+
+        // Écouteur pour le formulaire d'ajout
+        const form = document.getElementById('operationForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.ajouterOperation();
+            });
+        }
+
+        // Écouteurs pour les boutons d'action
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'toggleEditMode') {
+                this.toggleEditMode();
+            }
+            if (e.target.id === 'deleteSelected') {
+                this.supprimerOperationsSelectionnees();
+            }
+            if (e.target.id === 'exportData') {
+                this.exporterDonnees();
+            }
+        });
+
+        console.log('✅ Écouteurs d\'événements initialisés');
+    }
+
+    // MÉTHODES DE GESTION DES DONNÉES
+    chargerDonnees() {
+        try {
+            const donnees = localStorage.getItem('gestionFermeOperations');
+            if (donnees) {
+                this.operations = JSON.parse(donnees);
+                console.log('📂 Données chargées:', this.operations.length, 'opérations');
+            }
+        } catch (error) {
+            console.error('❌ Erreur chargement données:', error);
+            this.operations = [];
+        }
+    }
+
+    sauvegarderDonnees() {
+        try {
+            localStorage.setItem('gestionFermeOperations', JSON.stringify(this.operations));
+            console.log('💾 Données sauvegardées');
+        } catch (error) {
+            console.error('❌ Erreur sauvegarde:', error);
+        }
     }
 
     // MÉTHODE UPDATE STATS - CLICK DIRECT SUR LES CAISSES
@@ -42,18 +102,23 @@ class GestionFerme {
     calculerSoldes() {
         // Réinitialiser les soldes
         this.caisses = {
-            'abdel_caisse': 0, 'omar_caisse': 0, 'hicham_caisse': 0, 
-            'zaitoun_caisse': 0, '3commain_caisse': 0
+            'abdel_caisse': 0, 
+            'omar_caisse': 0, 
+            'hicham_caisse': 0, 
+            'zaitoun_caisse': 0, 
+            '3commain_caisse': 0
         };
 
         // Calculer les soldes actuels
         this.operations.forEach(op => {
-            this.caisses[op.caisse] += op.montant;
+            if (this.caisses[op.caisse] !== undefined) {
+                this.caisses[op.caisse] += op.montant;
+            }
         });
     }
 
     creerCarteCaisse(cleCaisse, nomCaisse) {
-        const solde = this.caisses[cleCaisse];
+        const solde = this.caisses[cleCaisse] || 0;
         const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
         const estSelectionnee = this.caisseSelectionnee === cleCaisse ? 'caisse-selectionnee' : '';
         
@@ -61,17 +126,17 @@ class GestionFerme {
             <div class="stat-label">${nomCaisse}</div>
             <div class="stat-value">${solde.toFixed(2)}</div>
             <div class="stat-label">DH</div>
-            <div class="stat-indication" style="margin-top: 8px; font-size: 11px; opacity: 0.8;">📊 Cliquer pour voir le détail</div>
+            <div class="stat-indication">📊 Cliquer pour voir le détail</div>
         </div>`;
     }
 
-    // MÉTHODE POUR AFFICHER LES DÉTAILS D'UNE CAISSE (AUTOMATIQUE AU CLICK)
+    // MÉTHODE POUR AFFICHER LES DÉTAILS D'UNE CAISSE
     afficherDetailsCaisse(caisse) {
         this.caisseSelectionnee = caisse;
-        this.updateStats(); // Mettre à jour l'affichage pour montrer la caisse sélectionnée
+        this.updateStats();
         
         const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-        const nomCaisse = this.formaterCaisse(caisse);
+        const nomCaisse = this.getNomCaisse(caisse);
         
         let totalRevenus = 0;
         let totalFrais = 0;
@@ -86,7 +151,6 @@ class GestionFerme {
             soldeCaisse += op.montant;
         });
 
-        // Remplacer le contenu de dataDisplay par les détails de la caisse
         const container = document.getElementById('dataDisplay');
         
         const detailsHTML = `
@@ -135,25 +199,21 @@ class GestionFerme {
         `;
         
         container.innerHTML = detailsHTML;
-        
-        // Mettre à jour les onglets pour montrer qu'on est en vue détail
         this.mettreAJourOngletsCaisse(caisse);
     }
 
-    // METTRE À JOUR LES ONGLETS POUR LA VUE CAISSE
     mettreAJourOngletsCaisse(caisse) {
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('active');
         });
         
-        // Créer un onglet temporaire pour la caisse sélectionnée
         const navTabs = document.querySelector('.nav-tabs');
         const existingCaisseTab = document.querySelector('.tab-btn.caisse-tab');
         if (existingCaisseTab) {
             existingCaisseTab.remove();
         }
         
-        const nomCaisse = this.formaterCaisse(caisse);
+        const nomCaisse = this.getNomCaisse(caisse);
         const caisseTab = document.createElement('button');
         caisseTab.className = 'tab-btn active caisse-tab';
         caisseTab.innerHTML = `🏦 ${nomCaisse}`;
@@ -162,7 +222,6 @@ class GestionFerme {
         navTabs.appendChild(caisseTab);
     }
 
-    // CRÉER LE TABLEAU DES DÉTAILS DE CAISSE
     creerTableauDetailsCaisse(operations) {
         let tableHTML = `
             <div style="overflow-x: auto;">
@@ -216,10 +275,10 @@ class GestionFerme {
         return tableHTML;
     }
 
-    // MÉTHODE AFFICHER HISTORIQUE (MODIFIÉE POUR GÉRER LE RETOUR)
+    // MÉTHODE AFFICHER HISTORIQUE
     afficherHistorique(vue = 'global') {
         this.caisseSelectionnee = null;
-        this.updateStats(); // Réinitialiser la sélection visuelle
+        this.updateStats();
         
         const container = document.getElementById('dataDisplay');
         if (!container) return;
@@ -330,7 +389,7 @@ class GestionFerme {
             tableHTML += '<td>' + this.formaterGroupe(op.groupe) + '</td>';
             tableHTML += '<td>' + this.formaterTypeOperation(op.typeOperation) + '</td>';
             tableHTML += '<td class="' + (estNegatif ? 'type-frais' : 'type-revenu') + '">' + this.formaterTypeTransaction(op.typeTransaction) + '</td>';
-            tableHTML += '<td>' + this.formaterCaisse(op.caisse) + '</td>';
+            tableHTML += '<td>' + this.getNomCaisse(op.caisse) + '</td>';
             tableHTML += '<td>' + op.description + '</td>';
             tableHTML += '<td style="font-weight: bold; color: ' + (estNegatif ? '#e74c3c' : '#27ae60') + ';">' + 
                         (estNegatif ? '-' : '') + montantAbsolu.toFixed(2) + '</td>';
@@ -349,10 +408,177 @@ class GestionFerme {
         container.innerHTML = tableHTML;
     }
 
-    // EXPORTER LES DÉTAILS EN PDF
+    // MÉTHODE POUR LE RÉSUMÉ DES CAISSES
+    afficherResumeCaisses() {
+        let resumeHTML = '<div class="resume-caisses">';
+        resumeHTML += '<h4>📋 Résumé par Caisse - Cliquez sur une caisse pour voir le détail</h4>';
+        resumeHTML += '<div class="caisses-grid">';
+        
+        // Calculer les totaux par caisse
+        const totauxCaisses = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0, 
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+        
+        this.operations.forEach(op => {
+            if (totauxCaisses[op.caisse] !== undefined) {
+                totauxCaisses[op.caisse] += op.montant;
+            }
+        });
+        
+        // Afficher chaque caisse
+        for (const [caisse, solde] of Object.entries(totauxCaisses)) {
+            const nomCaisse = this.getNomCaisse(caisse);
+            const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+            const estSelectionnee = this.caisseSelectionnee === caisse ? 'caisse-selectionnee' : '';
+            
+            resumeHTML += `<div class="resume-caisse ${classeCouleur} ${estSelectionnee}" onclick="app.afficherDetailsCaisse('${caisse}')" style="cursor: pointer;">
+                <div class="resume-caisse-nom">${nomCaisse}</div>
+                <div class="resume-caisse-solde">${solde.toFixed(2)} DH</div>
+                <div style="font-size: 10px; opacity: 0.7; margin-top: 5px;">Cliquer pour détails</div>
+            </div>`;
+        }
+        
+        resumeHTML += '</div></div>';
+        return resumeHTML;
+    }
+
+    // MÉTHODES D'AJOUT ET MODIFICATION
+    ajouterOperation() {
+        const formData = new FormData(document.getElementById('operationForm'));
+        
+        const nouvelleOperation = {
+            id: Date.now(),
+            date: formData.get('date'),
+            operateur: formData.get('operateur'),
+            groupe: formData.get('groupe'),
+            typeOperation: formData.get('typeOperation'),
+            typeTransaction: formData.get('typeTransaction'),
+            caisse: formData.get('caisse'),
+            description: formData.get('description'),
+            montant: parseFloat(formData.get('montant')),
+            transfert: formData.get('transfert') === 'true'
+        };
+
+        this.operations.push(nouvelleOperation);
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        
+        // Réinitialiser le formulaire
+        document.getElementById('operationForm').reset();
+        
+        console.log('✅ Opération ajoutée:', nouvelleOperation);
+    }
+
+    ouvrirModalModification(id) {
+        const operation = this.operations.find(op => op.id === id);
+        if (!operation) return;
+
+        // Remplir le formulaire avec les données existantes
+        document.getElementById('date').value = operation.date;
+        document.getElementById('operateur').value = operation.operateur;
+        document.getElementById('groupe').value = operation.groupe;
+        document.getElementById('typeOperation').value = operation.typeOperation;
+        document.getElementById('typeTransaction').value = operation.typeTransaction;
+        document.getElementById('caisse').value = operation.caisse;
+        document.getElementById('description').value = operation.description;
+        document.getElementById('montant').value = Math.abs(operation.montant);
+        document.getElementById('transfert').value = operation.transfert;
+
+        // Changer le comportement du formulaire pour la modification
+        const form = document.getElementById('operationForm');
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            this.modifierOperation(id);
+        };
+
+        console.log('✏️ Modal modification ouvert pour:', operation);
+    }
+
+    modifierOperation(id) {
+        const formData = new FormData(document.getElementById('operationForm'));
+        const operationIndex = this.operations.findIndex(op => op.id === id);
+
+        if (operationIndex === -1) return;
+
+        this.operations[operationIndex] = {
+            ...this.operations[operationIndex],
+            date: formData.get('date'),
+            operateur: formData.get('operateur'),
+            groupe: formData.get('groupe'),
+            typeOperation: formData.get('typeOperation'),
+            typeTransaction: formData.get('typeTransaction'),
+            caisse: formData.get('caisse'),
+            description: formData.get('description'),
+            montant: parseFloat(formData.get('montant')),
+            transfert: formData.get('transfert') === 'true'
+        };
+
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        
+        // Réinitialiser le formulaire
+        document.getElementById('operationForm').reset();
+        document.getElementById('operationForm').onsubmit = (e) => {
+            e.preventDefault();
+            this.ajouterOperation();
+        };
+
+        console.log('✅ Opération modifiée:', this.operations[operationIndex]);
+    }
+
+    supprimerOperation(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            this.operations = this.operations.filter(op => op.id !== id);
+            this.sauvegarderDonnees();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            console.log('🗑️ Opération supprimée:', id);
+        }
+    }
+
+    // MÉTHODES DE SÉLECTION MULTIPLE
+    selectionnerOperation(id, estSelectionne) {
+        if (estSelectionne) {
+            this.selectedOperations.add(id);
+        } else {
+            this.selectedOperations.delete(id);
+        }
+        this.afficherHistorique(this.currentView);
+    }
+
+    toggleEditMode() {
+        this.editMode = !this.editMode;
+        this.selectedOperations.clear();
+        this.afficherHistorique(this.currentView);
+        console.log('🔧 Mode édition:', this.editMode ? 'activé' : 'désactivé');
+    }
+
+    supprimerOperationsSelectionnees() {
+        if (this.selectedOperations.size === 0) {
+            alert('Aucune opération sélectionnée');
+            return;
+        }
+
+        if (confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
+            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+            this.selectedOperations.clear();
+            this.sauvegarderDonnees();
+            this.updateStats();
+            this.afficherHistorique(this.currentView);
+            console.log('🗑️ Opérations supprimées:', this.selectedOperations.size);
+        }
+    }
+
+    // MÉTHODES D'EXPORT
     exporterDetailsCaisse(caisse) {
         const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-        const nomCaisse = this.formaterCaisse(caisse);
+        const nomCaisse = this.getNomCaisse(caisse);
         
         let totalRevenus = 0;
         let totalFrais = 0;
@@ -367,7 +593,6 @@ class GestionFerme {
             soldeCaisse += op.montant;
         });
 
-        // Créer le contenu HTML pour l'export
         const contenuHTML = `
             <html>
                 <head>
@@ -445,7 +670,6 @@ class GestionFerme {
             </html>
         `;
 
-        // Ouvrir une nouvelle fenêtre pour l'impression
         const fenetreImpression = window.open('', '_blank');
         fenetreImpression.document.write(contenuHTML);
         fenetreImpression.document.close();
@@ -455,49 +679,89 @@ class GestionFerme {
         }, 500);
     }
 
-    // MÉTHODE POUR LE RÉSUMÉ DES CAISSES
-    afficherResumeCaisses() {
-        let resumeHTML = '<div class="resume-caisses">';
-        resumeHTML += '<h4>📋 Résumé par Caisse - Cliquez sur une caisse pour voir le détail</h4>';
-        resumeHTML += '<div class="caisses-grid">';
+    exporterDonnees() {
+        const donneesJSON = JSON.stringify(this.operations, null, 2);
+        const blob = new Blob([donneesJSON], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
         
-        // Calculer les totaux par caisse
-        const totauxCaisses = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0, 
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gestion-ferme-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
         
-        this.operations.forEach(op => {
-            totauxCaisses[op.caisse] += op.montant;
-        });
-        
-        // Afficher chaque caisse
-        for (const [caisse, solde] of Object.entries(totauxCaisses)) {
-            const nomCaisse = this.formaterCaisse(caisse);
-            const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
-            const estSelectionnee = this.caisseSelectionnee === caisse ? 'caisse-selectionnee' : '';
-            
-            resumeHTML += `<div class="resume-caisse ${classeCouleur} ${estSelectionnee}" onclick="app.afficherDetailsCaisse('${caisse}')" style="cursor: pointer;">
-                <div class="resume-caisse-nom">${nomCaisse}</div>
-                <div class="resume-caisse-solde">${solde.toFixed(2)} DH</div>
-                <div style="font-size: 10px; opacity: 0.7; margin-top: 5px;">Cliquer pour détails</div>
-            </div>`;
-        }
-        
-        resumeHTML += '</div></div>';
-        return resumeHTML;
+        URL.revokeObjectURL(url);
+        console.log('💾 Données exportées');
     }
 
-    // ... (le reste des méthodes reste identique au code précédent)
-    // [Toutes les autres méthodes restent exactement les mêmes]
-    // ... (chargerDonnees, sauvegarderDonnees, formaterDate, etc.)
+    // MÉTHODES DE FORMATAGE
+    formaterDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR');
+    }
 
+    formaterOperateur(operateur) {
+        const operateurs = {
+            'abdel': '👨‍💼 Abdel',
+            'omar': '👨‍💼 Omar', 
+            'hicham': '👨‍💼 Hicham'
+        };
+        return operateurs[operateur] || operateur;
+    }
+
+    formaterGroupe(groupe) {
+        const groupes = {
+            'zaitoun': '🫒 Zaitoun',
+            '3commain': '👥 3 Commain'
+        };
+        return groupes[groupe] || groupe;
+    }
+
+    formaterTypeOperation(type) {
+        const types = {
+            'vente': '💰 Vente',
+            'achat': '🛒 Achat',
+            'frais': '💸 Frais',
+            'investissement': '🏗️ Investissement',
+            'salaire': '👨‍💼 Salaire'
+        };
+        return types[type] || type;
+    }
+
+    formaterTypeTransaction(type) {
+        const types = {
+            'espece': '💵 Espèce',
+            'cheque': '📋 Chèque',
+            'virement': '🏦 Virement'
+        };
+        return types[type] || type;
+    }
+
+    getNomCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': 'Caisse Abdel',
+            'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham',
+            'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return caisses[caisse] || caisse;
+    }
+
+    getTitreVue(vue) {
+        const titres = {
+            'global': '🌍 Vue Globale - Toutes les opérations',
+            'zaitoun': '🫒 Groupe Zaitoun',
+            '3commain': '👥 Groupe 3 Commain',
+            'abdel': '👨‍💼 Opérations Abdel',
+            'omar': '👨‍💼 Opérations Omar',
+            'hicham': '👨‍💼 Opérations Hicham',
+            'transferts': '🔄 Opérations de Transfert'
+        };
+        return titres[vue] || 'Vue';
+    }
 }
 
-// Initialisation
+// Initialisation globale
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
