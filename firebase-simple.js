@@ -1,109 +1,232 @@
-// firebase-simple.js - Synchronisation automatique uniquement
+// firebase-simple.js - Configuration Firebase corrigée
 console.log('🔧 Chargement de Firebase Simple - Mode local avec sync automatique');
 
-// Configuration Firebase - À PERSONNALISER AVEC VOS CLÉS
+// Configuration Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-  authDomain: "gestion-fermebenamara.firebaseapp.com",
-  projectId: "gestion-fermebenamara",
-  storageBucket: "gestion-fermebenamara.firebasestorage.app",
-  messagingSenderId: "668129137491",
-  appId: "1:668129137491:web:b56522302ea789044507a6"
+    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+    authDomain: "gestion-fermebenamara.firebaseapp.com",
+    projectId: "gestion-fermebenamara",
+    storageBucket: "gestion-fermebenamara.firebasestorage.app",
+    messagingSenderId: "668129137491",
+    appId: "1:668129137491:web:b56522302ea789044507a6"
 };
 
-// Exemple d'utilisation de la synchronisation Firebase
+// Variables globales
+let db;
+let firebaseInitialized = false;
 
-class FermeBenamaraApp {
+// Fonction d'initialisation Firebase
+function initializeFirebase() {
+    try {
+        if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            
+            // Configuration avec merge: true pour éviter l'erreur
+            db.settings({
+                cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+                merge: true
+            });
+            
+            // Activer la persistance
+            db.enablePersistence()
+                .then(() => {
+                    console.log('✅ Persistance Firestore activée');
+                })
+                .catch((err) => {
+                    console.warn('⚠️ Persistance non disponible:', err);
+                });
+            
+            firebaseInitialized = true;
+            console.log('✅ Firebase initialisé avec succès');
+            
+            // Initialiser firebaseSync après Firebase
+            window.firebaseSync = new FirebaseSync();
+        } else if (firebase.apps.length > 0) {
+            db = firebase.firestore();
+            firebaseInitialized = true;
+            console.log('ℹ️ Firebase déjà initialisé');
+            window.firebaseSync = new FirebaseSync();
+        }
+    } catch (error) {
+        console.error('❌ Erreur initialisation Firebase:', error);
+    }
+}
+
+// Classe de synchronisation Firebase
+class FirebaseSync {
     constructor() {
-        this.init();
-    }
-
-    async init() {
-        console.log('🏭 Application Ferme Benamara initialisée');
+        this.isOnline = navigator.onLine;
+        this.pendingOperations = [];
+        console.log('🔄 FirebaseSync créé');
         
-        // Charger les données au démarrage
-        await this.loadInitialData();
-        
-        // Écouter les changements en temps réel
-        this.setupRealTimeListeners();
-    }
-
-    async loadInitialData() {
-        // Charger les animaux
-        const animaux = await firebaseSync.getCollection('animaux');
-        this.displayAnimaux(animaux);
-
-        // Charger les ventes
-        const ventes = await firebaseSync.getCollection('ventes');
-        this.displayVentes(ventes);
-    }
-
-    setupRealTimeListeners() {
-        // Écouter les nouveaux animaux en temps réel
-        firebaseSync.listenToCollection('animaux', (changes, snapshot) => {
-            console.log('🔄 Mise à jour temps réel - Animaux:', changes);
-            this.handleAnimauxUpdate(changes);
-        });
-
-        // Écouter les nouvelles ventes en temps réel
-        firebaseSync.listenToCollection('ventes', (changes, snapshot) => {
-            console.log('🔄 Mise à jour temps réel - Ventes:', changes);
-            this.handleVentesUpdate(changes);
-        });
-    }
-
-    // Exemple: Ajouter un animal
-    async ajouterAnimal(animalData) {
-        try {
-            await firebaseSync.addDocument('animaux', animalData);
-            console.log('✅ Animal ajouté avec succès');
-        } catch (error) {
-            console.error('❌ Erreur ajout animal:', error);
+        if (db) {
+            this.initEventListeners();
+        } else {
+            console.warn('⚠️ Firestore non disponible, réessai dans 1s...');
+            setTimeout(() => {
+                if (db) this.initEventListeners();
+            }, 1000);
         }
     }
 
-    // Exemple: Mettre à jour un animal
-    async mettreAJourAnimal(animalId, nouvellesDonnees) {
-        try {
-            await firebaseSync.updateDocument('animaux', animalId, nouvellesDonnees);
-            console.log('✅ Animal mis à jour avec succès');
-        } catch (error) {
-            console.error('❌ Erreur mise à jour animal:', error);
-        }
+    initEventListeners() {
+        window.addEventListener('online', () => this.handleOnline());
+        window.addEventListener('offline', () => this.handleOffline());
     }
 
-    displayAnimaux(animaux) {
-        // Votre code d'affichage ici
-        console.log('🐄 Animaux affichés:', animaux);
+    handleOnline() {
+        this.isOnline = true;
+        console.log('🌐 Connexion rétablie');
+        this.syncPendingOperations();
     }
 
-    displayVentes(ventes) {
-        // Votre code d'affichage ici
-        console.log('💰 Ventes affichées:', ventes);
+    handleOffline() {
+        this.isOnline = false;
+        console.log('🔌 Hors ligne');
     }
 
-    handleAnimauxUpdate(changes) {
-        changes.forEach(change => {
-            if (change.type === 'added') {
-                console.log('➕ Nouvel animal:', change.data);
-            } else if (change.type === 'modified') {
-                console.log('✏️ Animal modifié:', change.data);
-            } else if (change.type === 'removed') {
-                console.log('🗑️ Animal supprimé:', change.id);
+    async syncPendingOperations() {
+        if (this.pendingOperations.length === 0) return;
+        console.log(`🔄 Synchronisation de ${this.pendingOperations.length} opérations...`);
+        
+        for (const operation of this.pendingOperations) {
+            try {
+                await this.executeOperation(operation);
+            } catch (error) {
+                console.error('❌ Erreur synchronisation:', error);
             }
+        }
+        this.pendingOperations = [];
+    }
+
+    async executeOperation(operation) {
+        if (!db) {
+            throw new Error('Firestore non initialisé');
+        }
+
+        const { type, collection, data, id } = operation;
+
+        switch (type) {
+            case 'add':
+                return await db.collection(collection).add(data);
+            case 'set':
+                return await db.collection(collection).doc(id.toString()).set(data);
+            case 'update':
+                return await db.collection(collection).doc(id.toString()).update(data);
+            case 'delete':
+                return await db.collection(collection).doc(id.toString()).delete();
+            default:
+                throw new Error(`Type inconnu: ${type}`);
+        }
+    }
+
+    addOperation(operation) {
+        if (this.isOnline && db) {
+            return this.executeOperation(operation);
+        } else {
+            this.pendingOperations.push(operation);
+            console.log('💾 Opération sauvegardée localement');
+            return Promise.resolve();
+        }
+    }
+
+    async getCollection(collectionName) {
+        if (!db) {
+            console.error('❌ Firestore non initialisé');
+            return [];
+        }
+
+        try {
+            const snapshot = await db.collection(collectionName).get();
+            const data = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log(`✅ ${data.length} documents de ${collectionName}`);
+            return data;
+        } catch (error) {
+            console.error(`❌ Erreur lecture ${collectionName}:`, error);
+            return [];
+        }
+    }
+
+    listenToCollection(collectionName, callback) {
+        if (!db) {
+            console.error('❌ Firestore non initialisé');
+            return () => {};
+        }
+
+        return db.collection(collectionName)
+            .onSnapshot((snapshot) => {
+                const changes = snapshot.docChanges().map(change => ({
+                    type: change.type,
+                    id: change.doc.id,
+                    data: change.doc.data()
+                }));
+                callback(changes, snapshot);
+            }, (error) => {
+                console.error(`❌ Erreur écoute ${collectionName}:`, error);
+            });
+    }
+
+    async addDocument(collectionName, data) {
+        return this.addOperation({
+            type: 'add',
+            collection: collectionName,
+            data: data
         });
     }
 
-    handleVentesUpdate(changes) {
-        // Gérer les mises à jour des ventes
-        changes.forEach(change => {
-            console.log(`📊 Vente ${change.type}:`, change.data);
+    async updateDocument(collectionName, id, data) {
+        return this.addOperation({
+            type: 'update',
+            collection: collectionName,
+            id: id,
+            data: data
+        });
+    }
+
+    async deleteDocument(collectionName, id) {
+        return this.addOperation({
+            type: 'delete',
+            collection: collectionName,
+            id: id,
+            data: {}
         });
     }
 }
 
-// Démarrer l'application quand la page est chargée
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new FermeBenamaraApp();
-});
+// Test de synchronisation
+async function testSynchronisation() {
+    console.log('🧪 Test de synchronisation...');
+    
+    if (!window.firebaseSync) {
+        console.error('❌ firebaseSync non disponible');
+        return;
+    }
+    
+    try {
+        await firebaseSync.addDocument('test', {
+            message: 'Test de synchronisation',
+            timestamp: new Date(),
+            status: 'actif'
+        });
+        console.log('✅ Test réussi - Synchronisation OK');
+    } catch (error) {
+        console.error('❌ Test échoué:', error);
+    }
+}
 
+// Initialiser Firebase quand le DOM est chargé
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM chargé - Initialisation Firebase...');
+    initializeFirebase();
+    
+    // Tester après un délai
+    setTimeout(() => {
+        if (window.firebaseSync) {
+            testSynchronisation();
+        }
+    }, 3000);
+});
