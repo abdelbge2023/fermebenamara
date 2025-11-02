@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Ferme Ben Amara</title>
+    <link rel="stylesheet" href="./style.css">
+    
+    <!-- Firebase CDN -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <!-- Configuration Firebase Simple -->
+    <script src="./firebase-simple.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Gestion Ferme Ben Amara</h1>
+            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Section Nouvelle Opération -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2>➕ Nouvelle Opération</h2>
+                </div>
+                <form id="saisieForm" class="saisie-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="operateur">Opérateur :</label>
+                            <select id="operateur" required>
+                                <option value="">Choisir l'opérateur</option>
+                                <option value="abdel">Abdel</option>
+                                <option value="omar">Omar</option>
+                                <option value="hicham">Hicham</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="groupe">Groupe :</label>
+                            <select id="groupe" required>
+                                <option value="">Choisir le groupe</option>
+                                <option value="zaitoun">Zaitoun</option>
+                                <option value="3commain">3 Commain</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="typeOperation">Type d'opération :</label>
+                            <select id="typeOperation" required>
+                                <option value="">Choisir le type</option>
+                                <option value="travailleur_global">Travailleur global</option>
+                                <option value="zaitoun">Zaitoun seul</option>
+                                <option value="3commain">3 Commain seul</option>
+                                <option value="autre">Autre</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="typeTransaction">Transaction :</label>
+                            <select id="typeTransaction" required>
+                                <option value="">Choisir</option>
+                                <option value="revenu">💰 Revenu</option>
+                                <option value="frais">💸 Frais</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="caisse">Caisse concernée :</label>
+                            <select id="caisse" required>
+                                <option value="">Choisir la caisse</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="montant">Montant (DH) :</label>
+                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <!-- Affichage répartition -->
+                    <div id="repartitionInfo" class="repartition-info" style="display: none;">
+                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
+                        <div id="repartitionDetails"></div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="description">Description :</label>
+                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
+                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Section Transfert -->
+            <section class="form-section">
+                <div class="section-header">
+                    <h2>🔄 Transfert entre Caisses</h2>
+                </div>
+                <form id="transfertForm" class="saisie-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="caisseSource">De la caisse :</label>
+                            <select id="caisseSource" required>
+                                <option value="">Source</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="caisseDestination">Vers la caisse :</label>
+                            <select id="caisseDestination" required>
+                                <option value="">Destination</option>
+                                <option value="abdel_caisse">Caisse Abdel</option>
+                                <option value="omar_caisse">Caisse Omar</option>
+                                <option value="hicham_caisse">Caisse Hicham</option>
+                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                                <option value="3commain_caisse">Caisse 3 Commain</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="montantTransfert">Montant (DH) :</label>
+                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="descriptionTransfert">Description :</label>
+                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <!-- Section Statistiques -->
+        <section class="stats-section">
+            <div class="section-header">
+                <h2>📊 Soldes des Caisses</h2>
+            </div>
+            <div id="statsContainer" class="stats-container">
+                <!-- Les soldes apparaîtront ici -->
+            </div>
+        </section>
+
+        <!-- Section Historique -->
+        <section class="navigation-section">
+            <div class="section-header">
+                <div class="header-with-tabs">
+                    <h2>📋 Historique des Opérations</h2>
+                    <div class="nav-tabs">
+                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
+                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
+                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
+                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
+                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
+                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
+                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions de gestion -->
+            <div class="management-actions">
+                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
+                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
+                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
+            </div>
+
+            <div id="dataDisplay" class="data-display">
+                <!-- L'historique apparaîtra ici -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal pour modification -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Modifier l'Opération</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="editForm" class="modal-form">
+                <input type="hidden" id="editId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="editOperateur">Opérateur :</label>
+                        <select id="editOperateur" required>
+                            <option value="abdel">Abdel</option>
+                            <option value="omar">Omar</option>
+                            <option value="hicham">Hicham</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGroupe">Groupe :</label>
+                        <select id="editGroupe" required>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editTypeOperation">Type d'Opération :</label>
+                        <select id="editTypeOperation" required>
+                            <option value="travailleur_global">Travailleur global</option>
+                            <option value="zaitoun">Zaitoun</option>
+                            <option value="3commain">3 Commain</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editTypeTransaction">Transaction :</label>
+                        <select id="editTypeTransaction" required>
+                            <option value="revenu">💰 Revenu</option>
+                            <option value="frais">💸 Frais</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editCaisse">Caisse :</label>
+                        <select id="editCaisse" required>
+                            <option value="abdel_caisse">Caisse Abdel</option>
+                            <option value="omar_caisse">Caisse Omar</option>
+                            <option value="hicham_caisse">Caisse Hicham</option>
+                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
+                            <option value="3commain_caisse">Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editMontant">Montant (DH) :</label>
+                        <input type="number" id="editMontant" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="form-group full-width">
+                    <label for="editDescription">Description :</label>
+                    <textarea id="editDescription" rows="3" required></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
+                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>
