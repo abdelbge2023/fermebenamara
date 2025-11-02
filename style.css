@@ -636,4 +636,50 @@ tr:hover .operation-actions {
 
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
+
+}
+/* Styles pour l'auto-save */
+.notification-autosave {
+    background: #3498db !important;
+    bottom: 20px;
+    top: auto !important;
+    transform: translateX(-50%);
+    left: 50%;
+    min-width: 300px;
+    text-align: center;
+}
+
+/* Styles pour les trends des caisses */
+.stat-trend {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Highlight pour les totaux */
+.total-item.highlight {
+    background: rgba(52, 152, 219, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    border-left: 3px solid #3498db;
+}
+
+/* Badge pour les sections */
+.section-badge {
+    background: #3498db;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+}
+
+/* Animation de pulsation pour indiquer la synchro */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.syncing {
+    animation: pulse 2s infinite;
 }
