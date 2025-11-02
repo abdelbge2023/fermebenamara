@@ -39,4 +39,99 @@
 
 .stat-indication {
     font-style: italic;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 8px;
+}
+
+/* Grid pour le résumé des caisses */
+.caisses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.resume-caisse {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    border-left: 4px solid #3498db;
+}
+
+.resume-caisse-nom {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.resume-caisse-solde {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.resume-caisse.solde-positif {
+    border-left-color: #27ae60;
+}
+
+.resume-caisse.solde-negatif {
+    border-left-color: #e74c3c;
+}
+
+/* Améliorations responsive */
+@media (max-width: 768px) {
+    .caisses-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card, .resume-caisse {
+        margin-bottom: 10px;
+    }
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Styles pour les boutons d'action */
+.operation-actions {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.btn-warning {
+    background: #f39c12;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #e67e22;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
 }
