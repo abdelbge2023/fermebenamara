@@ -1,4 +1,4 @@
-// app.js - Gestion Ferme Ben Amara
+// app.js - Gestion Ferme Ben Amara - Version Corrigée
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -18,45 +18,49 @@ class GestionFerme {
     }
 
     init() {
-        this.setupEventListeners();
+        this.setupEventListener();
         this.chargerDonnees();
         this.updateStats();
         this.afficherHistorique('global');
         console.log('✅ Application Gestion Ferme initialisée');
     }
 
-    setupEventListeners() {
-        // Écouteurs pour les onglets
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const vue = e.target.dataset.sheet;
-                this.afficherHistorique(vue);
+    setupEventListener() {
+        try {
+            // Écouteurs pour les onglets
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const vue = e.target.dataset.sheet;
+                    this.afficherHistorique(vue);
+                });
             });
-        });
 
-        // Écouteur pour le formulaire d'ajout
-        const form = document.getElementById('operationForm');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.ajouterOperation();
+            // Écouteur pour le formulaire d'ajout
+            const form = document.getElementById('operationForm');
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.ajouterOperation();
+                });
+            }
+
+            // Écouteurs pour les boutons d'action
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'toggleEditMode') {
+                    this.toggleEditMode();
+                }
+                if (e.target.id === 'deleteSelected') {
+                    this.supprimerOperationsSelectionnees();
+                }
+                if (e.target.id === 'exportData') {
+                    this.exporterDonnees();
+                }
             });
+
+            console.log('✅ Écouteurs d\'événements initialisés');
+        } catch (error) {
+            console.error('❌ Erreur initialisation écouteurs:', error);
         }
-
-        // Écouteurs pour les boutons d'action
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'toggleEditMode') {
-                this.toggleEditMode();
-            }
-            if (e.target.id === 'deleteSelected') {
-                this.supprimerOperationsSelectionnees();
-            }
-            if (e.target.id === 'exportData') {
-                this.exporterDonnees();
-            }
-        });
-
-        console.log('✅ Écouteurs d\'événements initialisés');
     }
 
     // MÉTHODES DE GESTION DES DONNÉES
@@ -763,6 +767,12 @@ class GestionFerme {
 
 // Initialisation globale
 let app;
-document.addEventListener('DOMContentLoaded', () => {
-    app = new GestionFerme();
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        app = new GestionFerme();
+        window.app = app; // Rend l'instance globale pour les onclick
+        console.log('🚀 Application démarrée avec succès');
+    } catch (error) {
+        console.error('💥 Erreur démarrage application:', error);
+    }
 });
