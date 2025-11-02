@@ -1,4 +1,4 @@
-// app.js - Enregistrement uniquement sur la caisse sélectionnée
+// app.js - Sauvegarde locale avec détails par caisse
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -21,7 +21,7 @@ class GestionFerme {
         console.log('✅ Application Gestion Ferme initialisée');
     }
 
-    // MÉTHODE UPDATE STATS
+    // MÉTHODE UPDATE STATS AVEC BOUTONS DE DÉTAILS
     updateStats() {
         this.calculerSoldes();
         const container = document.getElementById('statsContainer');
@@ -59,7 +59,216 @@ class GestionFerme {
             '<div class="stat-label">' + nomCaisse + '</div>' +
             '<div class="stat-value">' + solde.toFixed(2) + '</div>' +
             '<div class="stat-label">DH</div>' +
+            '<button class="btn-small btn-info" onclick="app.afficherDetailsCaisse(\'' + cleCaisse + '\')" style="margin-top: 10px; padding: 5px 10px; font-size: 12px;">📊 Détails</button>' +
         '</div>';
+    }
+
+    // MÉTHODE POUR AFFICHER LES DÉTAILS D'UNE CAISSE
+    afficherDetailsCaisse(caisse) {
+        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+        const nomCaisse = this.formaterCaisse(caisse);
+        
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let soldeCaisse = 0;
+        
+        operationsCaisse.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+            soldeCaisse += op.montant;
+        });
+
+        const detailsHTML = `
+            <div class="modal" style="display: flex;">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3>📊 Détails de la ${nomCaisse}</h3>
+                        <button class="close-modal" onclick="this.closest('.modal').style.display='none'">&times;</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div class="totals-container" style="margin-bottom: 20px;">
+                            <div class="total-item">
+                                <span class="total-label">💰 Total Revenus:</span>
+                                <span class="total-value positive">+${totalRevenus.toFixed(2)} DH</span>
+                            </div>
+                            <div class="total-item">
+                                <span class="total-label">💸 Total Frais:</span>
+                                <span class="total-value negative">-${totalFrais.toFixed(2)} DH</span>
+                            </div>
+                            <div class="total-item">
+                                <span class="total-label">⚖️ Solde Actuel:</span>
+                                <span class="total-value ${soldeCaisse >= 0 ? 'positive' : 'negative'}">
+                                    ${soldeCaisse >= 0 ? '+' : ''}${soldeCaisse.toFixed(2)} DH
+                                </span>
+                            </div>
+                            <div class="total-item">
+                                <span class="total-label">📊 Nombre d'opérations:</span>
+                                <span class="total-value">${operationsCaisse.length}</span>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 10px 0; color: #2c3e50;">📋 Historique des opérations</h4>
+                        
+                        ${operationsCaisse.length === 0 ? 
+                            '<div class="empty-message"><p>Aucune opération pour cette caisse</p></div>' : 
+                            this.creerTableauDetailsCaisse(operationsCaisse)
+                        }
+                        
+                        <div class="modal-actions">
+                            <button class="btn-secondary" onclick="this.closest('.modal').style.display='none'">Fermer</button>
+                            <button class="btn-primary" onclick="app.exporterDetailsCaisse('${caisse}')">💾 Exporter PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', detailsHTML);
+    }
+
+    // CRÉER LE TABLEAU DES DÉTAILS DE CAISSE
+    creerTableauDetailsCaisse(operations) {
+        let tableHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table" style="min-width: auto;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        operations.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            
+            tableHTML += `
+                <tr>
+                    <td>${this.formaterDate(op.date)}</td>
+                    <td>${this.formaterOperateur(op.operateur)}</td>
+                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                    <td>${op.description}</td>
+                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
+                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)} DH
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        return tableHTML;
+    }
+
+    // EXPORTER LES DÉTAILS EN PDF
+    exporterDetailsCaisse(caisse) {
+        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+        const nomCaisse = this.formaterCaisse(caisse);
+        
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let soldeCaisse = 0;
+        
+        operationsCaisse.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+            soldeCaisse += op.montant;
+        });
+
+        // Créer le contenu HTML pour l'export
+        const contenuHTML = `
+            <html>
+                <head>
+                    <title>Détails ${nomCaisse}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+                        .summary-item { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+                        .positive { color: #27ae60; }
+                        .negative { color: #e74c3c; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>💰 Détails de la ${nomCaisse}</h1>
+                        <p>Rapport généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    
+                    <div class="summary">
+                        <div class="summary-item">
+                            <strong>Total Revenus:</strong><br>
+                            <span class="positive">+${totalRevenus.toFixed(2)} DH</span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Total Frais:</strong><br>
+                            <span class="negative">-${totalFrais.toFixed(2)} DH</span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Solde Actuel:</strong><br>
+                            <span class="${soldeCaisse >= 0 ? 'positive' : 'negative'}">
+                                ${soldeCaisse >= 0 ? '+' : ''}${soldeCaisse.toFixed(2)} DH
+                            </span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Nombre d'opérations:</strong><br>
+                            ${operationsCaisse.length}
+                        </div>
+                    </div>
+                    
+                    <h3>Historique des opérations</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Opérateur</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Montant (DH)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${operationsCaisse.map(op => `
+                                <tr>
+                                    <td>${this.formaterDate(op.date)}</td>
+                                    <td>${this.formaterOperateur(op.operateur)}</td>
+                                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                                    <td>${op.description}</td>
+                                    <td style="color: ${op.montant < 0 ? '#e74c3c' : '#27ae60'};">${op.montant >= 0 ? '+' : ''}${op.montant.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </body>
+            </html>
+        `;
+
+        // Ouvrir une nouvelle fenêtre pour l'impression
+        const fenetreImpression = window.open('', '_blank');
+        fenetreImpression.document.write(contenuHTML);
+        fenetreImpression.document.close();
+        
+        setTimeout(() => {
+            fenetreImpression.print();
+        }, 500);
     }
 
     chargerDonnees() {
@@ -68,7 +277,10 @@ class GestionFerme {
             try {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                console.log(`📁 ${this.operations.length} opérations chargées`);
+                console.log(`📁 ${this.operations.length} opérations chargées localement`);
+                
+                // Sauvegarde de sécurité automatique
+                this.sauvegarderSecurite();
             } catch (error) {
                 console.error('Erreur chargement:', error);
                 this.operations = [];
@@ -76,12 +288,75 @@ class GestionFerme {
         }
     }
 
+    // SAUVEGARDE LOCALE AVEC BACKUP
     sauvegarderDonnees() {
         const data = {
             operations: this.operations,
-            lastUpdate: new Date().toISOString()
+            lastUpdate: new Date().toISOString(),
+            version: '1.0'
         };
+        
+        // Sauvegarde principale
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+        
+        // Sauvegarde de sécurité (garder les 5 dernières versions)
+        this.sauvegarderSecurite();
+        
+        console.log('💾 Données sauvegardées localement');
+    }
+
+    // SAUVEGARDE DE SÉCURITÉ
+    sauvegarderSecurite() {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const backupKey = `backup_${timestamp}`;
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString(),
+            version: '1.0'
+        };
+        
+        localStorage.setItem(backupKey, JSON.stringify(data));
+        
+        // Garder seulement les 5 dernières sauvegardes
+        this.nettoyerSauvegardes();
+    }
+
+    // NETTOYER LES ANCIENNES SAUVEGARDES
+    nettoyerSauvegardes() {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('backup_')) {
+                keys.push(key);
+            }
+        }
+        
+        // Trier par date (plus récent d'abord)
+        keys.sort((a, b) => b.localeCompare(a));
+        
+        // Supprimer les sauvegardes au-delà de 5
+        if (keys.length > 5) {
+            for (let i = 5; i < keys.length; i++) {
+                localStorage.removeItem(keys[i]);
+            }
+        }
+    }
+
+    // RESTAURER DEPUIS UNE SAUVEGARDE
+    restaurerSauvegarde(backupKey) {
+        const saved = localStorage.getItem(backupKey);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                this.sauvegarderDonnees();
+                this.updateStats();
+                this.afficherHistorique(this.currentView);
+                alert('✅ Sauvegarde restaurée avec succès !');
+            } catch (error) {
+                alert('❌ Erreur lors de la restauration');
+            }
+        }
     }
 
     // MÉTHODE AFFICHER HISTORIQUE AVEC TOTAUX
@@ -312,7 +587,7 @@ class GestionFerme {
         const groupe = document.getElementById('groupe').value;
         const typeOperation = document.getElementById('typeOperation').value;
         const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value; // Caisse sélectionnée
+        const caisse = document.getElementById('caisse').value;
         const montantSaisi = parseFloat(document.getElementById('montant').value);
         const descriptionValue = document.getElementById('description').value.trim();
 
@@ -333,7 +608,6 @@ class GestionFerme {
             const montantZaitoun = montantSaisi / 3;
             const montant3Commain = (montantSaisi * 2) / 3;
 
-            // Pour travailleur global, on répartit mais sur la MÊME CAISSE
             operationsACreer = [
                 {
                     id: Date.now(),
@@ -342,7 +616,7 @@ class GestionFerme {
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
                     typeTransaction: typeTransaction,
-                    caisse: caisse, // Même caisse pour les deux
+                    caisse: caisse,
                     description: descriptionValue + ' (Part Zaitoun - 1/3)',
                     montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
@@ -355,7 +629,7 @@ class GestionFerme {
                     groupe: '3commain',
                     typeOperation: '3commain',
                     typeTransaction: typeTransaction,
-                    caisse: caisse, // Même caisse pour les deux
+                    caisse: caisse,
                     description: descriptionValue + ' (Part 3 Commain - 2/3)',
                     montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
@@ -363,7 +637,6 @@ class GestionFerme {
                 }
             ];
         } else {
-            // Opération normale - UNIQUEMENT sur la caisse sélectionnée
             operationsACreer = [{
                 id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
@@ -371,7 +644,7 @@ class GestionFerme {
                 groupe: groupe,
                 typeOperation: typeOperation,
                 typeTransaction: typeTransaction,
-                caisse: caisse, // Caisse sélectionnée
+                caisse: caisse,
                 description: descriptionValue,
                 montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
@@ -386,20 +659,6 @@ class GestionFerme {
 
         // Sauvegarder localement
         this.sauvegarderDonnees();
-
-        // Sauvegarder dans Firebase automatiquement
-        if (window.firebaseReady && window.firebaseDb) {
-            try {
-                for (const op of operationsACreer) {
-                    const succes = await window.sauvegarderDansFirebase(op);
-                    if (succes) {
-                        console.log('✅ Opération synchronisée avec Firebase:', op.id);
-                    }
-                }
-            } catch (error) {
-                console.log('⚠️ Données sauvegardées localement seulement:', error);
-            }
-        }
 
         this.afficherMessageSucces(
             typeOperation === 'travailleur_global' 
@@ -503,24 +762,12 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODE SUPPRIMER OPÉRATION AVEC SYNCHRO FIREBASE
+    // MÉTHODE SUPPRIMER OPÉRATION
     async supprimerOperation(operationId) {
         if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            // Sauvegarder l'opération avant suppression pour Firebase
-            const operationASupprimer = this.operations.find(op => op.id === operationId);
-            
             // Supprimer localement
             this.operations = this.operations.filter(op => op.id !== operationId);
             this.sauvegarderDonnees();
-            
-            // Supprimer dans Firebase si disponible
-            if (window.firebaseReady && window.firebaseDb && operationASupprimer) {
-                try {
-                    await this.supprimerDansFirebase(operationASupprimer);
-                } catch (error) {
-                    console.log('⚠️ Suppression Firebase échouée:', error);
-                }
-            }
             
             this.updateStats();
             this.afficherHistorique(this.currentView);
@@ -528,24 +775,7 @@ class GestionFerme {
         }
     }
 
-    // MÉTHODE POUR SUPPRIMER DANS FIREBASE
-    async supprimerDansFirebase(operation) {
-        if (!window.firebaseReady || !window.firebaseDb) return false;
-        
-        try {
-            // Marquer comme supprimé
-            if (window.marquerCommeSupprime) {
-                return await window.marquerCommeSupprime(operation.id);
-            }
-            
-            return false;
-        } catch (error) {
-            console.error('❌ Erreur suppression Firebase:', error);
-            return false;
-        }
-    }
-
-    // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES AVEC SYNCHRO FIREBASE
+    // MÉTHODE SUPPRIMER OPÉRATIONS SÉLECTIONNÉES
     async supprimerOperationsSelectionnees() {
         if (this.selectedOperations.size === 0) {
             alert('Aucune opération sélectionnée');
@@ -553,25 +783,9 @@ class GestionFerme {
         }
 
         if (confirm('Êtes-vous sûr de vouloir supprimer ' + this.selectedOperations.size + ' opération(s) ?')) {
-            // Sauvegarder les opérations avant suppression
-            const operationsASupprimer = this.operations.filter(op => 
-                this.selectedOperations.has(op.id)
-            );
-            
             // Supprimer localement
             this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
             this.sauvegarderDonnees();
-            
-            // Supprimer dans Firebase
-            if (window.firebaseReady && window.firebaseDb) {
-                try {
-                    for (const operation of operationsASupprimer) {
-                        await this.supprimerDansFirebase(operation);
-                    }
-                } catch (error) {
-                    console.log('⚠️ Suppressions Firebase échouées:', error);
-                }
-            }
             
             this.selectedOperations.clear();
             this.toggleEditMode(false);
@@ -621,8 +835,6 @@ class GestionFerme {
             return;
         }
 
-        const ancienneOperation = this.operations[operationIndex];
-        
         this.operations[operationIndex] = {
             ...this.operations[operationIndex],
             operateur: document.getElementById('editOperateur').value,
@@ -636,18 +848,6 @@ class GestionFerme {
         };
 
         this.sauvegarderDonnees();
-
-        // Mettre à jour dans Firebase
-        if (window.firebaseReady && window.firebaseDb) {
-            try {
-                // Supprimer l'ancienne version
-                await this.supprimerDansFirebase(ancienneOperation);
-                // Ajouter la nouvelle version
-                await window.sauvegarderDansFirebase(this.operations[operationIndex]);
-            } catch (error) {
-                console.log('⚠️ Modification Firebase échouée:', error);
-            }
-        }
 
         this.fermerModal();
         this.updateStats();
@@ -726,17 +926,6 @@ class GestionFerme {
         }
 
         this.sauvegarderDonnees();
-
-        // Sauvegarder dans Firebase
-        if (window.firebaseReady && window.firebaseDb) {
-            try {
-                for (const op of operationsTransfert) {
-                    await window.sauvegarderDansFirebase(op);
-                }
-            } catch (error) {
-                console.log('⚠️ Transfert Firebase échoué:', error);
-            }
-        }
 
         this.afficherMessageSucces('Transfert effectué avec succès !');
         document.getElementById('transfertForm').reset();
