@@ -11,3 +11,10 @@ const firebaseConfig = {
   appId: "1:668129137491:web:b56522302ea789044507a6"
 };
 
+console.log('Firebase apps count:', firebase.apps.length);
+if (firebase.apps.length > 0) {
+  console.log('Firebase déjà initialisé');
+} else {
+  console.log('Initialisation Firebase...');
+  firebase.initializeApp(firebaseConfig);
+}
