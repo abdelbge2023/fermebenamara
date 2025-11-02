@@ -1,4 +1,4 @@
-// firebase-simple.js - Configuration Firebase uniquement
+// firebase-simple.js - Configuration Firebase avec synchronisation automatique
 console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
 
 // Configuration Firebase
@@ -44,6 +44,7 @@ function initializeFirebase() {
             // Initialiser firebaseSync
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
+            window.firebaseDb = db;
             
         } else if (firebase.apps.length > 0) {
             db = firebase.firestore();
@@ -51,6 +52,7 @@ function initializeFirebase() {
             console.log('ℹ️ Firebase déjà initialisé');
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
+            window.firebaseDb = db;
         }
     } catch (error) {
         console.error('❌ Erreur initialisation Firebase:', error);
@@ -81,18 +83,18 @@ class FirebaseSync {
 
     handleOnline() {
         this.isOnline = true;
-        console.log('🌐 Connexion rétablie');
+        console.log('🌐 Connexion rétablie - Synchronisation automatique');
         this.syncPendingOperations();
     }
 
     handleOffline() {
         this.isOnline = false;
-        console.log('🔌 Hors ligne');
+        console.log('🔌 Hors ligne - Mode cache activé');
     }
 
     async syncPendingOperations() {
         if (this.pendingOperations.length === 0) return;
-        console.log(`🔄 Synchronisation de ${this.pendingOperations.length} opérations...`);
+        console.log(`🔄 Synchronisation automatique de ${this.pendingOperations.length} opérations...`);
         
         for (const operation of this.pendingOperations) {
             try {
@@ -102,6 +104,7 @@ class FirebaseSync {
             }
         }
         this.pendingOperations = [];
+        console.log('✅ Synchronisation automatique terminée');
     }
 
     async executeOperation(operation) {
@@ -130,7 +133,7 @@ class FirebaseSync {
             return this.executeOperation(operation);
         } else {
             this.pendingOperations.push(operation);
-            console.log('💾 Opération sauvegardée localement');
+            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
             return Promise.resolve();
         }
     }
@@ -147,7 +150,7 @@ class FirebaseSync {
                 id: doc.id,
                 ...doc.data()
             }));
-            console.log(`✅ ${data.length} documents de ${collectionName}`);
+            console.log(`✅ ${data.length} documents synchronisés depuis ${collectionName}`);
             return data;
         } catch (error) {
             console.error(`❌ Erreur lecture ${collectionName}:`, error);
@@ -161,6 +164,8 @@ class FirebaseSync {
             return () => {};
         }
 
+        console.log(`👂 Début de l'écoute en temps réel sur ${collectionName}`);
+        
         return db.collection(collectionName)
             .onSnapshot((snapshot) => {
                 const changes = snapshot.docChanges().map(change => ({
@@ -168,6 +173,11 @@ class FirebaseSync {
                     id: change.doc.id,
                     data: change.doc.data()
                 }));
+                
+                if (changes.length > 0) {
+                    console.log(`🔄 ${changes.length} changement(s) détecté(s) en temps réel`);
+                }
+                
                 callback(changes, snapshot);
             }, (error) => {
                 console.error(`❌ Erreur écoute ${collectionName}:`, error);
@@ -175,6 +185,7 @@ class FirebaseSync {
     }
 
     async addDocument(collectionName, data) {
+        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
         return this.addOperation({
             type: 'add',
             collection: collectionName,
@@ -183,6 +194,7 @@ class FirebaseSync {
     }
 
     async updateDocument(collectionName, id, data) {
+        console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
         return this.addOperation({
             type: 'update',
             collection: collectionName,
@@ -192,6 +204,7 @@ class FirebaseSync {
     }
 
     async deleteDocument(collectionName, id) {
+        console.log(`📤 Synchronisation automatique: suppression ${collectionName}/${id}`);
         return this.addOperation({
             type: 'delete',
             collection: collectionName,
@@ -201,36 +214,8 @@ class FirebaseSync {
     }
 }
 
-// Test de synchronisation
-async function testSynchronisation() {
-    console.log('🧪 Test de synchronisation...');
-    
-    if (!window.firebaseSync) {
-        console.error('❌ firebaseSync non disponible');
-        return;
-    }
-    
-    try {
-        await firebaseSync.addDocument('test', {
-            message: 'Test de synchronisation',
-            timestamp: new Date(),
-            status: 'actif'
-        });
-        console.log('✅ Test réussi - Synchronisation OK');
-    } catch (error) {
-        console.error('❌ Test échoué:', error);
-    }
-}
-
 // Initialiser Firebase quand le DOM est chargé
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
-    
-    // Tester après un délai
-    setTimeout(() => {
-        if (window.firebaseSync) {
-            testSynchronisation();
-        }
-    }, 3000);
 });
