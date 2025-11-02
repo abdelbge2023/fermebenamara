@@ -1,4 +1,4 @@
-// app.js - Gestion Ferme Ben Amara - Version COMPLÈTE
+// app.js - Gestion Ferme Ben Amara - Version Stable Corrigée
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -30,144 +30,14 @@ class GestionFerme {
             this.detecterMobile();
             this.demarrerAutoSync();
             
-            setTimeout(async () => {
-                await this.initialiserFirebase();
-            }, 1000);
-            
             console.log('✅ Application Gestion Ferme initialisée');
         } catch (error) {
             console.error('❌ Erreur dans init:', error);
         }
     }
 
-    // ==================== FIREBASE ====================
-    initialiserFirebase = async () => {
-        try {
-            if (typeof firebase === 'undefined') {
-                return false;
-            }
-
-       const firebaseConfig = {
-          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-          authDomain: "gestion-fermebenamara.firebaseapp.com",
-          projectId: "gestion-fermebenamara",
-          storageBucket: "gestion-fermebenamara.firebasestorage.app",
-          messagingSenderId: "668129137491",
-          appId: "1:668129137491:web:b56522302ea789044507a6"
-        };
-
-            if (firebase.apps.length === 0) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            
-            this.db = firebase.firestore();
-            
-            try {
-                await this.db.enablePersistence();
-                console.log('✅ Persistance Firebase activée');
-            } catch (err) {
-                console.warn('⚠️ Persistance non disponible');
-            }
-
-            this.firebaseInitialized = true;
-            this.ecouterChangementsFirebase();
-            await this.chargerDepuisFirebase();
-            
-            return true;
-            
-        } catch (error) {
-            console.error('❌ Erreur initialisation Firebase:', error);
-            return false;
-        }
-    }
-
-    ecouterChangementsFirebase = () => {
-        if (!this.db) return;
-
-        this.db.collection('operations')
-            .onSnapshot((snapshot) => {
-                const changes = snapshot.docChanges();
-                console.log('🔄 Mise à jour depuis Firebase:', changes.length, 'changements');
-                
-                changes.forEach((change) => {
-                    if (change.type === 'added' || change.type === 'modified') {
-                        this.traiterOperationFirebase(change.doc.data());
-                    }
-                });
-            }, (error) => {
-                console.error('❌ Erreur écoute Firebase:', error);
-            });
-    }
-
-    traiterOperationFirebase = (data) => {
-        const index = this.operations.findIndex(op => op.id === data.id);
-        
-        if (index === -1) {
-            this.operations.push(data);
-        } else {
-            this.operations[index] = data;
-        }
-        
-        this.sauvegarderDonneesLocale();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-    }
-
-    synchroniserAvecFirebase = async () => {
-        if (!this.db || !this.firebaseInitialized) return;
-
-        try {
-            const promises = this.operations.map(async (operation) => {
-                await this.db.collection('operations').doc(operation.id).set(operation, { merge: true });
-            });
-            
-            await Promise.all(promises);
-            console.log('✅ Synchronisation Firebase terminée');
-            
-        } catch (error) {
-            console.error('❌ Erreur synchronisation Firebase:', error);
-        }
-    }
-
-    chargerDepuisFirebase = async () => {
-        if (!this.db || !this.firebaseInitialized) return;
-
-        try {
-            const snapshot = await this.db.collection('operations').get();
-            const operationsFirebase = [];
-            
-            snapshot.forEach(doc => {
-                operationsFirebase.push(doc.data());
-            });
-            
-            this.fusionnerDonnees(operationsFirebase);
-            
-        } catch (error) {
-            console.error('❌ Erreur chargement Firebase:', error);
-        }
-    }
-
-    fusionnerDonnees = (operationsFirebase) => {
-        const operationsMap = new Map();
-        
-        this.operations.forEach(op => {
-            operationsMap.set(op.id, op);
-        });
-        
-        operationsFirebase.forEach(op => {
-            operationsMap.set(op.id, op);
-        });
-        
-        this.operations = Array.from(operationsMap.values());
-        this.operations.sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        this.sauvegarderDonneesLocale();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-    }
-
     // ==================== GESTION DES DONNÉES ====================
-    chargerDonnees = () => {
+    chargerDonnees() {
         try {
             const donnees = localStorage.getItem('gestionFermeOperations');
             if (donnees) {
@@ -183,7 +53,7 @@ class GestionFerme {
         }
     }
 
-    chargerDonneesExemple = () => {
+    chargerDonneesExemple() {
         const date = new Date().toISOString().split('T')[0];
         this.operations = [
             {
@@ -216,27 +86,21 @@ class GestionFerme {
         this.sauvegarderDonneesLocale();
     }
 
-    sauvegarderDonnees = () => {
+    sauvegarderDonnees() {
         try {
             this.sauvegarderDonneesLocale();
-            
-            if (this.firebaseInitialized) {
-                this.synchroniserAvecFirebase().catch(error => {
-                    console.warn('⚠️ Sync Firebase échouée:', error);
-                });
-            }
-            
         } catch (error) {
             console.error('❌ Erreur sauvegarde:', error);
+            this.afficherNotification('Erreur lors de la sauvegarde', 'error');
         }
     }
 
-    sauvegarderDonneesLocale = () => {
+    sauvegarderDonneesLocale() {
         localStorage.setItem('gestionFermeOperations', JSON.stringify(this.operations));
         localStorage.setItem('gestionFermeLastSync', new Date().toISOString());
     }
 
-    demarrerAutoSync = () => {
+    demarrerAutoSync() {
         this.autoSaveInterval = setInterval(() => {
             this.synchroniserDonnees();
         }, 30000);
@@ -246,7 +110,7 @@ class GestionFerme {
         });
     }
 
-    synchroniserDonnees = () => {
+    synchroniserDonnees() {
         try {
             this.sauvegarderDonnees();
         } catch (error) {
@@ -255,7 +119,7 @@ class GestionFerme {
     }
 
     // ==================== AFFICHAGE ====================
-    updateStats = () => {
+    updateStats() {
         this.calculerSoldes();
         const container = document.getElementById('statsContainer');
 
@@ -271,7 +135,8 @@ class GestionFerme {
             '</div>';
     }
 
-    calculerSoldes = () => {
+    calculerSoldes() {
+        // Réinitialiser les caisses
         this.caisses = {
             'abdel_caisse': 0, 
             'omar_caisse': 0, 
@@ -280,6 +145,7 @@ class GestionFerme {
             '3commain_caisse': 0
         };
 
+        // Calculer les soldes
         this.operations.forEach(op => {
             if (this.caisses[op.caisse] !== undefined) {
                 this.caisses[op.caisse] += op.montant;
@@ -287,7 +153,7 @@ class GestionFerme {
         });
     }
 
-    creerCarteCaisse = (cleCaisse, nomCaisse) => {
+    creerCarteCaisse(cleCaisse, nomCaisse) {
         const solde = this.caisses[cleCaisse] || 0;
         const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
         const estSelectionnee = this.caisseSelectionnee === cleCaisse ? 'caisse-selectionnee' : '';
@@ -304,7 +170,7 @@ class GestionFerme {
             </div>`;
     }
 
-    afficherDetailsCaisse = (caisse) => {
+    afficherDetailsCaisse(caisse) {
         this.caisseSelectionnee = caisse;
         this.currentView = 'caisse';
         this.updateStats();
@@ -356,17 +222,20 @@ class GestionFerme {
                                 ${soldeCaisse >= 0 ? '+' : ''}${soldeCaisse.toFixed(2)} DH
                             </span>
                         </div>
+                        <div class="total-item">
+                            <span class="total-label">📊 Opérations:</span>
+                            <span class="total-value">${operationsCaisse.length}</span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="section-title">
                     <h4>📋 Historique des opérations</h4>
-                    <div class="section-badge">${operationsCaisse.length} opérations</div>
                 </div>
                 
                 ${operationsCaisse.length === 0 ? 
                     '<div class="empty-message"><p>📭 Aucune opération pour cette caisse</p></div>' : 
-                    this.creerTableauDetailsCaisse(operationsCaisse)
+                    this.creerTableauOperations(operationsCaisse)
                 }
             </div>
         `;
@@ -374,7 +243,7 @@ class GestionFerme {
         container.innerHTML = detailsHTML;
     }
 
-    afficherHistorique = (vue = 'global') => {
+    afficherHistorique(vue = 'global') {
         this.currentView = vue;
         this.caisseSelectionnee = null;
         this.updateStats();
@@ -387,10 +256,12 @@ class GestionFerme {
         let totalFrais = 0;
         let soldeTotal = 0;
 
+        // Mettre à jour les onglets actifs
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.sheet === vue);
         });
 
+        // Filtrer les opérations selon la vue
         switch(vue) {
             case 'zaitoun':
                 operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
@@ -414,6 +285,7 @@ class GestionFerme {
                 operationsFiltrees = this.operations;
         }
 
+        // Calculer les totaux
         operationsFiltrees.forEach(op => {
             if (op.montant > 0) {
                 totalRevenus += op.montant;
@@ -430,6 +302,7 @@ class GestionFerme {
 
         let contentHTML = '<div class="fade-in">';
         
+        // En-tête de la vue
         contentHTML += '<div class="vue-header">';
         contentHTML += '<div class="vue-header-top">';
         contentHTML += '<h3>' + this.getTitreVue(vue) + '</h3>';
@@ -452,17 +325,20 @@ class GestionFerme {
         contentHTML += '</div>';
         contentHTML += '</div>';
         
+        // Résumé des caisses pour la vue globale
         if (vue === 'global') {
             contentHTML += this.afficherResumeCaisses();
         }
         
+        // Tableau des opérations
         contentHTML += this.creerTableauOperations(operationsFiltrees);
         contentHTML += '</div>';
+        
         container.innerHTML = contentHTML;
     }
 
     // ==================== BOUTONS ÉDITION ET SUPPRESSION ====================
-    creerTableauOperations = (operations) => {
+    creerTableauOperations(operations) {
         if (this.isMobile) {
             return this.creerListeMobile(operations);
         } else {
@@ -470,7 +346,7 @@ class GestionFerme {
         }
     }
 
-    creerTableauDesktop = (operations) => {
+    creerTableauDesktop(operations) {
         let tableHTML = `
             <div class="table-container">
                 <table class="data-table">
@@ -502,7 +378,7 @@ class GestionFerme {
                     </td>
                     <td>
                         <div class="operation-actions">
-                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModification('${op.id}')">
                                 ✏️ Modifier
                             </button>
                             <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">
@@ -523,7 +399,7 @@ class GestionFerme {
         return tableHTML;
     }
 
-    creerListeMobile = (operations) => {
+    creerListeMobile(operations) {
         let listeHTML = '<div class="mobile-operations-list">';
         
         operations.forEach(op => {
@@ -544,7 +420,7 @@ class GestionFerme {
                         <div class="operation-operateur">${this.formaterOperateur(op.operateur)}</div>
                     </div>
                     <div class="operation-actions">
-                        <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">
+                        <button class="btn-small btn-warning" onclick="app.ouvrirModification('${op.id}')">
                             ✏️ Modifier
                         </button>
                         <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">
@@ -560,7 +436,7 @@ class GestionFerme {
     }
 
     // ==================== MÉTHODES ÉDITION/SUPPRESSION ====================
-    ouvrirModalModification = (id) => {
+    ouvrirModification(id) {
         console.log('🔧 Ouverture modification ID:', id);
         const operation = this.operations.find(op => op.id === id);
         
@@ -569,7 +445,7 @@ class GestionFerme {
             return;
         }
 
-        // Remplir le formulaire avec les données de l'opération
+        // Remplir le formulaire avec les données
         document.getElementById('date').value = operation.date;
         document.getElementById('operateur').value = operation.operateur;
         document.getElementById('groupe').value = operation.groupe;
@@ -579,7 +455,7 @@ class GestionFerme {
         document.getElementById('description').value = operation.description;
         document.getElementById('montant').value = Math.abs(operation.montant);
 
-        // Marquer comme en mode édition
+        // Marquer comme édition
         document.getElementById('operationForm').dataset.editingId = id;
 
         // Changer le bouton
@@ -593,7 +469,7 @@ class GestionFerme {
         this.afficherNotification('Mode modification activé', 'info');
     }
 
-    modifierOperation = () => {
+    modifierOperation() {
         const id = document.getElementById('operationForm').dataset.editingId;
         
         if (!id) {
@@ -609,6 +485,7 @@ class GestionFerme {
             return;
         }
 
+        // Mettre à jour l'opération
         this.operations[operationIndex] = {
             ...this.operations[operationIndex],
             date: formData.get('date'),
@@ -633,7 +510,7 @@ class GestionFerme {
         this.afficherNotification('✅ Opération modifiée avec succès', 'success');
     }
 
-    supprimerOperation = (id) => {
+    supprimerOperation(id) {
         if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
             return;
         }
@@ -653,7 +530,7 @@ class GestionFerme {
         this.afficherNotification('✅ Opération supprimée avec succès', 'success');
     }
 
-    reinitialiserFormulaire = () => {
+    reinitialiserFormulaire() {
         document.getElementById('operationForm').reset();
         delete document.getElementById('operationForm').dataset.editingId;
         
@@ -663,7 +540,7 @@ class GestionFerme {
     }
 
     // ==================== EFFACEMENT ====================
-    effacerToutesDonnees = () => {
+    effacerToutesDonnees() {
         if (!confirm('⚠️ ATTENTION ! Cette action va supprimer TOUTES les opérations. Continuer ?')) {
             return;
         }
@@ -677,10 +554,6 @@ class GestionFerme {
             localStorage.removeItem('gestionFermeOperations');
             localStorage.removeItem('gestionFermeLastSync');
             
-            if (this.firebaseInitialized) {
-                this.effacerDonneesFirebase();
-            }
-            
             this.chargerDonneesExemple();
             this.updateStats();
             this.afficherHistorique('global');
@@ -693,25 +566,7 @@ class GestionFerme {
         }
     }
 
-    effacerDonneesFirebase = async () => {
-        if (!this.db || !this.firebaseInitialized) return;
-
-        try {
-            const snapshot = await this.db.collection('operations').get();
-            const deletePromises = [];
-            snapshot.forEach(doc => {
-                deletePromises.push(this.db.collection('operations').doc(doc.id).delete());
-            });
-            
-            await Promise.all(deletePromises);
-            console.log('✅ Données Firebase effacées');
-            
-        } catch (error) {
-            console.error('❌ Erreur effacement Firebase:', error);
-        }
-    }
-
-    effacerCaisse = (caisse) => {
+    effacerCaisse(caisse) {
         if (!confirm(`Êtes-vous sûr de vouloir effacer toutes les opérations de la ${this.getNomCaisse(caisse)} ?`)) {
             return;
         }
@@ -733,13 +588,70 @@ class GestionFerme {
         }
     }
 
+    // ==================== OPÉRATIONS ====================
+    ajouterOperation() {
+        const formData = new FormData(document.getElementById('operationForm'));
+        const operateur = formData.get('operateur');
+        
+        // Déterminer automatiquement la caisse
+        let caisseAuto = '';
+        switch(operateur) {
+            case 'abdel':
+                caisseAuto = 'abdel_caisse';
+                break;
+            case 'omar':
+                caisseAuto = 'omar_caisse';
+                break;
+            case 'hicham':
+                caisseAuto = 'hicham_caisse';
+                break;
+            default:
+                caisseAuto = formData.get('caisse') || 'abdel_caisse';
+        }
+
+        const nouvelleOperation = {
+            id: Date.now().toString(),
+            date: formData.get('date') || new Date().toISOString().split('T')[0],
+            operateur: operateur,
+            groupe: formData.get('groupe'),
+            typeOperation: formData.get('typeOperation'),
+            typeTransaction: formData.get('typeTransaction'),
+            caisse: caisseAuto,
+            description: formData.get('description'),
+            montant: this.calculerMontantAvecSigne(
+                parseFloat(formData.get('montant')), 
+                formData.get('typeOperation')
+            ),
+            transfert: false,
+            timestamp: new Date().toISOString()
+        };
+
+        this.operations.push(nouvelleOperation);
+        this.sauvegarderDonnees();
+        this.updateStats();
+        this.afficherHistorique(this.currentView);
+        
+        this.reinitialiserFormulaire();
+        this.afficherNotification(`✅ Opération enregistrée dans ${this.getNomCaisse(caisseAuto)}`, 'success');
+    }
+
+    calculerMontantAvecSigne(montant, typeOperation) {
+        if (typeOperation === 'vente') {
+            return Math.abs(montant);
+        } else {
+            return -Math.abs(montant);
+        }
+    }
+
     // ==================== ÉVÉNEMENTS ====================
-    setupEventListeners = () => {
+    setupEventListeners() {
         try {
+            // Redimensionnement
             window.addEventListener('resize', () => {
                 this.detecterMobile();
             });
 
+            // Onglets
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const vue = e.target.dataset.sheet;
@@ -747,6 +659,7 @@ class GestionFerme {
                 });
             });
 
+            // Formulaire d'opération
             const form = document.getElementById('operationForm');
             if (form) {
                 form.addEventListener('submit', (e) => {
@@ -779,62 +692,8 @@ class GestionFerme {
         }
     }
 
-    // ==================== OPÉRATIONS ====================
-    ajouterOperation = () => {
-        const formData = new FormData(document.getElementById('operationForm'));
-        const operateur = formData.get('operateur');
-        
-        let caisseAuto = '';
-        switch(operateur) {
-            case 'abdel':
-                caisseAuto = 'abdel_caisse';
-                break;
-            case 'omar':
-                caisseAuto = 'omar_caisse';
-                break;
-            case 'hicham':
-                caisseAuto = 'hicham_caisse';
-                break;
-            default:
-                caisseAuto = 'abdel_caisse';
-        }
-
-        const nouvelleOperation = {
-            id: Date.now().toString(),
-            date: formData.get('date') || new Date().toISOString().split('T')[0],
-            operateur: operateur,
-            groupe: formData.get('groupe'),
-            typeOperation: formData.get('typeOperation'),
-            typeTransaction: formData.get('typeTransaction'),
-            caisse: caisseAuto,
-            description: formData.get('description'),
-            montant: this.calculerMontantAvecSigne(
-                parseFloat(formData.get('montant')), 
-                formData.get('typeOperation')
-            ),
-            transfert: false,
-            timestamp: new Date().toISOString()
-        };
-
-        this.operations.push(nouvelleOperation);
-        this.sauvegarderDonnees();
-        this.updateStats();
-        this.afficherHistorique(this.currentView);
-        
-        this.reinitialiserFormulaire();
-        this.afficherNotification(`✅ Opération enregistrée dans ${this.getNomCaisse(caisseAuto)}`, 'success');
-    }
-
-    calculerMontantAvecSigne = (montant, typeOperation) => {
-        if (typeOperation === 'vente') {
-            return Math.abs(montant);
-        } else {
-            return -Math.abs(montant);
-        }
-    }
-
     // ==================== UTILITAIRES ====================
-    afficherResumeCaisses = () => {
+    afficherResumeCaisses() {
         let resumeHTML = '<div class="resume-caisses">';
         resumeHTML += '<h4>📋 Résumé par Caisse</h4>';
         resumeHTML += '<div class="caisses-grid">';
@@ -870,7 +729,7 @@ class GestionFerme {
         return resumeHTML;
     }
 
-    detecterMobile = () => {
+    detecterMobile() {
         this.isMobile = window.innerWidth < 768;
         if (this.isMobile) {
             document.body.classList.add('mobile-view');
@@ -879,7 +738,7 @@ class GestionFerme {
         }
     }
 
-    afficherNotification = (message, type = 'info') => {
+    afficherNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `notification notification-${type}`;
         notification.innerHTML = `
@@ -901,14 +760,14 @@ class GestionFerme {
     }
 
     // ==================== FORMATAGE ====================
-    formaterDate = (dateStr) => {
+    formaterDate(dateStr) {
         const date = new Date(dateStr);
         return this.isMobile ? 
             date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) :
             date.toLocaleDateString('fr-FR');
     }
 
-    formaterOperateur = (operateur) => {
+    formaterOperateur(operateur) {
         const operateurs = {
             'abdel': this.isMobile ? 'A' : '👨‍💼 Abdel',
             'omar': this.isMobile ? 'O' : '👨‍💼 Omar', 
@@ -917,16 +776,18 @@ class GestionFerme {
         return operateurs[operateur] || operateur;
     }
 
-    formaterTypeOperation = (type) => {
+    formaterTypeOperation(type) {
         const types = {
             'vente': this.isMobile ? 'Vente' : '💰 Vente',
             'achat': this.isMobile ? 'Achat' : '🛒 Achat',
-            'frais': this.isMobile ? 'Frais' : '💸 Frais'
+            'frais': this.isMobile ? 'Frais' : '💸 Frais',
+            'investissement': this.isMobile ? 'Invest' : '🏗️ Investissement',
+            'salaire': this.isMobile ? 'Salaire' : '👨‍💼 Salaire'
         };
         return types[type] || type;
     }
 
-    getNomCaisse = (caisse) => {
+    getNomCaisse(caisse) {
         const caisses = {
             'abdel_caisse': this.isMobile ? 'Abdel' : 'Caisse Abdel',
             'omar_caisse': this.isMobile ? 'Omar' : 'Caisse Omar',
@@ -937,20 +798,21 @@ class GestionFerme {
         return caisses[caisse] || caisse;
     }
 
-    getTitreVue = (vue) => {
+    getTitreVue(vue) {
         const titres = {
             'global': this.isMobile ? '🌍 Globale' : '🌍 Vue Globale',
             'zaitoun': this.isMobile ? '🫒 Zaitoun' : '🫒 Groupe Zaitoun',
             '3commain': this.isMobile ? '👥 3C' : '👥 Groupe 3 Commain',
             'abdel': this.isMobile ? '👨‍💼 Abdel' : '👨‍💼 Opérations Abdel',
             'omar': this.isMobile ? '👨‍💼 Omar' : '👨‍💼 Opérations Omar',
-            'hicham': this.isMobile ? '👨‍💼 Hicham' : '👨‍💼 Opérations Hicham'
+            'hicham': this.isMobile ? '👨‍💼 Hicham' : '👨‍💼 Opérations Hicham',
+            'transferts': this.isMobile ? '🔄 Transf' : '🔄 Opérations de Transfert'
         };
         return titres[vue] || 'Vue';
     }
 
     // ==================== EXPORT/IMPORT ====================
-    exporterDonnees = () => {
+    exporterDonnees() {
         try {
             const donneesJSON = JSON.stringify(this.operations, null, 2);
             const blob = new Blob([donneesJSON], { type: 'application/json' });
@@ -972,7 +834,7 @@ class GestionFerme {
         }
     }
 
-    importerDonnees = () => {
+    importerDonnees() {
         try {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1014,7 +876,7 @@ class GestionFerme {
     }
 }
 
-// Initialisation
+// Initialisation globale
 let app;
 document.addEventListener('DOMContentLoaded', function() {
     try {
@@ -1026,4 +888,3 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Erreur lors du démarrage. Veuillez actualiser la page.');
     }
 });
-
