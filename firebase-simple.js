@@ -64,6 +64,7 @@ class FirebaseSync {
     constructor() {
         this.isOnline = navigator.onLine;
         this.pendingOperations = [];
+        this.suppressionsEnCours = new Set(); // Pour éviter les boucles de suppression
         console.log('🔄 FirebaseSync créé');
         
         if (db) {
@@ -122,7 +123,11 @@ class FirebaseSync {
             case 'update':
                 return await db.collection(collection).doc(id.toString()).update(data);
             case 'delete':
-                return await db.collection(collection).doc(id.toString()).delete();
+                // Marquer la suppression comme en cours pour éviter les boucles
+                this.suppressionsEnCours.add(id);
+                const result = await db.collection(collection).doc(id.toString()).delete();
+                this.suppressionsEnCours.delete(id);
+                return result;
             default:
                 throw new Error(`Type inconnu: ${type}`);
         }
@@ -204,6 +209,12 @@ class FirebaseSync {
     }
 
     async deleteDocument(collectionName, id) {
+        // Vérifier si la suppression n'est pas déjà en cours (éviter les boucles)
+        if (this.suppressionsEnCours.has(id)) {
+            console.log(`⏳ Suppression ${id} déjà en cours, ignorée`);
+            return Promise.resolve();
+        }
+        
         console.log(`📤 Synchronisation automatique: suppression ${collectionName}/${id}`);
         return this.addOperation({
             type: 'delete',
@@ -211,6 +222,11 @@ class FirebaseSync {
             id: id,
             data: {}
         });
+    }
+
+    // Méthode pour vérifier si une suppression est en cours
+    isSuppressionEnCours(id) {
+        return this.suppressionsEnCours.has(id);
     }
 }
 
