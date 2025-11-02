@@ -1,14 +1,14 @@
-// firebase-simple.js - Synchronisation automatique sans boutons
-console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
+// firebase-simple.js - Synchronisation automatique uniquement
+console.log('🔧 Chargement de Firebase Simple - Mode local avec sync automatique');
 
 // ⚠️ REMPLACEZ AVEC VOS VRAIES CLÉS FIREBASE ⚠️
 const firebaseConfig = {
-  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-  authDomain: "gestion-fermebenamara.firebaseapp.com",
-  projectId: "gestion-fermebenamara",
-  storageBucket: "gestion-fermebenamara.firebasestorage.app",
-  messagingSenderId: "668129137491",
-  appId: "1:668129137491:web:b56522302ea789044507a6"
+    apiKey: "AIzaSyCY7e7Kexample1234567890abcdef",
+    authDomain: "votre-projet-12345.firebaseapp.com",
+    projectId: "votre-projet-12345",
+    storageBucket: "votre-projet-12345.appspot.com",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:abcdef1234567890"
 };
 
 let db;
@@ -43,7 +43,6 @@ async function initialiserFirebase() {
         }
 
         // Test de connexion
-        console.log('🔍 Test de connexion Firebase...');
         firebaseReady = true;
         window.firebaseReady = true;
         window.firebaseDb = db;
@@ -59,52 +58,6 @@ async function initialiserFirebase() {
         firebaseReady = false;
         window.firebaseReady = false;
     }
-}
-
-// FONCTION DE FUSION AVEC GESTION DES SUPPRESSIONS
-function fusionnerOperationsAvecSuppressions(cloudOps, localOps) {
-    const operationsFusionnees = [];
-    const idsTraites = new Set();
-    
-    // Créer un Set des IDs locaux pour détection des suppressions
-    const idsLocaux = new Set(localOps.map(op => op.id));
-    
-    // Priorité au cloud MAIS filtrer les suppressions
-    cloudOps.forEach(op => {
-        if (op.id && !idsTraites.has(op.id) && !op.supprime) {
-            if (idsLocaux.has(op.id)) {
-                operationsFusionnees.push(op);
-                idsTraites.add(op.id);
-            } else {
-                // Opération potentiellement supprimée - vérifier l'ancienneté
-                const dateOp = new Date(op.timestamp || op.date);
-                const maintenant = new Date();
-                const diffJours = (maintenant - dateOp) / (1000 * 60 * 60 * 24);
-                
-                // Si l'opération a moins de 2 jours, on la garde
-                if (diffJours < 2) {
-                    operationsFusionnees.push(op);
-                    idsTraites.add(op.id);
-                    console.log('🔄 Opération restaurée:', op.id);
-                }
-            }
-        }
-    });
-    
-    // Ajouter toutes les locales
-    localOps.forEach(op => {
-        if (op.id && !idsTraites.has(op.id)) {
-            operationsFusionnees.push(op);
-            idsTraites.add(op.id);
-        }
-    });
-    
-    // Trier par date (plus récent en premier)
-    return operationsFusionnees.sort((a, b) => {
-        const dateA = new Date(a.timestamp || a.date || 0);
-        const dateB = new Date(b.timestamp || b.date || 0);
-        return dateB - dateA;
-    });
 }
 
 // SYNCHRONISATION AUTOMATIQUE
@@ -147,8 +100,25 @@ async function synchroniserAutomatiquement() {
             }
         }
         
-        // 3. Fusionner avec gestion des suppressions
-        const operationsFusionnees = fusionnerOperationsAvecSuppressions(operationsCloud, operationsLocales);
+        // 3. Fusionner les données
+        const allIds = new Set();
+        const operationsFusionnees = [];
+        
+        // Ajouter cloud d'abord
+        operationsCloud.forEach(op => {
+            if (op.id && !allIds.has(op.id) && !op.supprime) {
+                operationsFusionnees.push(op);
+                allIds.add(op.id);
+            }
+        });
+        
+        // Ajouter locales manquantes
+        operationsLocales.forEach(op => {
+            if (op.id && !allIds.has(op.id)) {
+                operationsFusionnees.push(op);
+                allIds.add(op.id);
+            }
+        });
         
         // 4. Sauvegarder la fusion
         const dataFusion = {
@@ -210,42 +180,10 @@ window.sauvegarderDansFirebase = async function(operation) {
             });
             console.log('✅ Opération sauvegardée dans Firebase:', operation.id);
             return true;
-        } else {
-            console.log('⚠️ Opération déjà dans Firebase:', operation.id);
-            return true;
         }
-    } catch (error) {
-        console.error('❌ Erreur sauvegarde Firebase:', error);
-        return false;
-    }
-}
-
-// MARQUER COMME SUPPRIMÉ DANS FIREBASE
-window.marquerCommeSupprime = async function(operationId) {
-    if (!firebaseReady || !db) return false;
-    
-    try {
-        // Trouver le document
-        const querySnapshot = await db.collection("operations")
-            .where("id", "==", operationId)
-            .get();
-        
-        // Marquer comme supprimé
-        const updatePromises = [];
-        querySnapshot.forEach(doc => {
-            updatePromises.push(
-                doc.ref.update({
-                    supprime: true,
-                    dateSuppression: new Date().toISOString()
-                })
-            );
-        });
-        
-        await Promise.all(updatePromises);
-        console.log('✅ Opération marquée comme supprimée:', operationId);
         return true;
     } catch (error) {
-        console.error('❌ Erreur marquage suppression:', error);
+        console.error('❌ Erreur sauvegarde Firebase:', error);
         return false;
     }
 }
