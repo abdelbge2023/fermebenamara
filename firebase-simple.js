@@ -3,12 +3,12 @@ console.log('🔧 Chargement de Firebase Simple - Mode local avec sync automatiq
 
 // ⚠️ REMPLACEZ AVEC VOS VRAIES CLÉS FIREBASE ⚠️
 const firebaseConfig = {
-    apiKey: "AIzaSyCY7e7Kexample1234567890abcdef",
-    authDomain: "votre-projet-12345.firebaseapp.com",
-    projectId: "votre-projet-12345",
-    storageBucket: "votre-projet-12345.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890"
+  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+  authDomain: "gestion-fermebenamara.firebaseapp.com",
+  projectId: "gestion-fermebenamara",
+  storageBucket: "gestion-fermebenamara.firebasestorage.app",
+  messagingSenderId: "668129137491",
+  appId: "1:668129137491:web:b56522302ea789044507a6"
 };
 
 let db;
@@ -195,3 +195,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 console.log('🔧 firebase-simple.js chargé - Synchronisation automatique activée');
+
