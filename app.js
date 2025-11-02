@@ -47,14 +47,14 @@ class GestionFerme {
                 return false;
             }
 
-            const firebaseConfig = {
-                apiKey: "AIzaSyAklFf8exemple123456789",
-                authDomain: "votre-projet.firebaseapp.com",
-                projectId: "votre-projet-id",
-                storageBucket: "votre-projet.appspot.com",
-                messagingSenderId: "123456789",
-                appId: "1:123456789:web:abcdef123456"
-            };
+       const firebaseConfig = {
+          apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+          authDomain: "gestion-fermebenamara.firebaseapp.com",
+          projectId: "gestion-fermebenamara",
+          storageBucket: "gestion-fermebenamara.firebasestorage.app",
+          messagingSenderId: "668129137491",
+          appId: "1:668129137491:web:b56522302ea789044507a6"
+        };
 
             if (firebase.apps.length === 0) {
                 firebase.initializeApp(firebaseConfig);
@@ -1026,3 +1026,4 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Erreur lors du démarrage. Veuillez actualiser la page.');
     }
 });
+
