@@ -1,8 +1,119 @@
-/* Styles pour la grille des formulaires */
+/* Reset et styles de base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* En-tête */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    color: white;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+/* Section statistiques */
+.stats-section {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    margin-bottom: 30px;
+}
+
+.stats-section h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.5em;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+    border-left: 5px solid #3498db;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-card.caisse-selectionnee {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px #3498db, 0 8px 20px rgba(0,0,0,0.3);
+    z-index: 10;
+    position: relative;
+}
+
+.solde-positif {
+    border-left-color: #27ae60;
+}
+
+.solde-negatif {
+    border-left-color: #e74c3c;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.stat-indication {
+    font-style: italic;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 8px;
+    color: #7f8c8d;
+}
+
+/* Grille des formulaires */
 .forms-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 25px;
     margin-bottom: 30px;
 }
 
@@ -15,38 +126,43 @@
 /* Styles des formulaires */
 .form-section {
     background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
 }
 
 .form-section h2 {
     margin-top: 0;
     color: #2c3e50;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 10px;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+    font-size: 1.3em;
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 6px;
+    font-weight: 600;
     color: #2c3e50;
+    font-size: 14px;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+    padding: 12px;
+    border: 2px solid #ecf0f1;
+    border-radius: 8px;
     font-size: 14px;
     box-sizing: border-box;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
 }
 
 .form-group input:focus,
@@ -54,7 +170,8 @@
 .form-group textarea:focus {
     outline: none;
     border-color: #3498db;
-    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    background: white;
 }
 
 .checkbox-group {
@@ -67,17 +184,19 @@
     align-items: center;
     font-weight: normal;
     cursor: pointer;
+    font-size: 14px;
 }
 
 .checkbox-group input[type="checkbox"] {
     width: auto;
-    margin-right: 8px;
+    margin-right: 10px;
+    transform: scale(1.2);
 }
 
 .form-actions {
     display: flex;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 12px;
+    margin-top: 25px;
 }
 
 /* Boutons */
@@ -85,73 +204,83 @@
     background: linear-gradient(135deg, #27ae60, #2ecc71);
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 5px;
+    padding: 14px 24px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
     font-weight: bold;
     transition: all 0.3s ease;
+    flex: 1;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+    box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
 }
 
 .btn-secondary {
     background: linear-gradient(135deg, #95a5a6, #bdc3c7);
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 5px;
+    padding: 14px 24px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
     transition: all 0.3s ease;
+    flex: 1;
 }
 
 .btn-secondary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(149, 165, 166, 0.4);
+    box-shadow: 0 6px 20px rgba(149, 165, 166, 0.4);
 }
 
-/* Styles pour la section navigation */
+/* Section navigation */
 .navigation-section {
     background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
 }
 
 .nav-tabs {
     display: flex;
     gap: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
 .tab-btn {
     background: #ecf0f1;
     border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
+    padding: 12px 18px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
     font-size: 14px;
+    font-weight: 500;
 }
 
 .tab-btn:hover {
     background: #d5dbdb;
+    transform: translateY(-2px);
 }
 
 .tab-btn.active {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+}
+
+.tab-btn.caisse-tab {
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
 }
 
 .action-buttons {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
@@ -159,18 +288,286 @@
     background: linear-gradient(135deg, #f39c12, #e67e22);
     color: white;
     border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
+    padding: 12px 18px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
 }
 
 .btn-danger {
     background: linear-gradient(135deg, #e74c3c, #c0392b);
     color: white;
     border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
+    padding: 12px 18px;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+/* Section données */
+.data-section {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.data-display {
+    min-height: 400px;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: #7f8c8d;
+}
+
+.empty-message h3 {
+    margin-bottom: 15px;
+    font-size: 1.5em;
+}
+
+/* En-tête de vue */
+.vue-header {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    border-left: 5px solid #3498db;
+}
+
+.vue-header h3 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.totals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.total-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.total-label {
+    font-weight: 600;
+    color: #2c3e50;
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.total-value {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.total-value.positive {
+    color: #27ae60;
+}
+
+.total-value.negative {
+    color: #e74c3c;
+}
+
+/* Résumé des caisses */
+.resume-caisses {
+    margin-bottom: 25px;
+}
+
+.resume-caisses h4 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.caisses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.resume-caisse {
+    background: white;
+    padding: 18px;
+    border-radius: 10px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    text-align: center;
+    border-left: 4px solid #3498db;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.resume-caisse:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.resume-caisse.caisse-selectionnee {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px #3498db, 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.resume-caisse.solde-positif {
+    border-left-color: #27ae60;
+}
+
+.resume-caisse.solde-negatif {
+    border-left-color: #e74c3c;
+}
+
+.resume-caisse-nom {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.resume-caisse-solde {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* Tableau de données */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.data-table th {
+    background: linear-gradient(135deg, #34495e, #2c3e50);
+    color: white;
+    padding: 15px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ecf0f1;
+    font-size: 13px;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+.data-table tr.selected {
+    background: #fff3cd;
+}
+
+.type-revenu {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.type-frais {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+/* Actions des opérations */
+.operation-actions {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.btn-small {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.3s ease;
+}
+
+.btn-small:hover {
+    transform: translateY(-1px);
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .caisses-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .nav-tabs {
+        justify-content: center;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        text-align: center;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .data-table {
+        font-size: 12px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+    }
+}
+
+/* Checkbox pour sélection */
+.operation-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
 }
