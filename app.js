@@ -1,4 +1,4 @@
-// app.js - Version complète avec synchronisation des suppressions
+// app.js - Enregistrement uniquement sur la caisse sélectionnée
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -18,7 +18,6 @@ class GestionFerme {
         this.chargerDonnees();
         this.updateStats();
         this.afficherHistorique('global');
-        this.afficherStatut();
         console.log('✅ Application Gestion Ferme initialisée');
     }
 
@@ -83,37 +82,6 @@ class GestionFerme {
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-    }
-
-    afficherStatut() {
-        const header = document.querySelector('header');
-        if (!header) return;
-
-        // Supprimer l'ancien statut
-        const ancienStatut = document.getElementById('statutApp');
-        if (ancienStatut) ancienStatut.remove();
-
-        const statutDiv = document.createElement('div');
-        statutDiv.id = 'statutApp';
-        statutDiv.style.marginTop = '10px';
-        statutDiv.style.padding = '10px';
-        statutDiv.style.borderRadius = '10px';
-        statutDiv.style.fontWeight = 'bold';
-        statutDiv.style.textAlign = 'center';
-
-        if (window.firebaseReady) {
-            statutDiv.innerHTML = '✅ Synchronisé Cloud | ' +
-                '<button onclick="migrerVersFirebase()" class="btn-warning" style="margin-left: 10px; padding: 5px 10px; font-size: 12px;">🔄 Migrer</button> ' +
-                '<button onclick="verifierDonneesFirebase()" class="btn-info" style="margin-left: 5px; padding: 5px 10px; font-size: 12px;">📊 Vérifier</button>';
-            statutDiv.style.background = '#d4edda';
-            statutDiv.style.color = '#155724';
-        } else {
-            statutDiv.textContent = '🔧 Mode Local (Données Sécurisées)';
-            statutDiv.style.background = '#fff3cd';
-            statutDiv.style.color = '#856404';
-        }
-
-        header.appendChild(statutDiv);
     }
 
     // MÉTHODE AFFICHER HISTORIQUE AVEC TOTAUX
@@ -336,7 +304,7 @@ class GestionFerme {
         return titres[vue] || 'Vue';
     }
 
-    // MÉTHODE AJOUTER OPÉRATION
+    // MÉTHODE AJOUTER OPÉRATION (UNIQUEMENT sur la caisse sélectionnée)
     async ajouterOperation(e) {
         e.preventDefault();
 
@@ -344,7 +312,7 @@ class GestionFerme {
         const groupe = document.getElementById('groupe').value;
         const typeOperation = document.getElementById('typeOperation').value;
         const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
+        const caisse = document.getElementById('caisse').value; // Caisse sélectionnée
         const montantSaisi = parseFloat(document.getElementById('montant').value);
         const descriptionValue = document.getElementById('description').value.trim();
 
@@ -365,6 +333,7 @@ class GestionFerme {
             const montantZaitoun = montantSaisi / 3;
             const montant3Commain = (montantSaisi * 2) / 3;
 
+            // Pour travailleur global, on répartit mais sur la MÊME CAISSE
             operationsACreer = [
                 {
                     id: Date.now(),
@@ -373,7 +342,7 @@ class GestionFerme {
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
                     typeTransaction: typeTransaction,
-                    caisse: caisse,
+                    caisse: caisse, // Même caisse pour les deux
                     description: descriptionValue + ' (Part Zaitoun - 1/3)',
                     montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
@@ -386,7 +355,7 @@ class GestionFerme {
                     groupe: '3commain',
                     typeOperation: '3commain',
                     typeTransaction: typeTransaction,
-                    caisse: caisse,
+                    caisse: caisse, // Même caisse pour les deux
                     description: descriptionValue + ' (Part 3 Commain - 2/3)',
                     montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
@@ -394,6 +363,7 @@ class GestionFerme {
                 }
             ];
         } else {
+            // Opération normale - UNIQUEMENT sur la caisse sélectionnée
             operationsACreer = [{
                 id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
@@ -401,7 +371,7 @@ class GestionFerme {
                 groupe: groupe,
                 typeOperation: typeOperation,
                 typeTransaction: typeTransaction,
-                caisse: caisse,
+                caisse: caisse, // Caisse sélectionnée
                 description: descriptionValue,
                 montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
@@ -417,7 +387,7 @@ class GestionFerme {
         // Sauvegarder localement
         this.sauvegarderDonnees();
 
-        // Sauvegarder dans Firebase si disponible
+        // Sauvegarder dans Firebase automatiquement
         if (window.firebaseReady && window.firebaseDb) {
             try {
                 for (const op of operationsACreer) {
@@ -433,8 +403,8 @@ class GestionFerme {
 
         this.afficherMessageSucces(
             typeOperation === 'travailleur_global' 
-                ? 'Opération enregistrée ! Répartie : ' + (montantSaisi/3).toFixed(2) + ' DH (Zaitoun) + ' + ((montantSaisi*2)/3).toFixed(2) + ' DH (3 Commain)'
-                : 'Opération enregistrée avec succès !'
+                ? 'Opération enregistrée ! Répartie sur ' + this.formaterCaisse(caisse)
+                : 'Opération enregistrée sur ' + this.formaterCaisse(caisse)
         );
         
         this.resetForm();
@@ -563,24 +533,12 @@ class GestionFerme {
         if (!window.firebaseReady || !window.firebaseDb) return false;
         
         try {
-            // Option 1: Marquer comme supprimé (recommandé)
+            // Marquer comme supprimé
             if (window.marquerCommeSupprime) {
                 return await window.marquerCommeSupprime(operation.id);
             }
             
-            // Option 2: Supprimer définitivement
-            const querySnapshot = await window.firebaseDb.collection("operations")
-                .where("id", "==", operation.id)
-                .get();
-            
-            const deletePromises = [];
-            querySnapshot.forEach(doc => {
-                deletePromises.push(doc.ref.delete());
-            });
-            
-            await Promise.all(deletePromises);
-            console.log('✅ Opération supprimée de Firebase:', operation.id);
-            return true;
+            return false;
         } catch (error) {
             console.error('❌ Erreur suppression Firebase:', error);
             return false;
