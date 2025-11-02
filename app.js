@@ -946,3 +946,22 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+// Test de synchronisation
+async function testSynchronisation() {
+    console.log('🧪 Test de synchronisation...');
+    
+    // Tester l'ajout d'un document
+    try {
+        await firebaseSync.addDocument('test', {
+            message: 'Test de synchronisation',
+            timestamp: new Date(),
+            status: 'actif'
+        });
+        console.log('✅ Test réussi - Synchronisation OK');
+    } catch (error) {
+        console.error('❌ Test échoué:', error);
+    }
+}
+
+// Appeler le test après l'initialisation
+setTimeout(testSynchronisation, 2000);
