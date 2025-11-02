@@ -1,5 +1,5 @@
-// firebase-simple.js - Configuration Firebase corrigée
-console.log('🔧 Chargement de Firebase Simple - Mode local avec sync automatique');
+// firebase-simple.js - Configuration Firebase uniquement
+console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -14,6 +14,7 @@ const firebaseConfig = {
 // Variables globales
 let db;
 let firebaseInitialized = false;
+let firebaseSync;
 
 // Fonction d'initialisation Firebase
 function initializeFirebase() {
@@ -40,13 +41,16 @@ function initializeFirebase() {
             firebaseInitialized = true;
             console.log('✅ Firebase initialisé avec succès');
             
-            // Initialiser firebaseSync après Firebase
-            window.firebaseSync = new FirebaseSync();
+            // Initialiser firebaseSync
+            firebaseSync = new FirebaseSync();
+            window.firebaseSync = firebaseSync;
+            
         } else if (firebase.apps.length > 0) {
             db = firebase.firestore();
             firebaseInitialized = true;
             console.log('ℹ️ Firebase déjà initialisé');
-            window.firebaseSync = new FirebaseSync();
+            firebaseSync = new FirebaseSync();
+            window.firebaseSync = firebaseSync;
         }
     } catch (error) {
         console.error('❌ Erreur initialisation Firebase:', error);
