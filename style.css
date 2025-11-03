@@ -777,3 +777,15 @@ tr:hover .operation-actions {
 .other-user-operation td {
     color: #6c757d !important;
 }
+
+/* Actions utilisateur */
+.user-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.user-actions button {
+    padding: 8px 16px;
+    font-size: 14px;
+}
