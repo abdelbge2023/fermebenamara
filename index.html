@@ -3,154 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme</title>
+    <title>Gestion Ferme - Connexion</title>
     <style>
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 400px;
-            max-width: 90%;
-        }
-        
-        .close {
-            float: right;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        
-        .admin-only { display: none; }
-        .operateur-only { display: none; }
-        
-        .operation-item {
-            border: 1px solid #ddd;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        
-        .btn-supprimer {
-            background-color: #ff4444;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .btn-editer {
-            background-color: #4488ff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 20px; width: 300px; border-radius: 5px; }
+        .operation { border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .btn { padding: 8px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-supprimer { background: #ff4444; color: white; }
+        .btn-editer { background: #4488ff; color: white; }
+        .btn-creer { background: #44aa44; color: white; }
+        .admin-panel { background: #f0f0f0; padding: 10px; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <!-- Header avec connexion -->
-    <header>
-        <div id="etat-connexion">
-            <div id="non-connecte">
-                <form id="form-connexion">
-                    <input type="email" id="email-connexion" placeholder="Email" required>
-                    <input type="password" id="motdepasse-connexion" placeholder="Mot de passe" required>
-                    <button type="submit">Se connecter</button>
-                </form>
-            </div>
-            <div id="connecte" style="display: none;">
-                <span id="info-utilisateur"></span>
+    <div class="container">
+        <!-- Écran de connexion -->
+        <div id="ecran-connexion">
+            <h2>Connexion à la Gestion Ferme</h2>
+            <form id="form-connexion">
+                <div>
+                    <label>Identifiant:</label>
+                    <input type="text" id="identifiant" required>
+                </div>
+                <div>
+                    <label>Mot de passe:</label>
+                    <input type="password" id="motdepasse" required>
+                </div>
+                <button type="submit">Se connecter</button>
+            </form>
+        </div>
+
+        <!-- Interface principale (cachée au début) -->
+        <div id="interface-principale" style="display: none;">
+            <header>
+                <h2>Gestion des Opérations</h2>
+                <div id="info-utilisateur"></div>
                 <button id="btn-deconnexion">Déconnexion</button>
-                <button id="btn-changer-motdepasse" class="operateur-only">Changer mot de passe</button>
+            </header>
+
+            <!-- Panel admin -->
+            <div id="panel-admin" class="admin-panel" style="display: none;">
+                <h3>🏗️ Mode Administrateur</h3>
+                <button id="btn-voir-tout" class="btn">Voir toutes les opérations</button>
             </div>
-        </div>
-    </header>
 
-    <!-- Navigation selon rôle -->
-    <nav>
-        <div class="admin-only">
-            <h2>Espace Administrateur</h2>
-            <button id="btn-gestion-utilisateurs">Gérer les utilisateurs</button>
-            <button id="btn-voir-toutes-operations">Voir toutes les opérations</button>
-        </div>
-        
-        <div class="operateur-only">
-            <h2>Espace Opérateur</h2>
-            <button id="btn-mes-operations">Mes opérations</button>
-            <button id="btn-creer-operation">Créer une opération</button>
-        </div>
-    </nav>
+            <!-- Panel opérateur -->
+            <div id="panel-operateur">
+                <h3>👤 Mes Opérations</h3>
+                <button id="btn-creer-operation" class="btn btn-creer">Créer une opération</button>
+            </div>
 
-    <!-- Section principale -->
-    <main>
-        <div id="liste-operations">
-            <!-- Les opérations s'afficheront ici -->
+            <!-- Liste des opérations -->
+            <div id="liste-operations"></div>
         </div>
-    </main>
+    </div>
 
-    <!-- Modal changement mot de passe -->
-    <div id="modal-changement-motdepasse" class="modal">
+    <!-- Modal création/édition -->
+    <div id="modal-operation" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Changer le mot de passe</h3>
-            <form id="form-changement-motdepasse">
-                <input type="password" id="ancien-motdepasse" placeholder="Ancien mot de passe" required>
-                <input type="password" id="nouveau-motdepasse" placeholder="Nouveau mot de passe" required>
-                <input type="password" id="confirmation-motdepasse" placeholder="Confirmer le mot de passe" required>
-                <button type="submit">Changer le mot de passe</button>
+            <h3 id="titre-modal">Créer une opération</h3>
+            <form id="form-operation">
+                <div>
+                    <label>Nom:</label>
+                    <input type="text" id="input-nom" required>
+                </div>
+                <div>
+                    <label>Description:</label>
+                    <textarea id="input-description" required></textarea>
+                </div>
+                <button type="submit">Enregistrer</button>
+                <button type="button" onclick="fermerModal()">Annuler</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal édition opération -->
-    <div id="modal-edition-operation" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Éditer l'opération</h3>
-            <form id="form-edition-operation">
-                <input type="text" id="edit-nom" placeholder="Nom de l'opération" required>
-                <textarea id="edit-description" placeholder="Description" required></textarea>
-                <select id="edit-statut">
-                    <option value="en-cours">En cours</option>
-                    <option value="termine">Terminé</option>
-                    <option value="annule">Annulé</option>
-                </select>
-                <button type="submit">Enregistrer les modifications</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal création opération -->
-    <div id="modal-creation-operation" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h3>Créer une opération</h3>
-            <form id="form-creation-operation">
-                <input type="text" id="creer-nom" placeholder="Nom de l'opération" required>
-                <textarea id="creer-description" placeholder="Description" required></textarea>
-                <button type="submit">Créer l'opération</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
-    
     <script src="app.js"></script>
 </body>
 </html>
