@@ -5,321 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ferme Ben Amara - Gestion</title>
     <style>
-        /* Styles généraux */
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 15px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-        }
-        
-        /* Styles connexion */
-        .login-container {
-            max-width: 400px;
-            margin: 50px auto;
-            padding: 40px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            text-align: center;
-        }
-        .login-form input {
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        .login-form input:focus {
-            border-color: #4CAF50;
-            outline: none;
-        }
-        .login-form button {
-            width: 100%;
-            padding: 15px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-        .login-form button:hover {
-            background: #45a049;
-        }
-        
-        /* Styles opérations */
-        .operation {
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 10px;
-            transition: transform 0.2s;
-        }
-        .operation:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .operation h4 {
-            margin: 0 0 10px 0;
-            color: #2c3e50;
-            font-size: 1.2em;
-        }
-        .operation p {
-            margin: 10px 0;
-            color: #6c757d;
-            line-height: 1.5;
-        }
-        
-        /* Boutons */
-        .btn {
-            padding: 10px 20px;
-            margin: 5px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        .btn-editer { 
-            background: #2196F3; 
-            color: white; 
-        }
-        .btn-editer:hover { background: #1976d2; }
-        .btn-supprimer { 
-            background: #f44336; 
-            color: white; 
-        }
-        .btn-supprimer:hover { background: #d32f2f; }
-        .btn-creer { 
-            background: #4CAF50; 
-            color: white; 
-        }
-        .btn-creer:hover { background: #45a049; }
-        .btn-deconnexion { 
-            background: #ff9800; 
-            color: white; 
-        }
-        .btn-deconnexion:hover { background: #f57c00; }
-        
-        /* Panel admin */
-        .admin-panel {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border-left: 5px solid #2196F3;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 10px;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            backdrop-filter: blur(5px);
-        }
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            width: 90%;
-            max-width: 500px;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            animation: modalAppear 0.3s ease-out;
-        }
-        @keyframes modalAppear {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        .modal input, .modal textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        .modal input:focus, .modal textarea:focus {
-            border-color: #4CAF50;
-            outline: none;
-        }
-        .modal button {
-            padding: 12px 25px;
-            margin: 10px 5px 0 0;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s;
-        }
-        
-        /* Header */
-        .user-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 25px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .user-info {
-            flex-grow: 1;
-        }
-        .user-info h2 {
-            margin: 0 0 10px 0;
-            font-size: 1.8em;
-        }
-        
-        /* Comptes test */
-        .test-accounts {
-            background: #fff3cd;
-            border: 2px solid #ffeaa7;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 25px;
-            text-align: left;
-        }
-        
-        /* États */
+        /* VOTRE CSS EXISTANT - NE PAS CHANGER */
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .login-container { max-width: 400px; margin: 100px auto; padding: 30px; background: white; border-radius: 8px; }
+        .login-form input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; }
+        .login-form button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .operation { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .btn { padding: 8px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-editer { background: #2196F3; color: white; }
+        .btn-supprimer { background: #f44336; color: white; }
+        .btn-creer { background: #4CAF50; color: white; }
+        .admin-panel { background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 8px; }
+        .user-header { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
         #interface-principale { display: none; }
-        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <!-- Écran de connexion -->
     <div id="ecran-connexion">
         <div class="login-container">
-            <div style="font-size: 3em; margin-bottom: 20px;">🔐</div>
-            <h2 style="text-align: center; color: #2c3e50; margin-bottom: 10px;">Ferme Ben Amara</h2>
-            <p style="color: #6c757d; margin-bottom: 30px;">Système de gestion des opérations</p>
-            
+            <h2 style="text-align: center;">🔐 Connexion Ferme Ben Amara</h2>
             <form id="form-connexion" class="login-form">
                 <div>
-                    <input type="text" id="identifiant" placeholder="Votre identifiant" required>
+                    <input type="text" id="identifiant" placeholder="admin ou operateur1" required>
                 </div>
                 <div>
                     <input type="password" id="motdepasse" placeholder="Votre mot de passe" required>
                 </div>
                 <button type="submit">Se connecter</button>
             </form>
-            
-            <div class="test-accounts">
-                <strong>🎯 Comptes de test :</strong><br><br>
-                <strong>Administrateur :</strong><br>
-                Identifiant: <code>admin</code><br>
-                Mot de passe: <code>admin123</code><br><br>
-                <strong>Opérateur :</strong><br>
-                Identifiant: <code>operateur1</code><br>
-                Mot de passe: <code>op123</code>
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 4px;">
+                <strong>Comptes de test:</strong><br>
+                Admin: admin / admin123<br>
+                Opérateur: operateur1 / op123
             </div>
         </div>
     </div>
 
-    <!-- Interface principale -->
     <div id="interface-principale" class="container">
-        <!-- En-tête utilisateur -->
         <div class="user-header">
-            <div class="user-info">
-                <h2>🏭 Ferme Ben Amara</h2>
-                <div id="info-utilisateur" style="font-size: 1.1em;"></div>
+            <div style="flex-grow: 1;">
+                <h2 style="margin: 0;">🏭 Ferme Ben Amara</h2>
+                <div id="info-utilisateur"></div>
             </div>
-            <button id="btn-deconnexion" class="btn btn-deconnexion">🚪 Déconnexion</button>
+            <button id="btn-deconnexion" class="btn" style="background: #ff9800; color: white;">Déconnexion</button>
         </div>
 
-        <!-- Panel administrateur -->
-        <div id="panel-admin" class="admin-panel hidden">
-            <h3 style="margin: 0 0 15px 0; color: #1976d2;">🏗️ Mode Administrateur</h3>
-            <p style="margin: 0 0 20px 0; color: #555;">Vous avez accès à toutes les opérations de la ferme</p>
-            <button id="btn-voir-tout" class="btn btn-creer">👁️ Voir toutes les opérations</button>
+        <div id="panel-admin" class="admin-panel" style="display: none;">
+            <h3 style="margin: 0;">🏗️ Mode Administrateur</h3>
+            <button id="btn-voir-tout" class="btn btn-creer">Voir toutes les opérations</button>
         </div>
 
-        <!-- Panel opérateur -->
         <div id="panel-operateur">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h3 style="margin: 0; color: #2c3e50; font-size: 1.5em;">👤 Mes Opérations</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0;">👤 Mes Opérations</h3>
                 <button id="btn-creer-operation" class="btn btn-creer">➕ Créer une opération</button>
             </div>
         </div>
 
-        <!-- Liste des opérations -->
-        <div id="liste-operations">
-            <div style="text-align: center; padding: 40px; color: #6c757d;">
-                <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
-                <h3>Aucune opération pour le moment</h3>
-                <p>Créez votre première opération en cliquant sur le bouton ci-dessus</p>
-            </div>
-        </div>
+        <div id="liste-operations"></div>
     </div>
 
-    <!-- Modal pour créer/modifier les opérations -->
     <div id="modal-operation" class="modal">
         <div class="modal-content">
-            <h3 id="titre-modal" style="margin-top: 0; color: #2c3e50;">Créer une opération</h3>
+            <h3 id="titre-modal">Créer une opération</h3>
             <form id="form-operation">
                 <div>
-                    <label style="font-weight: bold; color: #555;">Nom de l'opération:</label>
-                    <input type="text" id="input-nom" placeholder="Ex: Récolte de blé, Soins aux animaux..." required>
+                    <label>Nom:</label>
+                    <input type="text" id="input-nom" required style="width: 100%; padding: 8px; margin: 5px 0;">
                 </div>
                 <div>
-                    <label style="font-weight: bold; color: #555;">Description:</label>
-                    <textarea id="input-description" placeholder="Détails de l'opération..." required rows="4"></textarea>
+                    <label>Description:</label>
+                    <textarea id="input-description" required style="width: 100%; padding: 8px; margin: 5px 0; height: 80px;"></textarea>
                 </div>
-                <div style="text-align: right; margin-top: 25px;">
-                    <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white;">❌ Annuler</button>
-                    <button type="submit" style="background: #4CAF50; color: white;">💾 Enregistrer</button>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white;">Annuler</button>
+                    <button type="submit" style="background: #4CAF50; color: white;">Enregistrer</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Firebase + JavaScript -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     
     <script>
-        // Configuration Firebase - À MODIFIER AVEC VOS CLÉS
+        // ⚠️⚠️⚠️ REMPLACEZ CE BLOC AVEC VOS VRAIES CLÉS FIREBASE ⚠️⚠️⚠️
         const firebaseConfig = {
-  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-  authDomain: "gestion-fermebenamara.firebaseapp.com",
-  projectId: "gestion-fermebenamara",
-  storageBucket: "gestion-fermebenamara.firebasestorage.app",
-  messagingSenderId: "668129137491",
-  appId: "1:668129137491:web:b56522302ea789044507a6"
-};
+            apiKey: "VOTRE-CLE-API-ICI",
+            authDomain: "VOTRE-AUTH-DOMAIN-ICI",
+            projectId: "VOTRE-PROJECT-ID-ICI",
+            storageBucket: "VOTRE-STORAGE-BUCKET-ICI",
+            messagingSenderId: "VOTRE-SENDER-ID-ICI",
+            appId: "VOTRE-APP-ID-ICI"
+        };
+
         // Initialisation Firebase
         try {
             firebase.initializeApp(firebaseConfig);
             console.log('✅ Firebase initialisé avec succès');
         } catch (error) {
             console.error('❌ Erreur initialisation Firebase:', error);
+            alert('Erreur Firebase. Vérifiez les clés de configuration.');
         }
 
         const auth = firebase.auth();
@@ -353,7 +143,7 @@
             }
 
             verifierAdmin() {
-                const admins = ['admin@fermebenamara.com', 'admin@ferme.com', 'administrateur@fermebenamara.com'];
+                const admins = ['admin@fermebenamara.com', 'admin@ferme.com'];
                 this.estAdmin = admins.includes(this.utilisateur.email);
                 console.log('👤 Statut admin:', this.estAdmin);
             }
@@ -401,10 +191,10 @@
 
                 try {
                     await auth.signInWithEmailAndPassword(email, motdepasse);
-                    this.afficherMessage('Connexion réussie !');
+                    this.afficherMessage('✅ Connexion réussie !');
                 } catch (error) {
-                    console.error('Erreur connexion:', error);
-                    this.afficherMessage('Erreur de connexion: ' + error.message, 'error');
+                    console.error('❌ Erreur connexion:', error);
+                    this.afficherMessage('❌ Erreur: ' + error.message, 'error');
                 }
             }
 
@@ -417,7 +207,7 @@
 
             deconnexion() {
                 auth.signOut();
-                this.afficherMessage('Déconnexion réussie');
+                this.afficherMessage('👋 Déconnexion réussie');
             }
 
             afficherInterface() {
@@ -467,7 +257,7 @@
                 const description = document.getElementById('input-description').value.trim();
 
                 if (!nom || !description) {
-                    this.afficherMessage('Veuillez remplir tous les champs', 'error');
+                    this.afficherMessage('❌ Veuillez remplir tous les champs', 'error');
                     return;
                 }
 
@@ -478,7 +268,7 @@
                             description: description,
                             dateModification: new Date()
                         });
-                        this.afficherMessage('Opération modifiée avec succès !');
+                        this.afficherMessage('✅ Opération modifiée avec succès !');
                     } else {
                         await db.collection('operations').add({
                             nom: nom,
@@ -488,14 +278,14 @@
                             dateCreation: new Date(),
                             dateModification: new Date()
                         });
-                        this.afficherMessage('Opération créée avec succès !');
+                        this.afficherMessage('✅ Opération créée avec succès !');
                     }
 
                     this.fermerModal();
                     this.chargerOperations();
                 } catch (error) {
-                    console.error('Erreur enregistrement:', error);
-                    this.afficherMessage('Erreur lors de l\'enregistrement', 'error');
+                    console.error('❌ Erreur enregistrement:', error);
+                    this.afficherMessage('❌ Erreur lors de l\'enregistrement', 'error');
                 }
             }
 
@@ -508,8 +298,8 @@
                     
                     this.afficherOperations(snapshot);
                 } catch (error) {
-                    console.error('Erreur chargement opérations:', error);
-                    this.afficherMessage('Aucune opération trouvée', 'info');
+                    console.error('❌ Erreur chargement opérations:', error);
+                    this.afficherMessage('ℹ️ Aucune opération trouvée', 'info');
                 }
             }
 
@@ -521,8 +311,8 @@
                     
                     this.afficherOperations(snapshot);
                 } catch (error) {
-                    console.error('Erreur chargement opérations:', error);
-                    this.afficherMessage('Aucune opération trouvée', 'info');
+                    console.error('❌ Erreur chargement opérations:', error);
+                    this.afficherMessage('ℹ️ Aucune opération trouvée', 'info');
                 }
             }
 
@@ -530,7 +320,7 @@
                 const container = document.getElementById('liste-operations');
                 
                 if (snapshot.empty) {
-                    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><div style="font-size: 4em; margin-bottom: 20px;">📋</div><h3>Aucune opération pour le moment</h3><p>Créez votre première opération en cliquant sur le bouton ci-dessus</p></div>';
+                    container.innerHTML = '<div class="operation"><p>Aucune opération trouvée</p></div>';
                     return;
                 }
 
@@ -555,9 +345,8 @@
                     <small style="color: #666;">
                         Créé par: ${operation.createurEmail} • 
                         Date: ${dateCreation}
-                        ${this.estAdmin ? '• ID: ' + operationId.substring(0, 8) + '...' : ''}
                     </small>
-                    <div style="margin-top: 15px;">
+                    <div style="margin-top: 10px;">
                         <button class="btn btn-editer" data-id="${operationId}">✏️ Éditer</button>
                         <button class="btn btn-supprimer" data-id="${operationId}">🗑️ Supprimer</button>
                     </div>
@@ -588,8 +377,8 @@
                         this.ouvrirModalCreation({...operation, id: operationId});
                     }
                 } catch (error) {
-                    console.error('Erreur édition:', error);
-                    this.afficherMessage('Erreur lors de l\'édition', 'error');
+                    console.error('❌ Erreur édition:', error);
+                    this.afficherMessage('❌ Erreur lors de l\'édition', 'error');
                 }
             }
 
@@ -606,13 +395,13 @@
 
                         if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
                             await db.collection('operations').doc(operationId).delete();
-                            this.afficherMessage('Opération supprimée avec succès');
+                            this.afficherMessage('✅ Opération supprimée avec succès');
                             this.chargerOperations();
                         }
                     }
                 } catch (error) {
-                    console.error('Erreur suppression:', error);
-                    this.afficherMessage('Erreur lors de la suppression', 'error');
+                    console.error('❌ Erreur suppression:', error);
+                    this.afficherMessage('❌ Erreur lors de la suppression', 'error');
                 }
             }
 
@@ -637,7 +426,6 @@
                     z-index: 10000;
                     font-weight: bold;
                     background-color: ${type === 'error' ? '#f44336' : type === 'info' ? '#2196F3' : '#4CAF50'};
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
                 `;
                 
                 document.body.appendChild(messageEl);
@@ -664,4 +452,3 @@
     </script>
 </body>
 </html>
-
