@@ -1,4 +1,4 @@
-// app.js - Version corrigée avec suppression Firebase
+// app.js - Version complète corrigée avec anti-boucle de synchronisation
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -12,9 +12,11 @@ class GestionFerme {
         this.caisseSelectionnee = null;
         this.firebaseInitialized = false;
         this.synchronisationEnCours = false;
-        // Retirer suppressionsLocales qui bloque la synchronisation
-        this.suppressionsLocales = new Set();
-
+        
+        // Pour éviter les boucles de synchronisation
+        this.suppressionsEnCours = new Set();
+        this.ajoutsEnCours = new Set();
+        
         this.init();
     }
 
@@ -219,12 +221,24 @@ class GestionFerme {
             }
         ];
 
+        // Marquer les ajouts comme initiés localement
+        operationsTransfert.forEach(op => {
+            this.ajoutsEnCours.add(op.id);
+        });
+
         for (const op of operationsTransfert) {
             this.operations.unshift(op);
         }
 
         await this.sauvegarderDonnees();
         this.afficherMessageSucces('Transfert effectué !');
+        
+        // Retirer les ajouts de la liste après un délai
+        setTimeout(() => {
+            operationsTransfert.forEach(op => {
+                this.ajoutsEnCours.delete(op.id);
+            });
+        }, 5000);
         
         // Réinitialiser le formulaire
         document.getElementById('transfertForm').reset();
@@ -477,7 +491,8 @@ class GestionFerme {
 
             // 3. Réinitialiser les données locales
             this.operations = [];
-            this.suppressionsLocales.clear();
+            this.suppressionsEnCours.clear();
+            this.ajoutsEnCours.clear();
             this.selectedOperations.clear();
             this.caisseSelectionnee = null;
             this.currentView = 'global';
@@ -516,7 +531,8 @@ class GestionFerme {
         
         // Réinitialiser les variables
         this.operations = [];
-        this.suppressionsLocales.clear();
+        this.suppressionsEnCours.clear();
+        this.ajoutsEnCours.clear();
         this.selectedOperations.clear();
         this.caisseSelectionnee = null;
         
@@ -550,13 +566,10 @@ class GestionFerme {
             try {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
-                // Ne plus charger suppressionsLocales pour éviter les blocages
-                this.suppressionsLocales = new Set();
                 console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
                 this.operations = [];
-                this.suppressionsLocales = new Set();
             }
         }
     }
@@ -621,16 +634,31 @@ class GestionFerme {
             return;
         }
 
-        console.log('👂 Activation écoute temps réel');
+        console.log('👂 Activation écoute temps réel avec anti-boucle');
         
         this.unsubscribeFirebase = firebaseSync.listenToCollection('operations', (changes, snapshot) => {
             if (changes.length > 0) {
                 console.log(`🔄 Synchronisation temps réel: ${changes.length} changement(s)`);
                 
                 let modifications = 0;
+                let modificationsIgnorees = 0;
                 
                 changes.forEach(change => {
-                    // NE PLUS vérifier suppressionsLocales pour éviter les blocages
+                    const operationId = change.id;
+                    
+                    // Vérifier si c'est une opération que NOUS avons initiée
+                    if (this.suppressionsEnCours.has(operationId)) {
+                        console.log(`🚫 Suppression ${operationId} ignorée (initiée localement)`);
+                        modificationsIgnorees++;
+                        return;
+                    }
+                    
+                    if (this.ajoutsEnCours.has(operationId)) {
+                        console.log(`🚫 Ajout ${operationId} ignoré (initié localement)`);
+                        modificationsIgnorees++;
+                        return;
+                    }
+
                     if (change.type === 'added') {
                         this.ajouterOperationSynchro(change.data);
                         modifications++;
@@ -638,7 +666,7 @@ class GestionFerme {
                         this.mettreAJourOperationSynchro(change.id, change.data);
                         modifications++;
                     } else if (change.type === 'removed') {
-                        // Toujours accepter les suppressions de Firebase
+                        // Accepter les suppressions venant d'autres appareils
                         this.supprimerOperationSynchro(change.id);
                         modifications++;
                     }
@@ -647,7 +675,7 @@ class GestionFerme {
                 if (modifications > 0) {
                     this.sauvegarderLocalement();
                     this.mettreAJourAffichage();
-                    console.log(`✅ ${modifications} opération(s) synchronisée(s) en temps réel`);
+                    console.log(`✅ ${modifications} opération(s) synchronisée(s) en temps réel, ${modificationsIgnorees} ignorées (initiées localement)`);
                 }
             }
         });
@@ -687,14 +715,13 @@ class GestionFerme {
         const ancienNombre = this.operations.length;
         this.operations = this.operations.filter(op => op.id !== operationId);
         if (this.operations.length < ancienNombre) {
-            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation`);
+            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation (autre appareil)`);
         }
     }
 
     sauvegarderLocalement() {
         const data = {
             operations: this.operations,
-            // Ne plus sauvegarder suppressionsLocales
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
@@ -706,6 +733,9 @@ class GestionFerme {
         try {
             for (const operation of this.operations) {
                 try {
+                    // Marquer l'ajout comme initié localement
+                    this.ajoutsEnCours.add(operation.id);
+                    
                     const operationsFirebase = await firebaseSync.getCollection('operations');
                     const existeSurFirebase = operationsFirebase.some(op => op.id === operation.id);
                     
@@ -714,8 +744,15 @@ class GestionFerme {
                     } else {
                         await firebaseSync.updateDocument('operations', operation.id, operation);
                     }
+                    
+                    // Retirer après un délai
+                    setTimeout(() => {
+                        this.ajoutsEnCours.delete(operation.id);
+                    }, 5000);
+                    
                 } catch (error) {
                     console.error(`❌ Erreur synchro ${operation.id}:`, error);
+                    this.ajoutsEnCours.delete(operation.id);
                 }
             }
         } catch (error) {
@@ -744,6 +781,9 @@ class GestionFerme {
         if (!operationASupprimer) return;
         
         try {
+            // Marquer cette suppression comme initiée localement
+            this.suppressionsEnCours.add(operationId);
+            
             // 1. D'ABORD supprimer de Firebase
             if (window.firebaseSync) {
                 await firebaseSync.deleteDocument('operations', operationId);
@@ -757,8 +797,16 @@ class GestionFerme {
             this.mettreAJourAffichage();
             this.afficherMessageSucces('Opération supprimée');
             
+            // Retirer du set après un délai pour laisser la synchro se faire
+            setTimeout(() => {
+                this.suppressionsEnCours.delete(operationId);
+                console.log(`🧹 Suppression ${operationId} retirée de la liste des suppressions en cours`);
+            }, 5000);
+            
         } catch (error) {
             console.error(`❌ Erreur suppression:`, error);
+            // En cas d'erreur, retirer immédiatement
+            this.suppressionsEnCours.delete(operationId);
             alert('Erreur lors de la suppression. Vérifiez votre connexion.');
         }
     }
@@ -769,6 +817,11 @@ class GestionFerme {
         if (!confirm(`Supprimer ${this.selectedOperations.size} opération(s) ?`)) return;
         
         try {
+            // Marquer toutes les suppressions comme initiées localement
+            this.selectedOperations.forEach(opId => {
+                this.suppressionsEnCours.add(opId);
+            });
+            
             // Supprimer de Firebase d'abord
             if (window.firebaseSync) {
                 for (const opId of this.selectedOperations) {
@@ -785,13 +838,26 @@ class GestionFerme {
             this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
             
             this.sauvegarderLocalement();
+            
+            // Retirer les suppressions de la liste après un délai
+            setTimeout(() => {
+                this.selectedOperations.forEach(opId => {
+                    this.suppressionsEnCours.delete(opId);
+                });
+                console.log(`🧹 ${this.selectedOperations.size} suppressions retirées de la liste`);
+            }, 5000);
+            
             this.selectedOperations.clear();
             this.toggleEditMode(false);
             this.mettreAJourAffichage();
-            this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s)`);
+            this.afficherMessageSucces('Opérations supprimées');
             
         } catch (error) {
             console.error('❌ Erreur suppression multiple:', error);
+            // En cas d'erreur, retirer immédiatement
+            this.selectedOperations.forEach(opId => {
+                this.suppressionsEnCours.delete(opId);
+            });
             alert('Erreur lors de la suppression. Vérifiez votre connexion.');
         }
     }
@@ -1018,15 +1084,29 @@ class GestionFerme {
             }];
         }
 
+        // Marquer les ajouts comme initiés localement
+        operationsACreer.forEach(op => {
+            this.ajoutsEnCours.add(op.id);
+        });
+
         for (const op of operationsACreer) {
             this.operations.unshift(op);
         }
 
         await this.sauvegarderDonnees();
         this.afficherMessageSucces('Opération enregistrée !');
+        
+        // Retirer les ajouts de la liste après un délai
+        setTimeout(() => {
+            operationsACreer.forEach(op => {
+                this.ajoutsEnCours.delete(op.id);
+            });
+        }, 5000);
+        
         this.resetForm();
         this.mettreAJourAffichage();
     }
+
     resetForm() {
         const saisieForm = document.getElementById('saisieForm');
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -1088,4 +1168,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
-   
