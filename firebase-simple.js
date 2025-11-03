@@ -1,4 +1,4 @@
-// firebase-simple.js - Configuration Firebase avec synchronisation automatique
+// firebase-simple.js - Configuration Firebase avec synchronisation automatique CORRIGÉE
 console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
 
 // Configuration Firebase
@@ -125,9 +125,19 @@ class FirebaseSync {
             case 'delete':
                 // Marquer la suppression comme en cours pour éviter les boucles
                 this.suppressionsEnCours.add(id);
-                const result = await db.collection(collection).doc(id.toString()).delete();
-                this.suppressionsEnCours.delete(id);
-                return result;
+                try {
+                    const result = await db.collection(collection).doc(id.toString()).delete();
+                    console.log(`✅ Suppression Firebase réussie: ${id}`);
+                    return result;
+                } catch (error) {
+                    console.error(`❌ Erreur suppression Firebase ${id}:`, error);
+                    throw error;
+                } finally {
+                    // Retirer après un délai
+                    setTimeout(() => {
+                        this.suppressionsEnCours.delete(id);
+                    }, 3000);
+                }
             default:
                 throw new Error(`Type inconnu: ${type}`);
         }
