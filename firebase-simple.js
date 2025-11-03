@@ -199,14 +199,30 @@ class FirebaseSync {
             });
     }
 
-    async addDocument(collectionName, data) {
-        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
-        return this.addOperation({
+   async addDocument(collectionName, data) {
+    console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
+    
+    if (this.isOnline && db) {
+        try {
+            // Firebase génère automatiquement l'ID
+            const docRef = await db.collection(collectionName).add(data);
+            console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
+            return docRef; // Retourner la référence avec l'ID
+        } catch (error) {
+            console.error('❌ Erreur ajout document:', error);
+            throw error;
+        }
+    } else {
+        this.pendingOperations.push({
             type: 'add',
             collection: collectionName,
             data: data
         });
+        console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
+        // Retourner une promesse résolue avec un ID temporaire
+        return Promise.resolve({ id: 'pending_' + Date.now() });
     }
+}
 
     async updateDocument(collectionName, id, data) {
         console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
@@ -245,3 +261,4 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
 });
+
