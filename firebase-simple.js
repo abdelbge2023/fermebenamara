@@ -1,5 +1,5 @@
-// firebase-simple.js - Configuration Firebase avec synchronisation automatique CORRIGÉE
-console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
+// firebase-simple.js - Configuration Firebase avec Authentification
+console.log('🔧 Chargement de Firebase Simple - Authentification + Synchronisation');
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -13,8 +13,10 @@ const firebaseConfig = {
 
 // Variables globales
 let db;
+let auth;
 let firebaseInitialized = false;
 let firebaseSync;
+let currentUser = null;
 
 // Fonction d'initialisation Firebase
 function initializeFirebase() {
@@ -22,8 +24,9 @@ function initializeFirebase() {
         if (typeof firebase !== 'undefined' && !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
+            auth = firebase.auth();
             
-            // Configuration avec merge: true pour éviter l'erreur
+            // Configuration Firestore
             db.settings({
                 cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
                 merge: true
@@ -45,14 +48,17 @@ function initializeFirebase() {
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
             window.firebaseDb = db;
+            window.firebaseAuth = auth;
             
         } else if (firebase.apps.length > 0) {
             db = firebase.firestore();
+            auth = firebase.auth();
             firebaseInitialized = true;
             console.log('ℹ️ Firebase déjà initialisé');
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
             window.firebaseDb = db;
+            window.firebaseAuth = auth;
         }
     } catch (error) {
         console.error('❌ Erreur initialisation Firebase:', error);
@@ -64,7 +70,7 @@ class FirebaseSync {
     constructor() {
         this.isOnline = navigator.onLine;
         this.pendingOperations = [];
-        this.suppressionsEnCours = new Set(); // Pour éviter les boucles de suppression
+        this.suppressionsEnCours = new Set();
         console.log('🔄 FirebaseSync créé');
         
         if (db) {
@@ -123,7 +129,6 @@ class FirebaseSync {
             case 'update':
                 return await db.collection(collection).doc(id.toString()).update(data);
             case 'delete':
-                // Marquer la suppression comme en cours pour éviter les boucles
                 this.suppressionsEnCours.add(id);
                 try {
                     const result = await db.collection(collection).doc(id.toString()).delete();
@@ -133,7 +138,6 @@ class FirebaseSync {
                     console.error(`❌ Erreur suppression Firebase ${id}:`, error);
                     throw error;
                 } finally {
-                    // Retirer après un délai
                     setTimeout(() => {
                         this.suppressionsEnCours.delete(id);
                     }, 3000);
@@ -199,30 +203,28 @@ class FirebaseSync {
             });
     }
 
-   async addDocument(collectionName, data) {
-    console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
-    
-    if (this.isOnline && db) {
-        try {
-            // Firebase génère automatiquement l'ID
-            const docRef = await db.collection(collectionName).add(data);
-            console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
-            return docRef; // Retourner la référence avec l'ID
-        } catch (error) {
-            console.error('❌ Erreur ajout document:', error);
-            throw error;
+    async addDocument(collectionName, data) {
+        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
+        
+        if (this.isOnline && db) {
+            try {
+                const docRef = await db.collection(collectionName).add(data);
+                console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
+                return docRef;
+            } catch (error) {
+                console.error('❌ Erreur ajout document:', error);
+                throw error;
+            }
+        } else {
+            this.pendingOperations.push({
+                type: 'add',
+                collection: collectionName,
+                data: data
+            });
+            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
+            return Promise.resolve({ id: 'pending_' + Date.now() });
         }
-    } else {
-        this.pendingOperations.push({
-            type: 'add',
-            collection: collectionName,
-            data: data
-        });
-        console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
-        // Retourner une promesse résolue avec un ID temporaire
-        return Promise.resolve({ id: 'pending_' + Date.now() });
     }
-}
 
     async updateDocument(collectionName, id, data) {
         console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
@@ -235,7 +237,6 @@ class FirebaseSync {
     }
 
     async deleteDocument(collectionName, id) {
-        // Vérifier si la suppression n'est pas déjà en cours (éviter les boucles)
         if (this.suppressionsEnCours.has(id)) {
             console.log(`⏳ Suppression ${id} déjà en cours, ignorée`);
             return Promise.resolve();
@@ -250,9 +251,82 @@ class FirebaseSync {
         });
     }
 
-    // Méthode pour vérifier si une suppression est en cours
     isSuppressionEnCours(id) {
         return this.suppressionsEnCours.has(id);
+    }
+}
+
+// Gestion de l'authentification
+class AuthManager {
+    constructor() {
+        this.currentUser = null;
+        this.init();
+    }
+
+    init() {
+        // Écouter les changements d'état d'authentification
+        auth.onAuthStateChanged((user) => {
+            this.currentUser = user;
+            this.handleAuthStateChange(user);
+        });
+    }
+
+    handleAuthStateChange(user) {
+        const authSection = document.getElementById('authSection');
+        const appSection = document.getElementById('appSection');
+        const userEmail = document.getElementById('userEmail');
+
+        if (user) {
+            // Utilisateur connecté
+            console.log('✅ Utilisateur connecté:', user.email);
+            currentUser = user;
+            
+            if (authSection) authSection.style.display = 'none';
+            if (appSection) appSection.style.display = 'block';
+            if (userEmail) userEmail.textContent = user.email;
+            
+            // Initialiser l'application
+            if (window.app) {
+                window.app.init();
+            }
+        } else {
+            // Utilisateur déconnecté
+            console.log('🚪 Utilisateur déconnecté');
+            currentUser = null;
+            
+            if (authSection) authSection.style.display = 'block';
+            if (appSection) appSection.style.display = 'none';
+        }
+    }
+
+    async login(email, password) {
+        try {
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            console.log('✅ Connexion réussie:', userCredential.user.email);
+            return { success: true, user: userCredential.user };
+        } catch (error) {
+            console.error('❌ Erreur connexion:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async logout() {
+        try {
+            await auth.signOut();
+            console.log('✅ Déconnexion réussie');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Erreur déconnexion:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    getCurrentUser() {
+        return this.currentUser;
+    }
+
+    isAuthenticated() {
+        return this.currentUser !== null;
     }
 }
 
@@ -260,5 +334,7 @@ class FirebaseSync {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
+    
+    // Initialiser le gestionnaire d'authentification
+    window.authManager = new AuthManager();
 });
-
