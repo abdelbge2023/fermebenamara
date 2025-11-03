@@ -34,31 +34,27 @@ class GestionFerme {
     }
 
     // Méthode pour attendre que Firebase soit disponible
-    // Méthode pour attendre que Firebase soit disponible
-    async attendreFirebase() {
-        return new Promise((resolve) => {
-            const verifierFirebase = () => {
-                // Vérification plus simple et robuste
-                if (window.firebaseSync) {
-                    console.log('✅ FirebaseSync est disponible');
-                    this.firebaseInitialized = true;
-                    resolve();
+  async attendreFirebase() {
+    return new Promise((resolve) => {
+        const verifierFirebase = () => {
+            if (window.firebaseSync || window.firebasesync) {
+                console.log('✅ FirebaseSync est disponible');
+                this.firebaseInitialized = true;
+                resolve();
+            } else {
+                this.attenteFirebase++;
+                console.log(`⏳ Attente de FirebaseSync... (${this.attenteFirebase})`);
+                if (this.attenteFirebase < 10) {
+                    setTimeout(verifierFirebase, 1000);
                 } else {
-                    this.attenteFirebase++;
-                    console.log(`⏳ Attente de FirebaseSync... (${this.attenteFirebase})`);
-                    if (this.attenteFirebase < 10) {
-                        setTimeout(verifierFirebase, 1000);
-                    } else {
-                        console.error('❌ FirebaseSync non disponible après 10 tentatives');
-                        this.afficherMessageSucces('⚠️ Mode hors ligne activé');
-                        resolve();
-                    }
+                    console.log('⚠️ Mode hors ligne activé');
+                    resolve();
                 }
-            };
-            verifierFirebase();
-        });
-    }
-
+            }
+        };
+        verifierFirebase();
+    });
+}
     setupEventListeners() {
         console.log('🔧 Configuration des écouteurs d\'événements...');
         
@@ -1251,4 +1247,5 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
 
