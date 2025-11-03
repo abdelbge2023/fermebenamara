@@ -637,3 +637,54 @@ tr:hover .operation-actions {
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
+/* Styles pour les totaux par vue */
+.vue-header {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3498db;
+}
+
+.vue-header h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 1.4em;
+}
+
+.totals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.total-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+}
+
+.total-label {
+    display: block;
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.total-value {
+    display: block;
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+.total-value.positive {
+    color: #27ae60;
+}
+
+.total-value.negative {
+    color: #e74c3c;
+}
