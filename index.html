@@ -5,86 +5,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ferme Ben Amara - Gestion</title>
     <style>
-        /* Styles existants conservés */
+        /* Styles généraux */
         body { 
             font-family: Arial, sans-serif; 
             margin: 0; 
             padding: 20px; 
-            background-color: #f5f5f5; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
         .container { 
             max-width: 1200px; 
             margin: 0 auto; 
             background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
         }
         
-        /* Styles pour la connexion */
+        /* Styles connexion */
         .login-container {
             max-width: 400px;
-            margin: 100px auto;
-            padding: 30px;
+            margin: 50px auto;
+            padding: 40px;
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
         }
         .login-form input {
             width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .login-form input:focus {
+            border-color: #4CAF50;
+            outline: none;
         }
         .login-form button {
             width: 100%;
-            padding: 12px;
+            padding: 15px;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .login-form button:hover {
+            background: #45a049;
         }
         
-        /* Styles pour les opérations */
+        /* Styles opérations */
         .operation {
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+        .operation:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         .operation h4 {
             margin: 0 0 10px 0;
-            color: #333;
+            color: #2c3e50;
+            font-size: 1.2em;
         }
         .operation p {
-            margin: 5px 0;
-            color: #666;
+            margin: 10px 0;
+            color: #6c757d;
+            line-height: 1.5;
         }
+        
+        /* Boutons */
         .btn {
-            padding: 8px 15px;
+            padding: 10px 20px;
             margin: 5px;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
         }
-        .btn-editer { background: #2196F3; color: white; }
-        .btn-supprimer { background: #f44336; color: white; }
-        .btn-creer { background: #4CAF50; color: white; }
-        .btn-deconnexion { background: #ff9800; color: white; }
+        .btn-editer { 
+            background: #2196F3; 
+            color: white; 
+        }
+        .btn-editer:hover { background: #1976d2; }
+        .btn-supprimer { 
+            background: #f44336; 
+            color: white; 
+        }
+        .btn-supprimer:hover { background: #d32f2f; }
+        .btn-creer { 
+            background: #4CAF50; 
+            color: white; 
+        }
+        .btn-creer:hover { background: #45a049; }
+        .btn-deconnexion { 
+            background: #ff9800; 
+            color: white; 
+        }
+        .btn-deconnexion:hover { background: #f57c00; }
         
         /* Panel admin */
         .admin-panel {
-            background: #e3f2fd;
-            border-left: 4px solid #2196F3;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 4px;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-left: 5px solid #2196F3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
         }
         
         /* Modal */
@@ -97,70 +137,107 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
         }
         .modal-content {
             background-color: white;
             margin: 10% auto;
-            padding: 20px;
+            padding: 30px;
             width: 90%;
             max-width: 500px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            animation: modalAppear 0.3s ease-out;
+        }
+        @keyframes modalAppear {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
         .modal input, .modal textarea {
             width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
             box-sizing: border-box;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .modal input:focus, .modal textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
         }
         .modal button {
-            padding: 10px 20px;
-            margin: 5px;
+            padding: 12px 25px;
+            margin: 10px 5px 0 0;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
         }
         
         /* Header */
         .user-header {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
         }
         .user-info {
             flex-grow: 1;
         }
+        .user-info h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.8em;
+        }
         
-        /* Cacher les sections au début */
+        /* Comptes test */
+        .test-accounts {
+            background: #fff3cd;
+            border: 2px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 25px;
+            text-align: left;
+        }
+        
+        /* États */
         #interface-principale { display: none; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <!-- Écran de connexion -->
     <div id="ecran-connexion">
         <div class="login-container">
-            <h2 style="text-align: center; color: #333;">🔐 Connexion Ferme Ben Amara</h2>
+            <div style="font-size: 3em; margin-bottom: 20px;">🔐</div>
+            <h2 style="text-align: center; color: #2c3e50; margin-bottom: 10px;">Ferme Ben Amara</h2>
+            <p style="color: #6c757d; margin-bottom: 30px;">Système de gestion des opérations</p>
+            
             <form id="form-connexion" class="login-form">
                 <div>
-                    <label>Identifiant:</label>
-                    <input type="text" id="identifiant" placeholder="admin ou operateur1" required>
+                    <input type="text" id="identifiant" placeholder="Votre identifiant" required>
                 </div>
                 <div>
-                    <label>Mot de passe:</label>
                     <input type="password" id="motdepasse" placeholder="Votre mot de passe" required>
                 </div>
                 <button type="submit">Se connecter</button>
             </form>
-            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 4px;">
-                <strong>Comptes de test:</strong><br>
-                Admin: admin / admin123<br>
-                Opérateur: operateur1 / op123
+            
+            <div class="test-accounts">
+                <strong>🎯 Comptes de test :</strong><br><br>
+                <strong>Administrateur :</strong><br>
+                Identifiant: <code>admin</code><br>
+                Mot de passe: <code>admin123</code><br><br>
+                <strong>Opérateur :</strong><br>
+                Identifiant: <code>operateur1</code><br>
+                Mot de passe: <code>op123</code>
             </div>
         </div>
     </div>
@@ -170,59 +247,421 @@
         <!-- En-tête utilisateur -->
         <div class="user-header">
             <div class="user-info">
-                <h2 style="margin: 0; color: #333;">🏭 Ferme Ben Amara - Gestion des Opérations</h2>
-                <div id="info-utilisateur" style="color: #666;"></div>
+                <h2>🏭 Ferme Ben Amara</h2>
+                <div id="info-utilisateur" style="font-size: 1.1em;"></div>
             </div>
-            <button id="btn-deconnexion" class="btn btn-deconnexion">Déconnexion</button>
+            <button id="btn-deconnexion" class="btn btn-deconnexion">🚪 Déconnexion</button>
         </div>
 
         <!-- Panel administrateur -->
-        <div id="panel-admin" class="admin-panel" style="display: none;">
-            <h3 style="margin: 0; color: #1976d2;">🏗️ Mode Administrateur</h3>
-            <p style="margin: 10px 0; color: #555;">Vous pouvez voir et gérer toutes les opérations</p>
-            <button id="btn-voir-tout" class="btn btn-creer">Voir toutes les opérations</button>
+        <div id="panel-admin" class="admin-panel hidden">
+            <h3 style="margin: 0 0 15px 0; color: #1976d2;">🏗️ Mode Administrateur</h3>
+            <p style="margin: 0 0 20px 0; color: #555;">Vous avez accès à toutes les opérations de la ferme</p>
+            <button id="btn-voir-tout" class="btn btn-creer">👁️ Voir toutes les opérations</button>
         </div>
 
         <!-- Panel opérateur -->
         <div id="panel-operateur">
-            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #333;">👤 Mes Opérations</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3 style="margin: 0; color: #2c3e50; font-size: 1.5em;">👤 Mes Opérations</h3>
                 <button id="btn-creer-operation" class="btn btn-creer">➕ Créer une opération</button>
             </div>
         </div>
 
         <!-- Liste des opérations -->
         <div id="liste-operations">
-            <!-- Les opérations s'afficheront ici -->
+            <div style="text-align: center; padding: 40px; color: #6c757d;">
+                <div style="font-size: 4em; margin-bottom: 20px;">📋</div>
+                <h3>Aucune opération pour le moment</h3>
+                <p>Créez votre première opération en cliquant sur le bouton ci-dessus</p>
+            </div>
         </div>
     </div>
 
     <!-- Modal pour créer/modifier les opérations -->
     <div id="modal-operation" class="modal">
         <div class="modal-content">
-            <h3 id="titre-modal" style="margin-top: 0;">Créer une opération</h3>
+            <h3 id="titre-modal" style="margin-top: 0; color: #2c3e50;">Créer une opération</h3>
             <form id="form-operation">
                 <div>
-                    <label>Nom de l'opération:</label>
+                    <label style="font-weight: bold; color: #555;">Nom de l'opération:</label>
                     <input type="text" id="input-nom" placeholder="Ex: Récolte de blé, Soins aux animaux..." required>
                 </div>
                 <div>
-                    <label>Description:</label>
+                    <label style="font-weight: bold; color: #555;">Description:</label>
                     <textarea id="input-description" placeholder="Détails de l'opération..." required rows="4"></textarea>
                 </div>
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white;">Annuler</button>
-                    <button type="submit" style="background: #4CAF50; color: white;">Enregistrer</button>
+                <div style="text-align: right; margin-top: 25px;">
+                    <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white;">❌ Annuler</button>
+                    <button type="submit" style="background: #4CAF50; color: white;">💾 Enregistrer</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Firebase -->
+    <!-- Firebase + JavaScript -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     
-    <script src="app.js"></script>
+    <script>
+        // Configuration Firebase - À MODIFIER AVEC VOS CLÉS
+        const firebaseConfig = {
+            apiKey: "AIzaSyCLaR4eJ3VvqKdLqJqY9V8X8WZ8X8WZ8X8",
+            authDomain: "ferme-ben-amara.firebaseapp.com",
+            projectId: "ferme-ben-amara",
+            storageBucket: "ferme-ben-amara.firebasestorage.app",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456"
+        };
+
+        // Initialisation Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log('✅ Firebase initialisé avec succès');
+        } catch (error) {
+            console.error('❌ Erreur initialisation Firebase:', error);
+        }
+
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        class GestionFerme {
+            constructor() {
+                this.utilisateur = null;
+                this.estAdmin = false;
+                this.operationEditId = null;
+                this.initialiser();
+            }
+
+            initialiser() {
+                this.initialiserAuth();
+                this.initialiserEcouteurs();
+            }
+
+            initialiserAuth() {
+                auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        console.log('✅ Utilisateur connecté:', user.email);
+                        this.utilisateur = user;
+                        this.verifierAdmin();
+                        this.afficherInterface();
+                    } else {
+                        console.log('🔒 Aucun utilisateur connecté');
+                        this.cacherInterface();
+                    }
+                });
+            }
+
+            verifierAdmin() {
+                const admins = ['admin@fermebenamara.com', 'admin@ferme.com', 'administrateur@fermebenamara.com'];
+                this.estAdmin = admins.includes(this.utilisateur.email);
+                console.log('👤 Statut admin:', this.estAdmin);
+            }
+
+            initialiserEcouteurs() {
+                document.getElementById('form-connexion').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.connexion();
+                });
+
+                document.getElementById('btn-deconnexion').addEventListener('click', () => {
+                    this.deconnexion();
+                });
+
+                document.getElementById('btn-creer-operation').addEventListener('click', () => {
+                    this.ouvrirModalCreation();
+                });
+
+                document.getElementById('btn-voir-tout').addEventListener('click', () => {
+                    this.chargerToutesOperations();
+                });
+
+                document.getElementById('form-operation').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.enregistrerOperation();
+                });
+
+                document.getElementById('modal-operation').addEventListener('click', (e) => {
+                    if (e.target.id === 'modal-operation') {
+                        this.fermerModal();
+                    }
+                });
+            }
+
+            async connexion() {
+                const identifiant = document.getElementById('identifiant').value.trim();
+                const motdepasse = document.getElementById('motdepasse').value;
+
+                if (!identifiant || !motdepasse) {
+                    this.afficherMessage('Veuillez remplir tous les champs', 'error');
+                    return;
+                }
+
+                const email = this.formatEmail(identifiant);
+
+                try {
+                    await auth.signInWithEmailAndPassword(email, motdepasse);
+                    this.afficherMessage('Connexion réussie !');
+                } catch (error) {
+                    console.error('Erreur connexion:', error);
+                    this.afficherMessage('Erreur de connexion: ' + error.message, 'error');
+                }
+            }
+
+            formatEmail(identifiant) {
+                if (!identifiant.includes('@')) {
+                    return identifiant + '@fermebenamara.com';
+                }
+                return identifiant;
+            }
+
+            deconnexion() {
+                auth.signOut();
+                this.afficherMessage('Déconnexion réussie');
+            }
+
+            afficherInterface() {
+                document.getElementById('ecran-connexion').style.display = 'none';
+                document.getElementById('interface-principale').style.display = 'block';
+                
+                const info = document.getElementById('info-utilisateur');
+                const role = this.estAdmin ? '👑 Administrateur' : '👤 Opérateur';
+                info.innerHTML = `Connecté en tant que: <strong>${this.utilisateur.email}</strong> | Rôle: <strong>${role}</strong>`;
+                
+                document.getElementById('panel-admin').style.display = this.estAdmin ? 'block' : 'none';
+                this.chargerOperations();
+            }
+
+            cacherInterface() {
+                document.getElementById('ecran-connexion').style.display = 'block';
+                document.getElementById('interface-principale').style.display = 'none';
+                document.getElementById('form-connexion').reset();
+            }
+
+            ouvrirModalCreation(operation = null) {
+                const modal = document.getElementById('modal-operation');
+                const titre = document.getElementById('titre-modal');
+
+                if (operation) {
+                    titre.textContent = '✏️ Modifier l\'opération';
+                    document.getElementById('input-nom').value = operation.nom;
+                    document.getElementById('input-description').value = operation.description;
+                    this.operationEditId = operation.id;
+                } else {
+                    titre.textContent = '➕ Créer une opération';
+                    document.getElementById('input-nom').value = '';
+                    document.getElementById('input-description').value = '';
+                    this.operationEditId = null;
+                }
+
+                modal.style.display = 'block';
+            }
+
+            fermerModal() {
+                document.getElementById('modal-operation').style.display = 'none';
+                this.operationEditId = null;
+            }
+
+            async enregistrerOperation() {
+                const nom = document.getElementById('input-nom').value.trim();
+                const description = document.getElementById('input-description').value.trim();
+
+                if (!nom || !description) {
+                    this.afficherMessage('Veuillez remplir tous les champs', 'error');
+                    return;
+                }
+
+                try {
+                    if (this.operationEditId) {
+                        await db.collection('operations').doc(this.operationEditId).update({
+                            nom: nom,
+                            description: description,
+                            dateModification: new Date()
+                        });
+                        this.afficherMessage('Opération modifiée avec succès !');
+                    } else {
+                        await db.collection('operations').add({
+                            nom: nom,
+                            description: description,
+                            createurId: this.utilisateur.uid,
+                            createurEmail: this.utilisateur.email,
+                            dateCreation: new Date(),
+                            dateModification: new Date()
+                        });
+                        this.afficherMessage('Opération créée avec succès !');
+                    }
+
+                    this.fermerModal();
+                    this.chargerOperations();
+                } catch (error) {
+                    console.error('Erreur enregistrement:', error);
+                    this.afficherMessage('Erreur lors de l\'enregistrement', 'error');
+                }
+            }
+
+            async chargerMesOperations() {
+                try {
+                    const snapshot = await db.collection('operations')
+                        .where('createurId', '==', this.utilisateur.uid)
+                        .orderBy('dateCreation', 'desc')
+                        .get();
+                    
+                    this.afficherOperations(snapshot);
+                } catch (error) {
+                    console.error('Erreur chargement opérations:', error);
+                    this.afficherMessage('Aucune opération trouvée', 'info');
+                }
+            }
+
+            async chargerToutesOperations() {
+                try {
+                    const snapshot = await db.collection('operations')
+                        .orderBy('dateCreation', 'desc')
+                        .get();
+                    
+                    this.afficherOperations(snapshot);
+                } catch (error) {
+                    console.error('Erreur chargement opérations:', error);
+                    this.afficherMessage('Aucune opération trouvée', 'info');
+                }
+            }
+
+            afficherOperations(snapshot) {
+                const container = document.getElementById('liste-operations');
+                
+                if (snapshot.empty) {
+                    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #6c757d;"><div style="font-size: 4em; margin-bottom: 20px;">📋</div><h3>Aucune opération pour le moment</h3><p>Créez votre première opération en cliquant sur le bouton ci-dessus</p></div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const operation = doc.data();
+                    const element = this.creerElementOperation(operation, doc.id);
+                    container.appendChild(element);
+                });
+            }
+
+            creerElementOperation(operation, operationId) {
+                const div = document.createElement('div');
+                div.className = 'operation';
+                
+                const dateCreation = operation.dateCreation ? 
+                    operation.dateCreation.toDate().toLocaleDateString('fr-FR') : 'Date inconnue';
+                
+                div.innerHTML = `
+                    <h4>${operation.nom}</h4>
+                    <p>${operation.description}</p>
+                    <small style="color: #666;">
+                        Créé par: ${operation.createurEmail} • 
+                        Date: ${dateCreation}
+                        ${this.estAdmin ? '• ID: ' + operationId.substring(0, 8) + '...' : ''}
+                    </small>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-editer" data-id="${operationId}">✏️ Éditer</button>
+                        <button class="btn btn-supprimer" data-id="${operationId}">🗑️ Supprimer</button>
+                    </div>
+                `;
+
+                div.querySelector('.btn-editer').addEventListener('click', () => {
+                    this.editerOperation(operationId);
+                });
+
+                div.querySelector('.btn-supprimer').addEventListener('click', () => {
+                    this.supprimerOperation(operationId);
+                });
+
+                return div;
+            }
+
+            async editerOperation(operationId) {
+                try {
+                    const doc = await db.collection('operations').doc(operationId).get();
+                    if (doc.exists) {
+                        const operation = doc.data();
+                        
+                        if (!this.estAdmin && operation.createurId !== this.utilisateur.uid) {
+                            this.afficherMessage('Vous ne pouvez éditer que vos propres opérations', 'error');
+                            return;
+                        }
+
+                        this.ouvrirModalCreation({...operation, id: operationId});
+                    }
+                } catch (error) {
+                    console.error('Erreur édition:', error);
+                    this.afficherMessage('Erreur lors de l\'édition', 'error');
+                }
+            }
+
+            async supprimerOperation(operationId) {
+                try {
+                    const doc = await db.collection('operations').doc(operationId).get();
+                    if (doc.exists) {
+                        const operation = doc.data();
+                        
+                        if (!this.estAdmin && operation.createurId !== this.utilisateur.uid) {
+                            this.afficherMessage('Vous ne pouvez supprimer que vos propres opérations', 'error');
+                            return;
+                        }
+
+                        if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+                            await db.collection('operations').doc(operationId).delete();
+                            this.afficherMessage('Opération supprimée avec succès');
+                            this.chargerOperations();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur suppression:', error);
+                    this.afficherMessage('Erreur lors de la suppression', 'error');
+                }
+            }
+
+            chargerOperations() {
+                if (this.estAdmin) {
+                    this.chargerToutesOperations();
+                } else {
+                    this.chargerMesOperations();
+                }
+            }
+
+            afficherMessage(message, type = 'success') {
+                const messageEl = document.createElement('div');
+                messageEl.textContent = message;
+                messageEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 15px 25px;
+                    border-radius: 8px;
+                    color: white;
+                    z-index: 10000;
+                    font-weight: bold;
+                    background-color: ${type === 'error' ? '#f44336' : type === 'info' ? '#2196F3' : '#4CAF50'};
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                `;
+                
+                document.body.appendChild(messageEl);
+                
+                setTimeout(() => {
+                    if (document.body.contains(messageEl)) {
+                        document.body.removeChild(messageEl);
+                    }
+                }, 4000);
+            }
+        }
+
+        function fermerModal() {
+            if (app) {
+                app.fermerModal();
+            }
+        }
+
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new GestionFerme();
+            console.log('🚀 Application Ferme Ben Amara initialisée');
+        });
+    </script>
 </body>
 </html>
