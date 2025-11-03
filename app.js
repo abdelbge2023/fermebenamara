@@ -1,4 +1,4 @@
-// app.js - Version complète corrigée avec gestion des IDs Firebase
+// app.js - Version complète avec export Excel
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -1120,6 +1120,233 @@ class GestionFerme {
             console.error('❌ Erreur ajout opération:', error);
             alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
         }
+    }
+
+    // MÉTHODES D'EXPORT EXCEL
+    async exporterVersExcel() {
+        console.log('📊 Exportation vers Excel...');
+        
+        try {
+            // Créer un workbook et une feuille
+            const wb = XLSX.utils.book_new();
+            
+            // Données pour l'export
+            const donneesExport = this.preparerDonneesPourExport();
+            
+            // Créer la feuille principale
+            const ws = XLSX.utils.json_to_sheet(donneesExport.operations);
+            XLSX.utils.book_append_sheet(wb, ws, "Operations");
+            
+            // Créer une feuille pour les soldes
+            const wsSoldes = XLSX.utils.json_to_sheet(donneesExport.soldes);
+            XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
+            
+            // Générer le fichier Excel
+            const date = new Date().toISOString().split('T')[0];
+            const nomFichier = `Gestion_Ferme_Ben_Amara_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces('Export Excel réussi !');
+            console.log('✅ Export Excel terminé');
+            
+        } catch (error) {
+            console.error('❌ Erreur export Excel:', error);
+            this.afficherMessageSucces('❌ Erreur lors de l\'export');
+        }
+    }
+
+    preparerDonneesPourExport() {
+        // Préparer les données des opérations
+        const operationsExport = this.operations.map(op => ({
+            'Date': this.formaterDate(op.date),
+            'Opérateur': this.formaterOperateur(op.operateur),
+            'Groupe': this.formaterGroupe(op.groupe),
+            'Type Opération': this.formaterTypeOperation(op.typeOperation),
+            'Type Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+            'Caisse': this.formaterCaisse(op.caisse),
+            'Description': op.description,
+            'Montant (DH)': op.montant,
+            'Montant Absolu (DH)': Math.abs(op.montant),
+            'Timestamp': op.timestamp
+        }));
+
+        // Calculer les soldes actuels
+        this.calculerSoldes();
+        const soldesExport = Object.keys(this.caisses).map(cle => ({
+            'Caisse': this.formaterCaisse(cle),
+            'Solde (DH)': this.caisses[cle]
+        }));
+
+        return {
+            operations: operationsExport,
+            soldes: soldesExport
+        };
+    }
+
+    // Méthode pour exporter par vue
+    exporterVueVersExcel() {
+        console.log(`📊 Export de la vue ${this.currentView} vers Excel...`);
+        
+        try {
+            let operationsFiltrees = [];
+            
+            // Filtrer selon la vue actuelle
+            switch(this.currentView) {
+                case 'global':
+                    operationsFiltrees = this.operations;
+                    break;
+                case 'zaitoun':
+                    operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                    break;
+                case '3commain':
+                    operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                    break;
+                case 'abdel':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                    break;
+                case 'omar':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                    break;
+                case 'hicham':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                    break;
+                case 'transferts':
+                    operationsFiltrees = this.operations.filter(op => op.transfert === true);
+                    break;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const operationsExport = operationsFiltrees.map(op => ({
+                'Date': this.formaterDate(op.date),
+                'Opérateur': this.formaterOperateur(op.operateur),
+                'Groupe': this.formaterGroupe(op.groupe),
+                'Type Opération': this.formaterTypeOperation(op.typeOperation),
+                'Type Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': this.formaterCaisse(op.caisse),
+                'Description': op.description,
+                'Montant (DH)': op.montant,
+                'Montant Absolu (DH)': Math.abs(op.montant)
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(operationsExport);
+            
+            const nomsVues = {
+                'global': 'Toutes_Operations',
+                'zaitoun': 'Zaitoun',
+                '3commain': '3_Commain',
+                'abdel': 'Abdel',
+                'omar': 'Omar',
+                'hicham': 'Hicham',
+                'transferts': 'Transferts'
+            };
+            
+            XLSX.utils.book_append_sheet(wb, ws, nomsVues[this.currentView]);
+            
+            const date = new Date().toISOString().split('T')[0];
+            const nomFichier = `Gestion_Ferme_${nomsVues[this.currentView]}_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces(`Export ${nomsVues[this.currentView]} réussi !`);
+            
+        } catch (error) {
+            console.error('❌ Erreur export vue:', error);
+            this.afficherMessageSucces('❌ Erreur lors de l\'export');
+        }
+    }
+
+    // Méthode d'export détaillé avec statistiques
+    async exporterDetailVersExcel() {
+        console.log('📊 Export détaillé vers Excel...');
+        
+        try {
+            const wb = XLSX.utils.book_new();
+            const date = new Date().toISOString().split('T')[0];
+            
+            // 1. Feuille des opérations
+            const operationsExport = this.operations.map(op => ({
+                'Date': this.formaterDate(op.date),
+                'Opérateur': this.formaterOperateur(op.operateur),
+                'Groupe': this.formaterGroupe(op.groupe),
+                'Type Opération': this.formaterTypeOperation(op.typeOperation),
+                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': this.formaterCaisse(op.caisse),
+                'Description': op.description,
+                'Montant (DH)': op.montant,
+                'Signe': op.montant >= 0 ? 'Positif' : 'Négatif'
+            }));
+            
+            const wsOps = XLSX.utils.json_to_sheet(operationsExport);
+            XLSX.utils.book_append_sheet(wb, wsOps, "Operations");
+            
+            // 2. Feuille des soldes
+            this.calculerSoldes();
+            const soldesExport = Object.keys(this.caisses).map(cle => ({
+                'Caisse': this.formaterCaisse(cle),
+                'Solde Actuel (DH)': this.caisses[cle],
+                'Statut': this.caisses[cle] >= 0 ? 'Excédent' : 'Déficit'
+            }));
+            
+            const wsSoldes = XLSX.utils.json_to_sheet(soldesExport);
+            XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
+            
+            // 3. Feuille des statistiques
+            const stats = this.calculerStatistiques();
+            const statsExport = [
+                { 'Statistique': 'Total des opérations', 'Valeur': stats.totalOperations },
+                { 'Statistique': 'Total revenus (DH)', 'Valeur': stats.totalRevenus },
+                { 'Statistique': 'Total frais (DH)', 'Valeur': stats.totalFrais },
+                { 'Statistique': 'Solde global (DH)', 'Valeur': stats.soldeGlobal },
+                { 'Statistique': 'Opérations ce mois', 'Valeur': stats.operationsCeMois },
+                { 'Statistique': 'Date export', 'Valeur': date }
+            ];
+            
+            const wsStats = XLSX.utils.json_to_sheet(statsExport);
+            XLSX.utils.book_append_sheet(wb, wsStats, "Statistiques");
+            
+            // Générer le fichier
+            const nomFichier = `Rapport_Complet_Ferme_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces('Rapport Excel généré !');
+            
+        } catch (error) {
+            console.error('❌ Erreur export détaillé:', error);
+            this.afficherMessageSucces('❌ Erreur lors de la génération du rapport');
+        }
+    }
+
+    calculerStatistiques() {
+        const totalOperations = this.operations.length;
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        
+        this.operations.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+        });
+        
+        const soldeGlobal = totalRevenus - totalFrais;
+        
+        // Opérations du mois en cours
+        const maintenant = new Date();
+        const moisEnCours = maintenant.getMonth();
+        const anneeEnCours = maintenant.getFullYear();
+        
+        const operationsCeMois = this.operations.filter(op => {
+            const dateOp = new Date(op.date);
+            return dateOp.getMonth() === moisEnCours && dateOp.getFullYear() === anneeEnCours;
+        }).length;
+        
+        return {
+            totalOperations,
+            totalRevenus,
+            totalFrais,
+            soldeGlobal,
+            operationsCeMois
+        };
     }
 
     resetForm() {
