@@ -1,16 +1,4 @@
-// Gestion globale des erreurs
-window.addEventListener('error', function(e) {
-    console.error('💥 ERREUR GLOBALE:', e.error);
-    console.error('📄 Fichier:', e.filename);
-    console.error('📏 Ligne:', e.lineno);
-    console.error('🔍 Colonne:', e.colno);
-});
-
-// Gestion des promesses rejetées
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('💥 PROMESSE REJETÉE:', e.reason);
-});
-// app.js - Version complète avec chargement Firebase corrigé
+// app.js - Version complète avec réinitialisation
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -25,19 +13,12 @@ class GestionFerme {
         this.firebaseInitialized = false;
         this.synchronisationEnCours = false;
         this.suppressionsLocales = new Set();
-        this.suppressionsEnAttente = new Set();
-        this.attenteFirebase = 0;
 
         this.init();
     }
 
     async init() {
-        console.log('🚀 Initialisation de l\'application...');
         this.setupEventListeners();
-        
-        // Attendre que Firebase soit prêt
-        await this.attendreFirebase();
-        
         await this.chargerDonneesAvecSynchro();
         this.setupFirebaseRealtimeListeners();
         this.updateStats();
@@ -45,55 +26,6 @@ class GestionFerme {
         console.log('✅ Application Gestion Ferme initialisée');
     }
 
-    // Méthode pour attendre que Firebase soit disponible
-  async attendreFirebase() {
-    console.log('🔍 Début attente Firebase...');
-    
-    return new Promise((resolve) => {
-        let tentatives = 0;
-        const maxTentatives = 25; // 25 tentatives
-        const interval = 400; // 400ms entre chaque tentative
-        
-        const verifier = () => {
-            tentatives++;
-            
-            // Vérifier sous différents noms possibles
-            const firebaseSync = window.firebaseSync || window.firebasesync || window.FirebaseSync;
-            
-            if (firebaseSync) {
-                console.log(`✅ FirebaseSync trouvé après ${tentatives} tentatives`);
-                this.firebaseInitialized = true;
-                
-                // Vérifier si Firebase est vraiment opérationnel
-                if (typeof firebaseSync.isInitialized === 'function') {
-                    if (firebaseSync.isInitialized()) {
-                        console.log('✅ FirebaseSync complètement initialisé');
-                    } else {
-                        console.log('⚠️ FirebaseSync présent mais pas encore initialisé');
-                    }
-                }
-                
-                resolve();
-            } else if (tentatives < maxTentatives) {
-                console.log(`⏳ Attente FirebaseSync... (${tentatives}/${maxTentatives})`);
-                setTimeout(verifier, interval);
-            } else {
-                console.log(`❌ FirebaseSync non disponible après ${maxTentatives} tentatives`);
-                console.log('🔍 État actuel:', {
-                    firebaseSync: !!window.firebaseSync,
-                    firebasesync: !!window.firebasesync,
-                    FirebaseSync: !!window.FirebaseSync,
-                    firebase: !!window.firebase
-                });
-                this.afficherMessageSucces('⚠️ Mode hors ligne activé');
-                resolve();
-            }
-        };
-        
-        // Commencer la vérification
-        verifier();
-    });
-}
     setupEventListeners() {
         console.log('🔧 Configuration des écouteurs d\'événements...');
         
@@ -452,7 +384,7 @@ class GestionFerme {
             tableHTML += `
                 <tr class="${estSelectionnee ? 'selected' : ''}">
                     ${this.editMode ? 
-                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} data-opid="${op.id}"></td>` 
+                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection(${op.id})"></td>` 
                         : ''}
                     <td>${this.formaterDate(op.date)}</td>
                     <td>${this.formaterOperateur(op.operateur)}</td>
@@ -488,7 +420,7 @@ class GestionFerme {
                     const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
                     checkboxes.forEach(checkbox => {
                         checkbox.checked = e.target.checked;
-                        const opId = parseInt(checkbox.getAttribute('data-opid'));
+                        const opId = parseInt(checkbox.getAttribute('onchange').match(/\d+/)[0]);
                         if (e.target.checked) {
                             this.selectedOperations.add(opId);
                         } else {
@@ -497,15 +429,6 @@ class GestionFerme {
                     });
                 });
             }
-
-            // Ajouter les écouteurs d'événements pour les cases à cocher individuelles
-            const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    const opId = parseInt(e.target.getAttribute('data-opid'));
-                    this.toggleOperationSelection(opId);
-                });
-            });
         }
         
         this.updateStats();
@@ -539,7 +462,7 @@ class GestionFerme {
                 // Supprimer chaque opération
                 for (const op of operationsFirebase) {
                     try {
-                        await firebaseSync.deleteDocument('operations', op.id.toString());
+                        await firebaseSync.deleteDocument('operations', op.id);
                         console.log(`✅ Supprimé: ${op.id}`);
                     } catch (error) {
                         console.error(`❌ Erreur suppression ${op.id}:`, error);
@@ -554,7 +477,6 @@ class GestionFerme {
             // 3. Réinitialiser les données locales
             this.operations = [];
             this.suppressionsLocales.clear();
-            this.suppressionsEnAttente.clear();
             this.selectedOperations.clear();
             this.caisseSelectionnee = null;
             this.currentView = 'global';
@@ -594,7 +516,6 @@ class GestionFerme {
         // Réinitialiser les variables
         this.operations = [];
         this.suppressionsLocales.clear();
-        this.suppressionsEnAttente.clear();
         this.selectedOperations.clear();
         this.caisseSelectionnee = null;
         
@@ -617,12 +538,7 @@ class GestionFerme {
         console.log('📥 Chargement automatique des données...');
         
         this.chargerDepuisLocalStorage();
-        
-        if (this.firebaseInitialized) {
-            await this.synchroniserAvecFirebase();
-        } else {
-            console.log('⚠️ Firebase non disponible, utilisation des données locales uniquement');
-        }
+        await this.synchroniserAvecFirebase();
         
         console.log(`📁 ${this.operations.length} opérations chargées`);
     }
@@ -634,24 +550,20 @@ class GestionFerme {
                 const data = JSON.parse(saved);
                 this.operations = data.operations || [];
                 this.suppressionsLocales = new Set(data.suppressionsLocales || []);
-                this.suppressionsEnAttente = new Set(data.suppressionsEnAttente || []);
                 console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
                 console.log(`🚫 ${this.suppressionsLocales.size} suppressions locales chargées`);
-                console.log(`⏳ ${this.suppressionsEnAttente.size} suppressions en attente chargées`);
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
                 this.operations = [];
                 this.suppressionsLocales = new Set();
-                this.suppressionsEnAttente = new Set();
             }
-        } else {
-            console.log('💾 Aucune donnée locale trouvée');
         }
     }
 
     async synchroniserAvecFirebase() {
-        if (!window.firebaseSync || !this.firebaseInitialized) {
-            console.log('⏳ Firebase non disponible pour la synchronisation');
+        if (!window.firebaseSync) {
+            console.log('⏳ Attente de FirebaseSync...');
+            setTimeout(() => this.synchroniserAvecFirebase(), 2000);
             return;
         }
 
@@ -659,19 +571,15 @@ class GestionFerme {
         this.synchronisationEnCours = true;
 
         try {
-            console.log('🔄 Début de la synchronisation avec Firebase...');
             const operationsFirebase = await firebaseSync.getCollection('operations');
             
             if (operationsFirebase && operationsFirebase.length > 0) {
-                console.log(`📡 ${operationsFirebase.length} opérations trouvées sur Firebase`);
+                console.log(`📡 ${operationsFirebase.length} opérations sur Firebase`);
                 
                 let nouvellesOperations = 0;
                 let operationsIgnorees = 0;
-                let operationsDejaExistantes = 0;
 
-                // PHASE 1: Ajouter les nouvelles opérations de Firebase
                 operationsFirebase.forEach(opFirebase => {
-                    // Vérifier si l'opération a été supprimée localement
                     if (this.suppressionsLocales.has(opFirebase.id)) {
                         console.log(`🚫 Opération ${opFirebase.id} ignorée (supprimée localement)`);
                         operationsIgnorees++;
@@ -681,82 +589,35 @@ class GestionFerme {
                     const indexLocal = this.operations.findIndex(op => op.id === opFirebase.id);
                     
                     if (indexLocal === -1) {
-                        // Nouvelle opération à ajouter
                         this.operations.unshift(opFirebase);
                         nouvellesOperations++;
-                        console.log(`➕ Nouvelle opération ${opFirebase.id} ajoutée depuis Firebase`);
-                    } else {
-                        operationsDejaExistantes++;
+                        console.log(`➕ Nouvelle opération ${opFirebase.id} ajoutée`);
                     }
                 });
 
-                // PHASE 2: Vérifier et confirmer les suppressions en attente
-                await this.confirmerSuppressionsEnAttente();
-
-                // Trier par date (plus récent en premier)
                 this.operations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 this.sauvegarderLocalement();
 
-                console.log(`✅ Synchronisation terminée: ${nouvellesOperations} nouvelles, ${operationsDejaExistantes} existantes, ${operationsIgnorees} ignorées (supprimées)`);
+                console.log(`✅ Synchronisation: ${nouvellesOperations} nouvelles, ${operationsIgnorees} ignorées (supprimées)`);
                 
                 if (nouvellesOperations > 0) {
                     this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} nouvelles opérations`);
                     this.mettreAJourAffichage();
                 }
-            } else {
-                console.log('ℹ️ Aucune opération trouvée sur Firebase');
             }
             
+            this.firebaseInitialized = true;
+            
         } catch (error) {
-            console.error('❌ Erreur lors de la synchronisation:', error);
-            this.afficherMessageSucces('❌ Erreur de synchronisation');
+            console.error('❌ Erreur synchronisation:', error);
         } finally {
             this.synchronisationEnCours = false;
         }
     }
 
-    // NOUVELLE MÉTHODE: Confirmer les suppressions en attente
-    async confirmerSuppressionsEnAttente() {
-        if (this.suppressionsEnAttente.size === 0 || !window.firebaseSync) return;
-
-        console.log(`🔍 Vérification de ${this.suppressionsEnAttente.size} suppression(s) en attente...`);
-        
-        const operationsFirebase = await firebaseSync.getCollection('operations');
-        const suppressionsConfirmees = new Set();
-        let suppressionsEffectuees = 0;
-
-        for (const opId of this.suppressionsEnAttente) {
-            const existeSurFirebase = operationsFirebase.some(op => op.id === opId);
-            
-            if (!existeSurFirebase) {
-                // La suppression est confirmée - l'opération n'existe plus sur Firebase
-                suppressionsConfirmees.add(opId);
-                console.log(`✅ Suppression confirmée pour l'opération ${opId}`);
-            } else {
-                // L'opération existe encore sur Firebase - tentative de suppression
-                try {
-                    await firebaseSync.deleteDocument('operations', opId.toString());
-                    suppressionsConfirmees.add(opId);
-                    suppressionsEffectuees++;
-                    console.log(`🗑️ Opération ${opId} supprimée de Firebase (en attente)`);
-                } catch (error) {
-                    console.error(`❌ Échec suppression ${opId} (en attente):`, error);
-                }
-            }
-        }
-
-        // Mettre à jour les ensembles de suppression
-        suppressionsConfirmees.forEach(opId => {
-            this.suppressionsEnAttente.delete(opId);
-            this.suppressionsLocales.add(opId); // Marquer comme définitivement supprimée
-        });
-
-        console.log(`📊 Suppressions en attente: ${suppressionsEffectuees} effectuées, ${suppressionsConfirmees.size} confirmées`);
-    }
-
     setupFirebaseRealtimeListeners() {
-        if (!window.firebaseSync || !this.firebaseInitialized) {
-            console.log('⏳ Firebase non disponible pour l\'écoute en temps réel');
+        if (!window.firebaseSync) {
+            setTimeout(() => this.setupFirebaseRealtimeListeners(), 2000);
             return;
         }
 
@@ -783,12 +644,8 @@ class GestionFerme {
                         this.mettreAJourOperationSynchro(change.id, change.data);
                         modifications++;
                     } else if (change.type === 'removed') {
-                        // Si Firebase nous signale une suppression, on la confirme
-                        this.suppressionsLocales.add(change.id);
-                        this.suppressionsEnAttente.delete(change.id);
                         this.supprimerOperationSynchro(change.id);
                         modifications++;
-                        console.log(`✅ Suppression confirmée par Firebase: ${change.id}`);
                     }
                 });
                 
@@ -847,17 +704,13 @@ class GestionFerme {
         const data = {
             operations: this.operations,
             suppressionsLocales: Array.from(this.suppressionsLocales),
-            suppressionsEnAttente: Array.from(this.suppressionsEnAttente),
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
     }
 
     async sauvegarderSurFirebase() {
-        if (!window.firebaseSync || !this.firebaseInitialized) {
-            console.log('⏳ Firebase non disponible pour la sauvegarde');
-            return;
-        }
+        if (!window.firebaseSync) return;
 
         try {
             for (const operation of this.operations) {
@@ -867,9 +720,8 @@ class GestionFerme {
                     
                     if (!existeSurFirebase) {
                         await firebaseSync.addDocument('operations', operation);
-                        console.log(`💾 Opération ${operation.id} sauvegardée sur Firebase`);
                     } else {
-                        await firebaseSync.updateDocument('operations', operation.id.toString(), operation);
+                        await firebaseSync.updateDocument('operations', operation.id, operation);
                     }
                 } catch (error) {
                     console.error(`❌ Erreur synchro ${operation.id}:`, error);
@@ -882,7 +734,7 @@ class GestionFerme {
 
     async sauvegarderDonnees() {
         this.sauvegarderLocalement();
-        await this.sauvegarderSurFirebase();
+        this.sauvegarderSurFirebase();
     }
 
     mettreAJourAffichage() {
@@ -900,38 +752,25 @@ class GestionFerme {
         const operationASupprimer = this.operations.find(op => op.id === operationId);
         if (!operationASupprimer) return;
         
-        try {
-            // Marquer comme en attente de suppression
-            this.suppressionsEnAttente.add(operationId);
-            
-            // Supprimer localement
-            this.operations = this.operations.filter(op => op.id !== operationId);
-            this.sauvegarderLocalement();
-            
-            // Tenter la suppression sur Firebase (mais ne pas bloquer si ça échoue)
-            if (window.firebaseSync && this.firebaseInitialized) {
-                console.log(`🗑️ Tentative de suppression de l'opération ${operationId} de Firebase...`);
-                firebaseSync.deleteDocument('operations', operationId.toString())
-                    .then(() => {
-                        console.log(`✅ Opération ${operationId} supprimée de Firebase avec succès`);
-                        // Confirmer la suppression
-                        this.suppressionsEnAttente.delete(operationId);
-                        this.suppressionsLocales.add(operationId);
-                        this.sauvegarderLocalement();
-                    })
-                    .catch(error => {
-                        console.error(`❌ Erreur suppression Firebase ${operationId}:`, error);
-                        // La suppression restera en attente et sera retentée à la prochaine synchronisation
-                    });
+        // Marquer l'opération comme supprimée localement
+        this.suppressionsLocales.add(operationId);
+        
+        // Supprimer localement
+        this.operations = this.operations.filter(op => op.id !== operationId);
+        this.sauvegarderLocalement();
+        
+        // Supprimer de Firebase
+        if (window.firebaseSync) {
+            try {
+                await firebaseSync.deleteDocument('operations', operationId);
+                console.log(`✅ Opération ${operationId} supprimée de Firebase`);
+            } catch (error) {
+                console.error(`❌ Erreur suppression Firebase:`, error);
             }
-            
-            this.mettreAJourAffichage();
-            this.afficherMessageSucces('Opération supprimée');
-            
-        } catch (error) {
-            console.error(`❌ Erreur lors de la suppression de l'opération ${operationId}:`, error);
-            this.afficherMessageSucces('❌ Erreur lors de la suppression');
         }
+        
+        this.mettreAJourAffichage();
+        this.afficherMessageSucces('Opération supprimée');
     }
 
     async supprimerOperationsSelectionnees() {
@@ -939,54 +778,31 @@ class GestionFerme {
 
         if (!confirm(`Supprimer ${this.selectedOperations.size} opération(s) ?`)) return;
         
-        try {
-            // Marquer toutes les opérations sélectionnées comme en attente de suppression
-            this.selectedOperations.forEach(opId => {
-                this.suppressionsEnAttente.add(opId);
-            });
-            
-            // Supprimer localement
-            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
-            this.sauvegarderLocalement();
-            
-            // Tenter les suppressions sur Firebase (en arrière-plan)
-            if (window.firebaseSync && this.firebaseInitialized) {
-                console.log(`🗑️ Tentative de suppression de ${this.selectedOperations.size} opérations de Firebase...`);
-                
-                this.selectedOperations.forEach(opId => {
-                    firebaseSync.deleteDocument('operations', opId.toString())
-                        .then(() => {
-                            console.log(`✅ Opération ${opId} supprimée de Firebase`);
-                            this.suppressionsEnAttente.delete(opId);
-                            this.suppressionsLocales.add(opId);
-                            this.sauvegarderLocalement();
-                        })
-                        .catch(error => {
-                            console.error(`❌ Erreur suppression ${opId}:`, error);
-                        });
-                });
+        // Marquer toutes les opérations sélectionnées comme supprimées
+        this.selectedOperations.forEach(opId => {
+            this.suppressionsLocales.add(opId);
+        });
+        
+        // Supprimer localement
+        this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+        this.sauvegarderLocalement();
+        
+        // Supprimer de Firebase
+        if (window.firebaseSync) {
+            for (const opId of this.selectedOperations) {
+                try {
+                    await firebaseSync.deleteDocument('operations', opId);
+                    console.log(`✅ Opération ${opId} supprimée de Firebase`);
+                } catch (error) {
+                    console.error(`❌ Erreur suppression ${opId}:`, error);
+                }
             }
-            
-            this.selectedOperations.clear();
-            this.toggleEditMode(false);
-            this.mettreAJourAffichage();
-            this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s)`);
-            
-        } catch (error) {
-            console.error('❌ Erreur lors de la suppression multiple:', error);
-            this.afficherMessageSucces('❌ Erreur lors de la suppression');
         }
-    }
-
-    // MÉTHODE POUR FORCER LA SYNCHRONISATION MANUELLE
-    async forcerSynchronisation() {
-        console.log('🔄 Forçage de la synchronisation manuelle...');
-        this.afficherMessageSucces('Synchronisation en cours...');
         
-        await this.synchroniserAvecFirebase();
-        await this.sauvegarderSurFirebase();
-        
-        this.afficherMessageSucces('✅ Synchronisation terminée');
+        this.selectedOperations.clear();
+        this.toggleEditMode(false);
+        this.mettreAJourAffichage();
+        this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s)`);
     }
 
     updateStats() {
@@ -1005,22 +821,18 @@ class GestionFerme {
     }
 
     calculerSoldes() {
-        // Réinitialiser les caisses
         this.caisses = {
             'abdel_caisse': 0, 'omar_caisse': 0, 'hicham_caisse': 0, 
             'zaitoun_caisse': 0, '3commain_caisse': 0
         };
 
-        // Calculer les soldes
         this.operations.forEach(op => {
-            if (this.caisses[op.caisse] !== undefined) {
-                this.caisses[op.caisse] += op.montant;
-            }
+            this.caisses[op.caisse] += op.montant;
         });
     }
 
     creerCarteCaisse(cleCaisse, nomCaisse) {
-        const solde = this.caisses[cleCaisse] || 0;
+        const solde = this.caisses[cleCaisse];
         const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
         const estSelectionnee = this.caisseSelectionnee === cleCaisse ? 'caisse-selectionnee' : '';
         
@@ -1286,7 +1098,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
-
-
-
-
