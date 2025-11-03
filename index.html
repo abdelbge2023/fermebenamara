@@ -281,7 +281,41 @@
             </form>
         </div>
     </div>
-
+<!-- Modal de connexion -->
+<div id="loginModal" class="modal" style="display: flex;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>🔐 Connexion</h3>
+        </div>
+        <form id="loginForm" class="modal-form">
+            <div class="form-group">
+                <label for="loginOperateur">Opérateur :</label>
+                <select id="loginOperateur" required>
+                    <option value="">Choisir l'opérateur</option>
+                    <option value="abdel">Abdel</option>
+                    <option value="omar">Omar</option>
+                    <option value="hicham">Hicham</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Mot de passe :</label>
+                <input type="password" id="loginPassword" required placeholder="Votre mot de passe">
+            </div>
+            
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary">🔓 Se connecter</button>
+            </div>
+        </form>
+        
+        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 15px;">
+            <h4>📋 Comptes de test :</h4>
+            <p><strong>Abdel</strong> : motdepasse</p>
+            <p><strong>Omar</strong> : motdepasse</p>
+            <p><strong>Hicham</strong> : motdepasse</p>
+        </div>
+    </div>
+</div>
     <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
     <!-- 1. Configuration Firebase -->
     <script src="./firebase-simple.js"></script>
@@ -290,3 +324,4 @@
     <script src="./app.js"></script>
 </body>
 </html>
+
