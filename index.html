@@ -281,7 +281,124 @@
             </form>
         </div>
     </div>
+<!-- Modal de connexion -->
+<div id="loginModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>🔐 Connexion - Ferme Ben Amara</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <form id="loginForm" class="modal-form">
+            <div class="form-group">
+                <label for="loginOperateur">Opérateur :</label>
+                <select id="loginOperateur" required>
+                    <option value="">Choisir l'opérateur</option>
+                    <option value="abdel">Abdel</option>
+                    <option value="omar">Omar</option>
+                    <option value="hicham">Hicham</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="loginPassword">Mot de passe :</label>
+                <input type="password" id="loginPassword" required placeholder="Votre mot de passe">
+            </div>
+            
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary">🔓 Se connecter</button>
+            </div>
+        </form>
+        
+        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 15px;">
+            <h4>📋 Comptes de test :</h4>
+            <p><strong>Abdel</strong> : abdel123</p>
+            <p><strong>Omar</strong> : omar123</p>
+            <p><strong>Hicham</strong> : hicham123</p>
+        </div>
+    </div>
+</div>
 
+<!-- Modal Manuel d'utilisation -->
+<div id="manualModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+        <div class="modal-header">
+            <h3>📖 Manuel d'Utilisation - Gestion Ferme Ben Amara</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="manual-content">
+                
+                <h3>🔐 1. CONNEXION</h3>
+                <div class="manual-section">
+                    <p><strong>Comptes disponibles :</strong></p>
+                    <ul>
+                        <li><strong>Abdel</strong> : abdel123</li>
+                        <li><strong>Omar</strong> : omar123</li>
+                        <li><strong>Hicham</strong> : hicham123</li>
+                    </ul>
+                </div>
+
+                <h3>📝 2. AJOUTER UNE OPÉRATION</h3>
+                <div class="manual-section">
+                    <ol>
+                        <li>Remplir le formulaire "Nouvelle Opération"</li>
+                        <li>Choisir l'opérateur, le groupe, le type d'opération</li>
+                        <li>Pour "Travailleur global" : répartition automatique 1/3 - 2/3</li>
+                        <li>Sélectionner le type (Revenu 💰 ou Frais 💸)</li>
+                        <li>Choisir la caisse concernée</li>
+                        <li>Saisir le montant et la description</li>
+                        <li>Cliquer sur "✅ Enregistrer"</li>
+                    </ol>
+                </div>
+
+                <h3>🔄 3. TRANSFERT ENTRE CAISSES</h3>
+                <div class="manual-section">
+                    <ol>
+                        <li>Remplir le formulaire "Transfert entre Caisses"</li>
+                        <li>Sélectionner la caisse source et destination</li>
+                        <li>Saisir le montant et la raison</li>
+                        <li>Cliquer sur "🔄 Effectuer le transfert"</li>
+                    </ol>
+                </div>
+
+                <h3>👀 4. CONSULTER L'HISTORIQUE</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li><strong>🌍 Toutes</strong> : Toutes les opérations</li>
+                        <li><strong>🫒 Zaitoun</strong> : Opérations du groupe Zaitoun</li>
+                        <li><strong>🔧 3 Commain</strong> : Opérations du groupe 3 Commain</li>
+                        <li><strong>👨‍💼 Abdel</strong> : Opérations d'Abdel</li>
+                        <li><strong>👨‍💻 Omar</strong> : Opérations d'Omar</li>
+                        <li><strong>👨‍🔧 Hicham</strong> : Opérations d'Hicham</li>
+                        <li><strong>🔄 Transferts</strong> : Tous les transferts</li>
+                    </ul>
+                </div>
+
+                <h3>📊 5. EXPORT DES DONNÉES</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li><strong>📊 Export Excel Complet</strong> : Toutes les opérations</li>
+                        <li><strong>📋 Export Vue Actuelle</strong> : Opérations de la vue actuelle</li>
+                        <li><strong>📈 Rapport Complet</strong> : Rapport détaillé avec statistiques</li>
+                    </ul>
+                </div>
+
+                <h3>🔄 6. SYNCHRONISATION</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li>Les données se synchronisent entre tous les appareils</li>
+                        <li>Fonctionne même hors ligne</li>
+                        <li>Reconnexion automatique quand internet revient</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-primary close-modal">✅ Compris</button>
+        </div>
+    </div>
+</div>
     <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
     <!-- 1. Configuration Firebase -->
     <script src="./firebase-simple.js"></script>
@@ -290,3 +407,4 @@
     <script src="./app.js"></script>
 </body>
 </html>
+
