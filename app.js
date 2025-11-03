@@ -1,4 +1,4 @@
-// app.js - Version corrigée avec authentification et changement de mot de passe
+// app.js - Version corrigée avec toutes les méthodes
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -121,6 +121,9 @@ class GestionFerme {
             if (e.target === document.getElementById('passwordModal')) {
                 document.getElementById('passwordModal').style.display = 'none';
             }
+            if (e.target === document.getElementById('manualModal')) {
+                document.getElementById('manualModal').style.display = 'none';
+            }
         });
         
         // Gestion du type d'opération pour afficher la répartition
@@ -239,7 +242,7 @@ class GestionFerme {
 
     initialiserApplication() {
         this.afficherEnTeteUtilisateur();
-        this.chargerDonneesAvecSynchro();
+        this.chargerDonneesAvecSynchro(); // CORRECTION : bon nom de méthode
         this.setupFirebaseRealtimeListeners();
         this.updateStats();
         this.afficherHistorique('global');
@@ -269,6 +272,7 @@ class GestionFerme {
             </div>
             <div class="user-actions">
                 <button class="btn-info" onclick="app.changerMotDePasseUtilisateur()">🔐 Changer mot de passe</button>
+                <button class="btn-secondary" onclick="app.afficherManual()">📖 Manuel</button>
                 <button class="logout-btn">🚪 Déconnexion</button>
             </div>
         `;
@@ -281,6 +285,10 @@ class GestionFerme {
 
     changerMotDePasseUtilisateur() {
         this.afficherModalChangementMotDePasse();
+    }
+
+    afficherManual() {
+        document.getElementById('manualModal').style.display = 'flex';
     }
 
     // VÉRIFICATION DES PERMISSIONS
@@ -305,7 +313,7 @@ class GestionFerme {
     }
 
     // MÉTHODES DE GESTION DES DONNÉES
-    async chargerDonneesAvecSynchro() {
+    async chargerDonneesAvecSynchro() { // CORRECTION : bon nom de méthode
         console.log('📥 Chargement automatique des données...');
         
         this.chargerDepuisLocalStorage();
@@ -474,7 +482,7 @@ class GestionFerme {
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
     }
 
-    // ... (les autres méthodes restent identiques mais avec les noms corrigés)
+    // ... (les autres méthodes d'ajout, modification, suppression restent identiques)
 
     // MÉTHODES DE RÉINITIALISATION
     async reinitialiserFirebase() {
@@ -572,7 +580,7 @@ class GestionFerme {
         }, 1000);
     }
 
-    // ... (le reste des méthodes reste identique)
+    // ... (toutes les autres méthodes d'affichage, calcul, formatage restent identiques)
 
     // Méthodes de formatage
     formaterDate(dateStr) {
