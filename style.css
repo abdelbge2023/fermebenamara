@@ -688,3 +688,106 @@ tr:hover .operation-actions {
 .total-value.negative {
     color: #e74c3c;
 }
+/* Styles pour le modal de connexion et manuel */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 0;
+    border-radius: 15px;
+    width: 95%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: #3498db;
+    color: white;
+    padding: 20px;
+    border-radius: 15px 15px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-form {
+    padding: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Styles pour le manuel */
+.manual-content {
+    line-height: 1.6;
+}
+
+.manual-section {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.manual-section h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.manual-section ul, .manual-section ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.manual-section li {
+    margin-bottom: 8px;
+}
+
+.manual-section strong {
+    color: #e74c3c;
+}
