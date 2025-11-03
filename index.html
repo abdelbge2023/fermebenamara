@@ -3,413 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme Ben Amara</title>
-    <link rel="stylesheet" href="./style.css">
-    <div style="margin-top: 15px;">
-        <button onclick="app.afficherManual()" class="btn-info" style="padding: 10px 20px;">
-            📖 Manuel d'utilisation
-        </button>
-    </div
-    <!-- Firebase CDN - Charger D'ABORD -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    <!-- SheetJS pour l'export Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Gestion Ferme</title>
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+        
+        .close {
+            float: right;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .admin-only { display: none; }
+        .operateur-only { display: none; }
+        
+        .operation-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        .btn-supprimer {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-editer {
+            background-color: #4488ff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>💰 Gestion Ferme Ben Amara</h1>
-            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
-        </header>
-
-        <div class="main-grid">
-            <!-- Section Nouvelle Opération -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>➕ Nouvelle Opération</h2>
-                </div>
-                <form id="saisieForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="operateur">Opérateur :</label>
-                            <select id="operateur" required>
-                                <option value="">Choisir l'opérateur</option>
-                                <option value="abdel">Abdel</option>
-                                <option value="omar">Omar</option>
-                                <option value="hicham">Hicham</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="groupe">Groupe :</label>
-                            <select id="groupe" required>
-                                <option value="">Choisir le groupe</option>
-                                <option value="zaitoun">Zaitoun</option>
-                                <option value="3commain">3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="typeOperation">Type d'opération :</label>
-                            <select id="typeOperation" required>
-                                <option value="">Choisir le type</option>
-                                <option value="travailleur_global">Travailleur global</option>
-                                <option value="zaitoun">Zaitoun seul</option>
-                                <option value="3commain">3 Commain seul</option>
-                                <option value="autre">Autre</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="typeTransaction">Transaction :</label>
-                            <select id="typeTransaction" required>
-                                <option value="">Choisir</option>
-                                <option value="revenu">💰 Revenu</option>
-                                <option value="frais">💸 Frais</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="caisse">Caisse concernée :</label>
-                            <select id="caisse" required>
-                                <option value="">Choisir la caisse</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="montant">Montant (DH) :</label>
-                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
-
-                    <!-- Affichage répartition -->
-                    <div id="repartitionInfo" class="repartition-info" style="display: none;">
-                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
-                        <div id="repartitionDetails"></div>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="description">Description :</label>
-                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
-                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
-                    </div>
+    <!-- Header avec connexion -->
+    <header>
+        <div id="etat-connexion">
+            <div id="non-connecte">
+                <form id="form-connexion">
+                    <input type="email" id="email-connexion" placeholder="Email" required>
+                    <input type="password" id="motdepasse-connexion" placeholder="Mot de passe" required>
+                    <button type="submit">Se connecter</button>
                 </form>
-            </section>
-
-            <!-- Section Transfert -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>🔄 Transfert entre Caisses</h2>
-                </div>
-                <form id="transfertForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="caisseSource">De la caisse :</label>
-                            <select id="caisseSource" required>
-                                <option value="">Source</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="caisseDestination">Vers la caisse :</label>
-                            <select id="caisseDestination" required>
-                                <option value="">Destination</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="montantTransfert">Montant (DH) :</label>
-                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="descriptionTransfert">Description :</label>
-                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
-                    </div>
-                </form>
-            </section>
+            </div>
+            <div id="connecte" style="display: none;">
+                <span id="info-utilisateur"></span>
+                <button id="btn-deconnexion">Déconnexion</button>
+                <button id="btn-changer-motdepasse" class="operateur-only">Changer mot de passe</button>
+            </div>
         </div>
+    </header>
 
-        <!-- Section Statistiques -->
-        <section class="stats-section">
-            <div class="section-header">
-                <h2>📊 Soldes des Caisses</h2>
-            </div>
-            <div id="statsContainer" class="stats-container">
-                <!-- Les soldes apparaîtront ici -->
-            </div>
-        </section>
+    <!-- Navigation selon rôle -->
+    <nav>
+        <div class="admin-only">
+            <h2>Espace Administrateur</h2>
+            <button id="btn-gestion-utilisateurs">Gérer les utilisateurs</button>
+            <button id="btn-voir-toutes-operations">Voir toutes les opérations</button>
+        </div>
+        
+        <div class="operateur-only">
+            <h2>Espace Opérateur</h2>
+            <button id="btn-mes-operations">Mes opérations</button>
+            <button id="btn-creer-operation">Créer une opération</button>
+        </div>
+    </nav>
 
-        <!-- Section Historique -->
-        <section class="navigation-section">
-            <div class="section-header">
-                <div class="header-with-tabs">
-                    <h2>📋 Historique des Opérations</h2>
-                    <div class="nav-tabs">
-                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
-                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
-                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
-                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
-                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
-                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
-                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
-                    </div>
-                </div>
-            </div>
+    <!-- Section principale -->
+    <main>
+        <div id="liste-operations">
+            <!-- Les opérations s'afficheront ici -->
+        </div>
+    </main>
 
-            <!-- Actions de gestion -->
-            <div class="management-actions">
-                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
-                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
-                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
-                
-                <!-- Boutons d'export -->
-                <button onclick="app.exporterVersExcel()" class="btn-success" title="Exporter toutes les données">
-                    📊 Export Excel Complet
-                </button>
-                <button onclick="app.exporterVueVersExcel()" class="btn-info" title="Exporter la vue actuelle">
-                    📋 Export Vue Actuelle
-                </button>
-                <button onclick="app.exporterDetailVersExcel()" class="btn-success" title="Rapport complet avec statistiques">
-                    📈 Rapport Complet
-                </button>
-                
-                <!-- Boutons de réinitialisation -->
-                <button onclick="app.reinitialiserLocal()" class="btn-info" title="Vider seulement les données locales">
-                    🗑️ Vider Local
-                </button>
-                <button onclick="app.reinitialiserFirebase()" class="btn-danger" title="Supprimer TOUTES les données (local + cloud)">
-                    🚨 Tout Réinitialiser
-                </button>
-            </div>
-
-            <div id="dataDisplay" class="data-display">
-                <!-- L'historique apparaîtra ici -->
-            </div>
-        </section>
-    </div>
-
-    <!-- Modal pour modification -->
-    <div id="editModal" class="modal" style="display: none;">
+    <!-- Modal changement mot de passe -->
+    <div id="modal-changement-motdepasse" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Modifier l'Opération</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <form id="editForm" class="modal-form">
-                <input type="hidden" id="editId">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editOperateur">Opérateur :</label>
-                        <select id="editOperateur" required>
-                            <option value="abdel">Abdel</option>
-                            <option value="omar">Omar</option>
-                            <option value="hicham">Hicham</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editGroupe">Groupe :</label>
-                        <select id="editGroupe" required>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editTypeOperation">Type d'Opération :</label>
-                        <select id="editTypeOperation" required>
-                            <option value="travailleur_global">Travailleur global</option>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editTypeTransaction">Transaction :</label>
-                        <select id="editTypeTransaction" required>
-                            <option value="revenu">💰 Revenu</option>
-                            <option value="frais">💸 Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editCaisse">Caisse :</label>
-                        <select id="editCaisse" required>
-                            <option value="abdel_caisse">Caisse Abdel</option>
-                            <option value="omar_caisse">Caisse Omar</option>
-                            <option value="hicham_caisse">Caisse Hicham</option>
-                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                            <option value="3commain_caisse">Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editMontant">Montant (DH) :</label>
-                        <input type="number" id="editMontant" step="0.01" min="0" required>
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDescription">Description :</label>
-                    <textarea id="editDescription" rows="3" required></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
-                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
-                </div>
+            <span class="close">&times;</span>
+            <h3>Changer le mot de passe</h3>
+            <form id="form-changement-motdepasse">
+                <input type="password" id="ancien-motdepasse" placeholder="Ancien mot de passe" required>
+                <input type="password" id="nouveau-motdepasse" placeholder="Nouveau mot de passe" required>
+                <input type="password" id="confirmation-motdepasse" placeholder="Confirmer le mot de passe" required>
+                <button type="submit">Changer le mot de passe</button>
             </form>
         </div>
     </div>
-<!-- Modal de connexion -->
-<div id="loginModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 400px;">
-        <div class="modal-header">
-            <h3>🔐 Connexion - Ferme Ben Amara</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <form id="loginForm" class="modal-form">
-            <div class="form-group">
-                <label for="loginOperateur">Opérateur :</label>
-                <select id="loginOperateur" required>
-                    <option value="">Choisir l'opérateur</option>
-                    <option value="abdel">Abdel</option>
-                    <option value="omar">Omar</option>
-                    <option value="hicham">Hicham</option>
+
+    <!-- Modal édition opération -->
+    <div id="modal-edition-operation" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Éditer l'opération</h3>
+            <form id="form-edition-operation">
+                <input type="text" id="edit-nom" placeholder="Nom de l'opération" required>
+                <textarea id="edit-description" placeholder="Description" required></textarea>
+                <select id="edit-statut">
+                    <option value="en-cours">En cours</option>
+                    <option value="termine">Terminé</option>
+                    <option value="annule">Annulé</option>
                 </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="loginPassword">Mot de passe :</label>
-                <input type="password" id="loginPassword" required placeholder="Votre mot de passe">
-            </div>
-            
-            <div class="modal-actions">
-                <button type="submit" class="btn-primary">🔓 Se connecter</button>
-            </div>
-        </form>
-        
-        <div style="padding: 15px; background: #f8f9fa; border-radius: 8px; margin: 15px;">
-            <h4>📋 Comptes de test :</h4>
-            <p><strong>Abdel</strong> : abdel123</p>
-            <p><strong>Omar</strong> : omar123</p>
-            <p><strong>Hicham</strong> : hicham123</p>
+                <button type="submit">Enregistrer les modifications</button>
+            </form>
         </div>
     </div>
-</div>
 
-<!-- Modal Manuel d'utilisation -->
-<div id="manualModal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
-        <div class="modal-header">
-            <h3>📖 Manuel d'Utilisation - Gestion Ferme Ben Amara</h3>
-            <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="manual-content">
-                
-                <h3>🔐 1. CONNEXION</h3>
-                <div class="manual-section">
-                    <p><strong>Comptes disponibles :</strong></p>
-                    <ul>
-                        <li><strong>Abdel</strong> : abdel123</li>
-                        <li><strong>Omar</strong> : omar123</li>
-                        <li><strong>Hicham</strong> : hicham123</li>
-                    </ul>
-                </div>
-
-                <h3>📝 2. AJOUTER UNE OPÉRATION</h3>
-                <div class="manual-section">
-                    <ol>
-                        <li>Remplir le formulaire "Nouvelle Opération"</li>
-                        <li>Choisir l'opérateur, le groupe, le type d'opération</li>
-                        <li>Pour "Travailleur global" : répartition automatique 1/3 - 2/3</li>
-                        <li>Sélectionner le type (Revenu 💰 ou Frais 💸)</li>
-                        <li>Choisir la caisse concernée</li>
-                        <li>Saisir le montant et la description</li>
-                        <li>Cliquer sur "✅ Enregistrer"</li>
-                    </ol>
-                </div>
-
-                <h3>🔄 3. TRANSFERT ENTRE CAISSES</h3>
-                <div class="manual-section">
-                    <ol>
-                        <li>Remplir le formulaire "Transfert entre Caisses"</li>
-                        <li>Sélectionner la caisse source et destination</li>
-                        <li>Saisir le montant et la raison</li>
-                        <li>Cliquer sur "🔄 Effectuer le transfert"</li>
-                    </ol>
-                </div>
-
-                <h3>👀 4. CONSULTER L'HISTORIQUE</h3>
-                <div class="manual-section">
-                    <ul>
-                        <li><strong>🌍 Toutes</strong> : Toutes les opérations</li>
-                        <li><strong>🫒 Zaitoun</strong> : Opérations du groupe Zaitoun</li>
-                        <li><strong>🔧 3 Commain</strong> : Opérations du groupe 3 Commain</li>
-                        <li><strong>👨‍💼 Abdel</strong> : Opérations d'Abdel</li>
-                        <li><strong>👨‍💻 Omar</strong> : Opérations d'Omar</li>
-                        <li><strong>👨‍🔧 Hicham</strong> : Opérations d'Hicham</li>
-                        <li><strong>🔄 Transferts</strong> : Tous les transferts</li>
-                    </ul>
-                </div>
-
-                <h3>📊 5. EXPORT DES DONNÉES</h3>
-                <div class="manual-section">
-                    <ul>
-                        <li><strong>📊 Export Excel Complet</strong> : Toutes les opérations</li>
-                        <li><strong>📋 Export Vue Actuelle</strong> : Opérations de la vue actuelle</li>
-                        <li><strong>📈 Rapport Complet</strong> : Rapport détaillé avec statistiques</li>
-                    </ul>
-                </div>
-
-                <h3>🔄 6. SYNCHRONISATION</h3>
-                <div class="manual-section">
-                    <ul>
-                        <li>Les données se synchronisent entre tous les appareils</li>
-                        <li>Fonctionne même hors ligne</li>
-                        <li>Reconnexion automatique quand internet revient</li>
-                    </ul>
-                </div>
-
-            </div>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-primary close-modal">✅ Compris</button>
+    <!-- Modal création opération -->
+    <div id="modal-creation-operation" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Créer une opération</h3>
+            <form id="form-creation-operation">
+                <input type="text" id="creer-nom" placeholder="Nom de l'opération" required>
+                <textarea id="creer-description" placeholder="Description" required></textarea>
+                <button type="submit">Créer l'opération</button>
+            </form>
         </div>
     </div>
-</div>
-    <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
-    <!-- 1. Configuration Firebase -->
-    <script src="./firebase-simple.js"></script>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     
-    <!-- 2. Application principale (APRÈS Firebase) -->
-    <script src="./app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
-
-
