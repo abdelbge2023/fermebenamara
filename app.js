@@ -1,4 +1,4 @@
-// app.js - Version complète avec authentification et manuel
+// app.js - Version complète avec authentification et changement de mot de passe
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -15,6 +15,11 @@ class GestionFerme {
         
         // Authentification
         this.utilisateurConnecte = null;
+        this.motsDePasse = JSON.parse(localStorage.getItem('mots_de_passe')) || {
+            'abdel': 'abdel123',
+            'omar': 'omar123', 
+            'hicham': 'hicham123'
+        };
         
         // Pour éviter les boucles de synchronisation
         this.suppressionsEnCours = new Set();
@@ -35,6 +40,12 @@ class GestionFerme {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.connexion(e));
+        }
+        
+        // Formulaire de changement de mot de passe
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', (e) => this.changerMotDePasse(e));
         }
         
         // Formulaire de saisie
@@ -94,6 +105,7 @@ class GestionFerme {
             btn.addEventListener('click', () => {
                 if (editModal) editModal.style.display = 'none';
                 document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('passwordModal').style.display = 'none';
                 document.getElementById('manualModal').style.display = 'none';
             });
         });
@@ -112,6 +124,9 @@ class GestionFerme {
             if (e.target === document.getElementById('loginModal')) {
                 document.getElementById('loginModal').style.display = 'none';
             }
+            if (e.target === document.getElementById('passwordModal')) {
+                document.getElementById('passwordModal').style.display = 'none';
+            }
             if (e.target === document.getElementById('manualModal')) {
                 document.getElementById('manualModal').style.display = 'none';
             }
@@ -128,7 +143,7 @@ class GestionFerme {
         console.log('✅ Écouteurs d\'événements configurés');
     }
 
-    // SYSTÈME D'AUTHENTIFICATION
+    // SYSTÈME D'AUTHENTIFICATION AVEC CHANGEMENT DE MOT DE PASSE
     verifierAuthentification() {
         const utilisateurSauvegarde = localStorage.getItem('utilisateur_connecte');
         if (utilisateurSauvegarde) {
@@ -142,10 +157,20 @@ class GestionFerme {
 
     afficherModalConnexion() {
         document.getElementById('loginModal').style.display = 'flex';
+        document.querySelector('.container').style.display = 'none';
     }
 
     cacherModalConnexion() {
         document.getElementById('loginModal').style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
+    }
+
+    afficherModalChangementMotDePasse() {
+        document.getElementById('passwordModal').style.display = 'flex';
+    }
+
+    cacherModalChangementMotDePasse() {
+        document.getElementById('passwordModal').style.display = 'none';
     }
 
     connexion(e) {
@@ -159,30 +184,114 @@ class GestionFerme {
             return;
         }
         
-        // Mots de passe par défaut
-        const motsDePasse = {
-            'abdel': 'abdel123',
-            'omar': 'omar123', 
-            'hicham': 'hicham123'
-        };
-        
-        if (motsDePasse[operateur] === password) {
+        if (this.motsDePasse[operateur] === password) {
             this.utilisateurConnecte = {
                 id: operateur,
                 nom: this.formaterOperateur(operateur),
-                dateConnexion: new Date().toISOString()
+                dateConnexion: new Date().toISOString(),
+                premiereConnexion: !localStorage.getItem(`utilisateur_${operateur}_actif`)
             };
             
             localStorage.setItem('utilisateur_connecte', JSON.stringify(this.utilisateurConnecte));
-            this.cacherModalConnexion();
-            this.afficherMessageSucces(`Bienvenue ${this.utilisateurConnecte.nom} !`);
             
-            // Charger les données après connexion
-            this.chargerDonneesAvecSynchro();
-            
+            // Vérifier si c'est la première connexion
+            if (this.utilisateurConnecte.premiereConnexion) {
+                localStorage.setItem(`utilisateur_${operateur}_actif`, 'true');
+                this.cacherModalConnexion();
+                this.afficherModalChangementMotDePasse();
+            } else {
+                this.cacherModalConnexion();
+                this.initialiserApplication();
+                this.afficherMessageSucces(`Bienvenue ${this.utilisateurConnecte.nom} !`);
+            }
         } else {
             alert('Mot de passe incorrect');
         }
+    }
+
+    changerMotDePasse(e) {
+        e.preventDefault();
+        
+        const nouveauPassword = document.getElementById('newPassword').value;
+        const confirmerPassword = document.getElementById('confirmPassword').value;
+        
+        if (!nouveauPassword || !confirmerPassword) {
+            alert('Veuillez remplir tous les champs');
+            return;
+        }
+        
+        if (nouveauPassword !== confirmerPassword) {
+            alert('Les mots de passe ne correspondent pas');
+            return;
+        }
+        
+        if (nouveauPassword.length < 6) {
+            alert('Le mot de passe doit contenir au moins 6 caractères');
+            return;
+        }
+        
+        // Mettre à jour le mot de passe
+        this.motsDePasse[this.utilisateurConnecte.id] = nouveauPassword;
+        localStorage.setItem('mots_de_passe', JSON.stringify(this.motsDePasse));
+        
+        this.cacherModalChangementMotDePasse();
+        this.initialiserApplication();
+        this.afficherMessageSucces('Mot de passe changé avec succès ! Bienvenue !');
+    }
+
+    changerMotDePasseUtilisateur() {
+        this.afficherModalChangementMotDePasse();
+    }
+
+    deconnexion() {
+        if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+            this.utilisateurConnecte = null;
+            localStorage.removeItem('utilisateur_connecte');
+            location.reload();
+        }
+    }
+
+    initialiserApplication() {
+        this.afficherEnTeteUtilisateur();
+        this.chargerDonneesAvecSynchro();
+        this.setupFirebaseRealtimeListeners();
+        this.updateStats();
+        this.afficherHistorique('global');
+        console.log('✅ Application Gestion Ferme initialisée pour', this.utilisateurConnecte.nom);
+    }
+
+    afficherEnTeteUtilisateur() {
+        // Supprimer l'ancien en-tête s'il existe
+        const ancienEnTete = document.querySelector('.user-header');
+        if (ancienEnTete) {
+            ancienEnTete.remove();
+        }
+        
+        const header = document.querySelector('header');
+        const userHeader = document.createElement('div');
+        userHeader.className = 'user-header';
+        userHeader.innerHTML = `
+            <div class="user-info">
+                <div class="user-avatar">
+                    ${this.utilisateurConnecte.id === 'abdel' ? '👨‍💼' : 
+                      this.utilisateurConnecte.id === 'omar' ? '👨‍💻' : '👨‍🔧'}
+                </div>
+                <div class="user-details">
+                    <h3>${this.utilisateurConnecte.nom}</h3>
+                    <p>Connecté depuis ${new Date().toLocaleTimeString('fr-FR')}</p>
+                </div>
+            </div>
+            <div class="user-actions">
+                <button class="btn-info" onclick="app.changerMotDePasseUtilisateur()">🔐 Changer mot de passe</button>
+                <button class="btn-secondary" onclick="app.afficherManual()">📖 Manuel</button>
+                <button class="logout-btn">🚪 Déconnexion</button>
+            </div>
+        `;
+        
+        header.parentNode.insertBefore(userHeader, header.nextSibling);
+        
+        // Re-attacher l'événement de déconnexion
+        userHeader.querySelector('.logout-btn').addEventListener('click', () => this.deconnexion());
     }
 
     // MANUEL D'UTILISATION
@@ -190,7 +299,28 @@ class GestionFerme {
         document.getElementById('manualModal').style.display = 'flex';
     }
 
-    // MÉTHODES DE GESTION DES DONNÉES
+    // VÉRIFICATION DES PERMISSIONS
+    peutModifierOperation(operation) {
+        if (!this.utilisateurConnecte) return false;
+        
+        // L'utilisateur peut modifier ses propres opérations
+        if (operation.createur === this.utilisateurConnecte.id) {
+            return true;
+        }
+        
+        // Les opérations système (transferts) peuvent être modifiées par tous
+        if (operation.operateur === 'system') {
+            return true;
+        }
+        
+        return false;
+    }
+
+    peutSupprimerOperation(operation) {
+        return this.peutModifierOperation(operation);
+    }
+
+    // MÉTHODES DE GESTION DES DONNÉES (conservées de votre version)
     async chargerDonneesAvecSynchro() {
         console.log('📥 Chargement automatique des données...');
         
@@ -898,27 +1028,6 @@ class GestionFerme {
         } else {
             alert(`${succes} opération(s) supprimée(s), ${echecs} échec(s)`);
         }
-    }
-
-    // VÉRIFICATION DES PERMISSIONS
-    peutModifierOperation(operation) {
-        if (!this.utilisateurConnecte) return false;
-        
-        // L'utilisateur peut modifier ses propres opérations
-        if (operation.createur === this.utilisateurConnecte.id) {
-            return true;
-        }
-        
-        // Les opérations système (transferts) peuvent être modifiées par tous
-        if (operation.operateur === 'system') {
-            return true;
-        }
-        
-        return false;
-    }
-
-    peutSupprimerOperation(operation) {
-        return this.peutModifierOperation(operation);
     }
 
     // MÉTHODES D'EXPORT
