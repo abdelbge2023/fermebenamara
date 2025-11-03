@@ -34,17 +34,19 @@ class GestionFerme {
     }
 
     // Méthode pour attendre que Firebase soit disponible
+    // Méthode pour attendre que Firebase soit disponible
     async attendreFirebase() {
         return new Promise((resolve) => {
             const verifierFirebase = () => {
-                if (window.firebaseSync && window.firebaseSync.isInitialized()) {
-                    console.log('✅ FirebaseSync est prêt');
+                // Vérification plus simple et robuste
+                if (window.firebaseSync) {
+                    console.log('✅ FirebaseSync est disponible');
                     this.firebaseInitialized = true;
                     resolve();
                 } else {
                     this.attenteFirebase++;
                     console.log(`⏳ Attente de FirebaseSync... (${this.attenteFirebase})`);
-                    if (this.attenteFirebase < 10) { // Maximum 10 tentatives
+                    if (this.attenteFirebase < 10) {
                         setTimeout(verifierFirebase, 1000);
                     } else {
                         console.error('❌ FirebaseSync non disponible après 10 tentatives');
@@ -1249,3 +1251,4 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
