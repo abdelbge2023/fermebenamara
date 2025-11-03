@@ -3,85 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme - Connexion</title>
+    <title>Ferme Ben Amara - Gestion</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: white; margin: 10% auto; padding: 20px; width: 300px; border-radius: 5px; }
-        .operation { border: 1px solid #ddd; padding: 10px; margin: 5px 0; border-radius: 4px; }
-        .btn { padding: 8px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-supprimer { background: #ff4444; color: white; }
-        .btn-editer { background: #4488ff; color: white; }
-        .btn-creer { background: #44aa44; color: white; }
-        .admin-panel { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        /* Styles existants conservés */
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        
+        /* Styles pour la connexion */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .login-form input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .login-form button {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        /* Styles pour les opérations */
+        .operation {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .operation h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .operation p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .btn {
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-editer { background: #2196F3; color: white; }
+        .btn-supprimer { background: #f44336; color: white; }
+        .btn-creer { background: #4CAF50; color: white; }
+        .btn-deconnexion { background: #ff9800; color: white; }
+        
+        /* Panel admin */
+        .admin-panel {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal input, .modal textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        /* Header */
+        .user-header {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        .user-info {
+            flex-grow: 1;
+        }
+        
+        /* Cacher les sections au début */
+        #interface-principale { display: none; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Écran de connexion -->
-        <div id="ecran-connexion">
-            <h2>Connexion à la Gestion Ferme</h2>
-            <form id="form-connexion">
+    <!-- Écran de connexion -->
+    <div id="ecran-connexion">
+        <div class="login-container">
+            <h2 style="text-align: center; color: #333;">🔐 Connexion Ferme Ben Amara</h2>
+            <form id="form-connexion" class="login-form">
                 <div>
                     <label>Identifiant:</label>
-                    <input type="text" id="identifiant" required>
+                    <input type="text" id="identifiant" placeholder="admin ou operateur1" required>
                 </div>
                 <div>
                     <label>Mot de passe:</label>
-                    <input type="password" id="motdepasse" required>
+                    <input type="password" id="motdepasse" placeholder="Votre mot de passe" required>
                 </div>
                 <button type="submit">Se connecter</button>
             </form>
-        </div>
-
-        <!-- Interface principale (cachée au début) -->
-        <div id="interface-principale" style="display: none;">
-            <header>
-                <h2>Gestion des Opérations</h2>
-                <div id="info-utilisateur"></div>
-                <button id="btn-deconnexion">Déconnexion</button>
-            </header>
-
-            <!-- Panel admin -->
-            <div id="panel-admin" class="admin-panel" style="display: none;">
-                <h3>🏗️ Mode Administrateur</h3>
-                <button id="btn-voir-tout" class="btn">Voir toutes les opérations</button>
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 4px;">
+                <strong>Comptes de test:</strong><br>
+                Admin: admin / admin123<br>
+                Opérateur: operateur1 / op123
             </div>
-
-            <!-- Panel opérateur -->
-            <div id="panel-operateur">
-                <h3>👤 Mes Opérations</h3>
-                <button id="btn-creer-operation" class="btn btn-creer">Créer une opération</button>
-            </div>
-
-            <!-- Liste des opérations -->
-            <div id="liste-operations"></div>
         </div>
     </div>
 
-    <!-- Modal création/édition -->
+    <!-- Interface principale -->
+    <div id="interface-principale" class="container">
+        <!-- En-tête utilisateur -->
+        <div class="user-header">
+            <div class="user-info">
+                <h2 style="margin: 0; color: #333;">🏭 Ferme Ben Amara - Gestion des Opérations</h2>
+                <div id="info-utilisateur" style="color: #666;"></div>
+            </div>
+            <button id="btn-deconnexion" class="btn btn-deconnexion">Déconnexion</button>
+        </div>
+
+        <!-- Panel administrateur -->
+        <div id="panel-admin" class="admin-panel" style="display: none;">
+            <h3 style="margin: 0; color: #1976d2;">🏗️ Mode Administrateur</h3>
+            <p style="margin: 10px 0; color: #555;">Vous pouvez voir et gérer toutes les opérations</p>
+            <button id="btn-voir-tout" class="btn btn-creer">Voir toutes les opérations</button>
+        </div>
+
+        <!-- Panel opérateur -->
+        <div id="panel-operateur">
+            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #333;">👤 Mes Opérations</h3>
+                <button id="btn-creer-operation" class="btn btn-creer">➕ Créer une opération</button>
+            </div>
+        </div>
+
+        <!-- Liste des opérations -->
+        <div id="liste-operations">
+            <!-- Les opérations s'afficheront ici -->
+        </div>
+    </div>
+
+    <!-- Modal pour créer/modifier les opérations -->
     <div id="modal-operation" class="modal">
         <div class="modal-content">
-            <h3 id="titre-modal">Créer une opération</h3>
+            <h3 id="titre-modal" style="margin-top: 0;">Créer une opération</h3>
             <form id="form-operation">
                 <div>
-                    <label>Nom:</label>
-                    <input type="text" id="input-nom" required>
+                    <label>Nom de l'opération:</label>
+                    <input type="text" id="input-nom" placeholder="Ex: Récolte de blé, Soins aux animaux..." required>
                 </div>
                 <div>
                     <label>Description:</label>
-                    <textarea id="input-description" required></textarea>
+                    <textarea id="input-description" placeholder="Détails de l'opération..." required rows="4"></textarea>
                 </div>
-                <button type="submit">Enregistrer</button>
-                <button type="button" onclick="fermerModal()">Annuler</button>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white;">Annuler</button>
+                    <button type="submit" style="background: #4CAF50; color: white;">Enregistrer</button>
+                </div>
             </form>
         </div>
     </div>
 
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    
     <script src="app.js"></script>
 </body>
 </html>
