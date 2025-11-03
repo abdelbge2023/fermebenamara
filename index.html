@@ -12,6 +12,48 @@
     
     <!-- SheetJS pour l'export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 2px solid #3498db;
+        }
+
+        .user-info span {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .operation-readonly .operation-actions {
+            display: none !important;
+        }
+
+        .operation-readonly {
+            background-color: #f8f9fa;
+        }
+
+        .operation-readonly:hover {
+            background-color: #e9ecef;
+        }
+
+        .admin-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -169,6 +211,7 @@
                     <h2>📋 Historique des Opérations</h2>
                     <div class="nav-tabs">
                         <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
+                        <button class="tab-btn" data-sheet="mes_operations">👤 Mes Opérations</button>
                         <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
                         <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
                         <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
@@ -286,7 +329,10 @@
     <!-- 1. Configuration Firebase -->
     <script src="./firebase-simple.js"></script>
     
-    <!-- 2. Application principale (APRÈS Firebase) -->
+    <!-- 2. Système d'authentification -->
+    <script src="./auth.js"></script>
+    
+    <!-- 3. Application principale (APRÈS Firebase et Auth) -->
     <script src="./app.js"></script>
 </body>
 </html>
