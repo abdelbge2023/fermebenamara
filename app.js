@@ -1,15 +1,21 @@
-// Configuration Firebase
+// Configuration Firebase - REMPLACEZ AVEC VOS CLÉS
 const firebaseConfig = {
-    apiKey: "votre-api-key",
-    authDomain: "votre-projet.firebaseapp.com",
-    projectId: "votre-projet-id",
-    storageBucket: "votre-projet.appspot.com",
-    messagingSenderId: "votre-sender-id",
-    appId: "votre-app-id"
+    apiKey: "AIzaSyCLaR4eJ3VvqKdLqJqY9V8X8WZ8X8WZ8X8",
+    authDomain: "ferme-ben-amara.firebaseapp.com",
+    projectId: "ferme-ben-amara",
+    storageBucket: "ferme-ben-amara.firebasestorage.app",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:abcdef123456"
 };
 
-// Initialisation
-firebase.initializeApp(firebaseConfig);
+// Initialisation Firebase
+try {
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase initialisé avec succès');
+} catch (error) {
+    console.error('Erreur initialisation Firebase:', error);
+}
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
@@ -17,6 +23,7 @@ class GestionFerme {
     constructor() {
         this.utilisateur = null;
         this.estAdmin = false;
+        this.operationEditId = null;
         this.initialiser();
     }
 
@@ -28,21 +35,22 @@ class GestionFerme {
     initialiserAuth() {
         auth.onAuthStateChanged((user) => {
             if (user) {
+                console.log('Utilisateur connecté:', user.email);
                 this.utilisateur = user;
                 this.verifierAdmin();
                 this.afficherInterface();
             } else {
+                console.log('Aucun utilisateur connecté');
                 this.cacherInterface();
             }
         });
     }
 
-    // Vérification simple si c'est un admin
     verifierAdmin() {
-        // Liste des admins - à adapter avec vos emails
-        const admins = ['admin@ferme.com', 'administrateur@ferme.com'];
+        // Liste des administrateurs
+        const admins = ['admin@fermebenamara.com', 'admin@ferme.com', 'administrateur@fermebenamara.com'];
         this.estAdmin = admins.includes(this.utilisateur.email);
-        this.afficherPanelAdmin();
+        console.log('Statut admin:', this.estAdmin);
     }
 
     initialiserEcouteurs() {
@@ -72,27 +80,50 @@ class GestionFerme {
             e.preventDefault();
             this.enregistrerOperation();
         });
+
+        // Fermer modal en cliquant à l'extérieur
+        document.getElementById('modal-operation').addEventListener('click', (e) => {
+            if (e.target.id === 'modal-operation') {
+                this.fermerModal();
+            }
+        });
     }
 
     async connexion() {
-        const identifiant = document.getElementById('identifiant').value;
+        const identifiant = document.getElementById('identifiant').value.trim();
         const motdepasse = document.getElementById('motdepasse').value;
+
+        if (!identifiant || !motdepasse) {
+            this.afficherMessage('Veuillez remplir tous les champs', 'error');
+            return;
+        }
 
         // Format email pour Firebase Auth
         const email = this.formatEmail(identifiant);
 
         try {
-            await auth.signInWithEmailAndPassword(email, motdepasse);
-            this.afficherMessage('Connexion réussie');
+            const result = await auth.signInWithEmailAndPassword(email, motdepasse);
+            this.afficherMessage('Connexion réussie !');
         } catch (error) {
-            this.afficherMessage('Erreur: ' + error.message, 'error');
+            console.error('Erreur connexion:', error);
+            let message = 'Erreur de connexion';
+            
+            if (error.code === 'auth/user-not-found') {
+                message = 'Utilisateur non trouvé';
+            } else if (error.code === 'auth/wrong-password') {
+                message = 'Mot de passe incorrect';
+            } else if (error.code === 'auth/invalid-email') {
+                message = 'Email invalide';
+            }
+            
+            this.afficherMessage(message, 'error');
         }
     }
 
     formatEmail(identifiant) {
-        // Si ce n'est pas déjà un email, ajoutez votre domaine
+        // Si ce n'est pas déjà un email, ajoute le domaine
         if (!identifiant.includes('@')) {
-            return identifiant + '@ferme.com';
+            return identifiant + '@fermebenamara.com';
         }
         return identifiant;
     }
@@ -106,15 +137,16 @@ class GestionFerme {
         document.getElementById('ecran-connexion').style.display = 'none';
         document.getElementById('interface-principale').style.display = 'block';
         
+        // Mettre à jour les informations utilisateur
         const info = document.getElementById('info-utilisateur');
-        info.innerHTML = `Connecté en tant que: <strong>${this.utilisateur.email}</strong> (${this.estAdmin ? 'Administrateur' : 'Opérateur'})`;
+        const role = this.estAdmin ? 'Administrateur' : 'Opérateur';
+        info.innerHTML = `Connecté en tant que: <strong>${this.utilisateur.email}</strong> | Rôle: <strong>${role}</strong>`;
+        
+        // Afficher le panel admin si nécessaire
+        document.getElementById('panel-admin').style.display = this.estAdmin ? 'block' : 'none';
         
         // Charger les opérations appropriées
-        if (this.estAdmin) {
-            this.chargerToutesOperations();
-        } else {
-            this.chargerMesOperations();
-        }
+        this.chargerOperations();
     }
 
     cacherInterface() {
@@ -123,36 +155,33 @@ class GestionFerme {
         document.getElementById('form-connexion').reset();
     }
 
-    afficherPanelAdmin() {
-        const panel = document.getElementById('panel-admin');
-        panel.style.display = this.estAdmin ? 'block' : 'none';
-    }
-
     ouvrirModalCreation(operation = null) {
         const modal = document.getElementById('modal-operation');
         const titre = document.getElementById('titre-modal');
-        const form = document.getElementById('form-operation');
 
         if (operation) {
-            titre.textContent = 'Modifier une opération';
+            titre.textContent = 'Modifier l\'opération';
             document.getElementById('input-nom').value = operation.nom;
             document.getElementById('input-description').value = operation.description;
-            form.dataset.operationId = operation.id;
+            this.operationEditId = operation.id;
         } else {
             titre.textContent = 'Créer une opération';
             document.getElementById('input-nom').value = '';
             document.getElementById('input-description').value = '';
-            delete form.dataset.operationId;
+            this.operationEditId = null;
         }
 
         modal.style.display = 'block';
     }
 
+    fermerModal() {
+        document.getElementById('modal-operation').style.display = 'none';
+        this.operationEditId = null;
+    }
+
     async enregistrerOperation() {
-        const nom = document.getElementById('input-nom').value;
-        const description = document.getElementById('input-description').value;
-        const form = document.getElementById('form-operation');
-        const operationId = form.dataset.operationId;
+        const nom = document.getElementById('input-nom').value.trim();
+        const description = document.getElementById('input-description').value.trim();
 
         if (!nom || !description) {
             this.afficherMessage('Veuillez remplir tous les champs', 'error');
@@ -160,16 +189,16 @@ class GestionFerme {
         }
 
         try {
-            if (operationId) {
-                // Modification
-                await db.collection('operations').doc(operationId).update({
+            if (this.operationEditId) {
+                // Modification d'opération existante
+                await db.collection('operations').doc(this.operationEditId).update({
                     nom: nom,
                     description: description,
                     dateModification: new Date()
                 });
-                this.afficherMessage('Opération modifiée avec succès');
+                this.afficherMessage('Opération modifiée avec succès !');
             } else {
-                // Création
+                // Création d'une nouvelle opération
                 await db.collection('operations').add({
                     nom: nom,
                     description: description,
@@ -178,13 +207,14 @@ class GestionFerme {
                     dateCreation: new Date(),
                     dateModification: new Date()
                 });
-                this.afficherMessage('Opération créée avec succès');
+                this.afficherMessage('Opération créée avec succès !');
             }
 
-            fermerModal();
+            this.fermerModal();
             this.chargerOperations(); // Recharger la liste
         } catch (error) {
-            this.afficherMessage('Erreur: ' + error.message, 'error');
+            console.error('Erreur enregistrement:', error);
+            this.afficherMessage('Erreur lors de l\'enregistrement', 'error');
         }
     }
 
@@ -197,7 +227,8 @@ class GestionFerme {
             
             this.afficherOperations(snapshot);
         } catch (error) {
-            console.error('Erreur chargement:', error);
+            console.error('Erreur chargement opérations:', error);
+            this.afficherMessage('Erreur lors du chargement des opérations', 'error');
         }
     }
 
@@ -209,19 +240,20 @@ class GestionFerme {
             
             this.afficherOperations(snapshot);
         } catch (error) {
-            console.error('Erreur chargement:', error);
+            console.error('Erreur chargement opérations:', error);
+            this.afficherMessage('Erreur lors du chargement des opérations', 'error');
         }
     }
 
     afficherOperations(snapshot) {
         const container = document.getElementById('liste-operations');
-        container.innerHTML = '';
-
+        
         if (snapshot.empty) {
-            container.innerHTML = '<p>Aucune opération trouvée</p>';
+            container.innerHTML = '<div class="operation"><p>Aucune opération trouvée</p></div>';
             return;
         }
 
+        container.innerHTML = '';
         snapshot.forEach(doc => {
             const operation = doc.data();
             const element = this.creerElementOperation(operation, doc.id);
@@ -232,16 +264,21 @@ class GestionFerme {
     creerElementOperation(operation, operationId) {
         const div = document.createElement('div');
         div.className = 'operation';
+        
+        const dateCreation = operation.dateCreation ? 
+            operation.dateCreation.toDate().toLocaleDateString('fr-FR') : 'Date inconnue';
+        
         div.innerHTML = `
             <h4>${operation.nom}</h4>
             <p>${operation.description}</p>
-            <small>
+            <small style="color: #666;">
                 Créé par: ${operation.createurEmail} • 
-                ${operation.dateCreation?.toDate().toLocaleDateString()}
+                Date: ${dateCreation}
+                ${this.estAdmin ? '• ID: ' + operationId.substring(0, 8) + '...' : ''}
             </small>
-            <div>
-                <button class="btn btn-editer" data-id="${operationId}">Éditer</button>
-                <button class="btn btn-supprimer" data-id="${operationId}">Supprimer</button>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-editer" data-id="${operationId}">✏️ Éditer</button>
+                <button class="btn btn-supprimer" data-id="${operationId}">🗑️ Supprimer</button>
             </div>
         `;
 
@@ -272,7 +309,8 @@ class GestionFerme {
                 this.ouvrirModalCreation({...operation, id: operationId});
             }
         } catch (error) {
-            this.afficherMessage('Erreur: ' + error.message, 'error');
+            console.error('Erreur édition:', error);
+            this.afficherMessage('Erreur lors de l\'édition', 'error');
         }
     }
 
@@ -290,12 +328,13 @@ class GestionFerme {
 
                 if (confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
                     await db.collection('operations').doc(operationId).delete();
-                    this.afficherMessage('Opération supprimée');
+                    this.afficherMessage('Opération supprimée avec succès');
                     this.chargerOperations();
                 }
             }
         } catch (error) {
-            this.afficherMessage('Erreur: ' + error.message, 'error');
+            console.error('Erreur suppression:', error);
+            this.afficherMessage('Erreur lors de la suppression', 'error');
         }
     }
 
@@ -308,22 +347,47 @@ class GestionFerme {
     }
 
     afficherMessage(message, type = 'success') {
-        // Message simple en alert pour l'exemple
-        if (type === 'error') {
-            alert('❌ ' + message);
-        } else {
-            alert('✅ ' + message);
-        }
+        // Créer un élément de message temporaire
+        const messageEl = document.createElement('div');
+        messageEl.textContent = message;
+        messageEl.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            z-index: 10000;
+            font-weight: bold;
+            background-color: ${type === 'error' ? '#f44336' : '#4CAF50'};
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        `;
+        
+        document.body.appendChild(messageEl);
+        
+        setTimeout(() => {
+            if (document.body.contains(messageEl)) {
+                document.body.removeChild(messageEl);
+            }
+        }, 4000);
     }
 }
 
 // Fonction globale pour fermer le modal
 function fermerModal() {
-    document.getElementById('modal-operation').style.display = 'none';
+    if (app) {
+        app.fermerModal();
+    }
 }
 
-// Initialisation
+// Initialisation de l'application
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+    console.log('Application Ferme Ben Amara initialisée');
+});
+
+// Gestion des erreurs globales
+window.addEventListener('error', (event) => {
+    console.error('Erreur globale:', event.error);
 });
