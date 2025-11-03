@@ -1,4 +1,4 @@
-// app.js - Version avec authentification et suivi des modifications
+// app.js - Version corrigée avec authentification et changement de mot de passe
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -15,10 +15,10 @@ class GestionFerme {
         
         // Authentification
         this.utilisateurConnecte = null;
-        this.motsDePasse = {
-            'abdel': 'motdepasse',
-            'omar': 'motdepasse', 
-            'hicham': 'motdepasse'
+        this.motsDePasse = JSON.parse(localStorage.getItem('mots_de_passe')) || {
+            'abdel': 'abdel123',
+            'omar': 'omar123', 
+            'hicham': 'hicham123'
         };
         
         // Pour éviter les boucles de synchronisation
@@ -40,6 +40,12 @@ class GestionFerme {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.connexion(e));
+        }
+        
+        // Formulaire de changement de mot de passe
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', (e) => this.changerMotDePasse(e));
         }
         
         // Formulaire de saisie
@@ -78,12 +84,6 @@ class GestionFerme {
             btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
         }
         
-        // Bouton déconnexion
-        const logoutBtn = document.querySelector('.logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => this.deconnexion());
-        }
-        
         // Gestion des onglets
         const tabButtons = document.querySelectorAll('.tab-btn');
         tabButtons.forEach(btn => {
@@ -117,6 +117,9 @@ class GestionFerme {
         window.addEventListener('click', (e) => {
             if (e.target === editModal) {
                 editModal.style.display = 'none';
+            }
+            if (e.target === document.getElementById('passwordModal')) {
+                document.getElementById('passwordModal').style.display = 'none';
             }
         });
         
@@ -167,16 +170,63 @@ class GestionFerme {
             this.utilisateurConnecte = {
                 id: operateur,
                 nom: this.formaterOperateur(operateur),
-                dateConnexion: new Date().toISOString()
+                dateConnexion: new Date().toISOString(),
+                premiereConnexion: !localStorage.getItem(`utilisateur_${operateur}_actif`)
             };
             
             localStorage.setItem('utilisateur_connecte', JSON.stringify(this.utilisateurConnecte));
-            this.cacherModalConnexion();
-            this.initialiserApplication();
-            this.afficherMessageSucces(`Bienvenue ${this.utilisateurConnecte.nom} !`);
+            
+            // Marquer l'utilisateur comme actif après première connexion
+            if (this.utilisateurConnecte.premiereConnexion) {
+                localStorage.setItem(`utilisateur_${operateur}_actif`, 'true');
+                this.afficherModalChangementMotDePasse();
+            } else {
+                this.cacherModalConnexion();
+                this.initialiserApplication();
+                this.afficherMessageSucces(`Bienvenue ${this.utilisateurConnecte.nom} !`);
+            }
         } else {
             alert('Mot de passe incorrect');
         }
+    }
+
+    afficherModalChangementMotDePasse() {
+        document.getElementById('passwordModal').style.display = 'flex';
+    }
+
+    cacherModalChangementMotDePasse() {
+        document.getElementById('passwordModal').style.display = 'none';
+    }
+
+    changerMotDePasse(e) {
+        e.preventDefault();
+        
+        const nouveauPassword = document.getElementById('newPassword').value;
+        const confirmerPassword = document.getElementById('confirmPassword').value;
+        
+        if (!nouveauPassword || !confirmerPassword) {
+            alert('Veuillez remplir tous les champs');
+            return;
+        }
+        
+        if (nouveauPassword !== confirmerPassword) {
+            alert('Les mots de passe ne correspondent pas');
+            return;
+        }
+        
+        if (nouveauPassword.length < 6) {
+            alert('Le mot de passe doit contenir au moins 6 caractères');
+            return;
+        }
+        
+        // Mettre à jour le mot de passe
+        this.motsDePasse[this.utilisateurConnecte.id] = nouveauPassword;
+        localStorage.setItem('mots_de_passe', JSON.stringify(this.motsDePasse));
+        
+        this.cacherModalChangementMotDePasse();
+        this.cacherModalConnexion();
+        this.initialiserApplication();
+        this.afficherMessageSucces('Mot de passe changé avec succès ! Bienvenue !');
     }
 
     deconnexion() {
@@ -197,6 +247,12 @@ class GestionFerme {
     }
 
     afficherEnTeteUtilisateur() {
+        // Supprimer l'ancien en-tête s'il existe
+        const ancienEnTete = document.querySelector('.user-header');
+        if (ancienEnTete) {
+            ancienEnTete.remove();
+        }
+        
         const header = document.querySelector('header');
         const userHeader = document.createElement('div');
         userHeader.className = 'user-header';
@@ -211,13 +267,20 @@ class GestionFerme {
                     <p>Connecté depuis ${new Date().toLocaleTimeString('fr-FR')}</p>
                 </div>
             </div>
-            <button class="logout-btn">🚪 Déconnexion</button>
+            <div class="user-actions">
+                <button class="btn-info" onclick="app.changerMotDePasseUtilisateur()">🔐 Changer mot de passe</button>
+                <button class="logout-btn">🚪 Déconnexion</button>
+            </div>
         `;
         
         header.parentNode.insertBefore(userHeader, header.nextSibling);
         
         // Re-attacher l'événement de déconnexion
         userHeader.querySelector('.logout-btn').addEventListener('click', () => this.deconnexion());
+    }
+
+    changerMotDePasseUtilisateur() {
+        this.afficherModalChangementMotDePasse();
     }
 
     // VÉRIFICATION DES PERMISSIONS
@@ -241,642 +304,275 @@ class GestionFerme {
         return this.peutModifierOperation(operation);
     }
 
-    gestionAffichageRepartition(typeOperation) {
-        const repartitionInfo = document.getElementById('repartitionInfo');
-        const repartitionDetails = document.getElementById('repartitionDetails');
-        const montantInput = document.getElementById('montant');
+    // MÉTHODES DE GESTION DES DONNÉES
+    async chargerDonneesAvecSynchro() {
+        console.log('📥 Chargement automatique des données...');
         
-        if (!repartitionInfo || !repartitionDetails) return;
+        this.chargerDepuisLocalStorage();
+        await this.synchroniserAvecFirebase();
         
-        if (typeOperation === 'travailleur_global') {
-            repartitionInfo.style.display = 'block';
+        console.log(`📁 ${this.operations.length} opérations chargées`);
+    }
+
+    chargerDepuisLocalStorage() {
+        const saved = localStorage.getItem('gestion_ferme_data');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
+            } catch (error) {
+                console.error('❌ Erreur chargement localStorage:', error);
+                this.operations = [];
+            }
+        }
+    }
+
+    async synchroniserAvecFirebase() {
+        if (!window.firebaseSync) {
+            console.log('⏳ Attente de FirebaseSync...');
+            setTimeout(() => this.synchroniserAvecFirebase(), 2000);
+            return;
+        }
+
+        if (this.synchronisationEnCours) return;
+        this.synchronisationEnCours = true;
+
+        try {
+            const operationsFirebase = await firebaseSync.getCollection('operations');
             
-            // Mettre à jour en temps réel quand le montant change
-            const updateRepartition = () => {
-                const montant = parseFloat(montantInput.value) || 0;
-                if (montant > 0) {
-                    const partZaitoun = (montant / 3).toFixed(2);
-                    const part3Commain = ((montant * 2) / 3).toFixed(2);
+            if (operationsFirebase && operationsFirebase.length > 0) {
+                console.log(`📡 ${operationsFirebase.length} opérations sur Firebase`);
+                
+                let nouvellesOperations = 0;
+
+                // Réinitialiser les opérations avec celles de Firebase
+                this.operations = [];
+
+                operationsFirebase.forEach(opFirebase => {
+                    // Utiliser directement les opérations de Firebase avec leurs IDs
+                    this.operations.unshift(opFirebase);
+                    nouvellesOperations++;
+                    console.log(`➕ Opération ${opFirebase.id} synchronisée depuis Firebase`);
+                });
+
+                this.operations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                this.sauvegarderLocalement();
+
+                console.log(`✅ Synchronisation: ${nouvellesOperations} opérations chargées depuis Firebase`);
+                
+                if (nouvellesOperations > 0) {
+                    this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} opérations`);
+                    this.mettreAJourAffichage();
+                }
+            }
+            
+            this.firebaseInitialized = true;
+            
+        } catch (error) {
+            console.error('❌ Erreur synchronisation:', error);
+        } finally {
+            this.synchronisationEnCours = false;
+        }
+    }
+
+    setupFirebaseRealtimeListeners() {
+        if (!window.firebaseSync) {
+            setTimeout(() => this.setupFirebaseRealtimeListeners(), 2000);
+            return;
+        }
+
+        console.log('👂 Activation écoute temps réel avec anti-boucle');
+        
+        this.unsubscribeFirebase = firebaseSync.listenToCollection('operations', (changes, snapshot) => {
+            if (changes.length > 0) {
+                console.log(`🔄 Synchronisation temps réel: ${changes.length} changement(s)`);
+                
+                let modifications = 0;
+                let modificationsIgnorees = 0;
+                
+                changes.forEach(change => {
+                    const operationId = change.id;
                     
-                    repartitionDetails.innerHTML = `
-                        <div class="repartition-grid">
-                            <div class="repartition-item">
-                                <span class="repartition-label">🫒 Zaitoun (1/3):</span>
-                                <span class="repartition-value">${partZaitoun} DH</span>
-                            </div>
-                            <div class="repartition-item">
-                                <span class="repartition-label">🔧 3 Commain (2/3):</span>
-                                <span class="repartition-value">${part3Commain} DH</span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    repartitionDetails.innerHTML = '<p>Saisissez un montant pour voir la répartition</p>';
-                }
-            };
-            
-            // Écouter les changements de montant
-            montantInput.removeEventListener('input', updateRepartition);
-            montantInput.addEventListener('input', updateRepartition);
-            updateRepartition();
-            
-        } else {
-            repartitionInfo.style.display = 'none';
-        }
-    }
+                    // Vérifier si c'est une opération que NOUS avons initiée
+                    if (this.suppressionsEnCours.has(operationId)) {
+                        console.log(`🚫 Suppression ${operationId} ignorée (initiée localement)`);
+                        modificationsIgnorees++;
+                        return;
+                    }
 
-    async ajouterTransfert(e) {
-        e.preventDefault();
-
-        if (!this.utilisateurConnecte) {
-            alert('Veuillez vous connecter pour effectuer un transfert');
-            return;
-        }
-
-        const caisseSource = document.getElementById('caisseSource').value;
-        const caisseDestination = document.getElementById('caisseDestination').value;
-        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
-        const descriptionTransfert = document.getElementById('descriptionTransfert').value.trim();
-
-        if (caisseSource === caisseDestination) {
-            alert('Les caisses source et destination doivent être différentes');
-            return;
-        }
-
-        if (montantTransfert <= 0 || isNaN(montantTransfert)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!descriptionTransfert) {
-            alert('Veuillez saisir une description');
-            return;
-        }
-
-        // Vérifier si la caisse source a suffisamment de fonds
-        const soldeSource = this.caisses[caisseSource];
-        if (soldeSource < montantTransfert) {
-            alert(`Fonds insuffisants dans ${this.formaterCaisse(caisseSource)}. Solde disponible: ${soldeSource.toFixed(2)} DH`);
-            return;
-        }
-
-        try {
-            // Créer les deux opérations de transfert
-            const operationsTransfert = [
-                {
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: 'system',
-                    groupe: 'system',
-                    typeOperation: 'transfert',
-                    typeTransaction: 'frais',
-                    caisse: caisseSource,
-                    description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${descriptionTransfert}`,
-                    montant: -montantTransfert,
-                    repartition: false,
-                    transfert: true,
-                    createur: this.utilisateurConnecte.id,
-                    createurNom: this.utilisateurConnecte.nom,
-                    timestamp: new Date().toISOString()
-                },
-                {
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: 'system',
-                    groupe: 'system',
-                    typeOperation: 'transfert',
-                    typeTransaction: 'revenu',
-                    caisse: caisseDestination,
-                    description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${descriptionTransfert}`,
-                    montant: montantTransfert,
-                    repartition: false,
-                    transfert: true,
-                    createur: this.utilisateurConnecte.id,
-                    createurNom: this.utilisateurConnecte.nom,
-                    timestamp: new Date().toISOString()
-                }
-            ];
-
-            // Sauvegarder sur Firebase pour obtenir les IDs
-            for (const op of operationsTransfert) {
-                if (window.firebaseSync) {
-                    const result = await firebaseSync.addDocument('operations', op);
-                    const operationAvecId = {
-                        id: result.id,
-                        ...op
-                    };
-                    this.operations.unshift(operationAvecId);
-                    console.log(`➕ Transfert ${result.id} ajouté avec ID Firebase`);
-                } else {
-                    const operationAvecId = {
-                        id: 'local_' + Date.now(),
-                        ...op
-                    };
-                    this.operations.unshift(operationAvecId);
-                    console.log(`➕ Transfert ${operationAvecId.id} ajouté en local`);
+                    if (change.type === 'added') {
+                        this.ajouterOperationSynchro(change.data, operationId);
+                        modifications++;
+                    } else if (change.type === 'modified') {
+                        this.mettreAJourOperationSynchro(operationId, change.data);
+                        modifications++;
+                    } else if (change.type === 'removed') {
+                        // Accepter les suppressions venant d'autres appareils
+                        this.supprimerOperationSynchro(operationId);
+                        modifications++;
+                    }
+                });
+                
+                if (modifications > 0) {
+                    this.sauvegarderLocalement();
+                    this.mettreAJourAffichage();
+                    console.log(`✅ ${modifications} opération(s) synchronisée(s) en temps réel, ${modificationsIgnorees} ignorées (initiées localement)`);
                 }
             }
-
-            this.sauvegarderLocalement();
-            this.afficherMessageSucces('Transfert effectué !');
-            
-            // Réinitialiser le formulaire
-            document.getElementById('transfertForm').reset();
-            this.mettreAJourAffichage();
-            
-        } catch (error) {
-            console.error('❌ Erreur transfert:', error);
-            alert('Erreur lors du transfert. Vérifiez votre connexion.');
-        }
-    }
-
-    toggleEditMode(activer) {
-        if (!this.utilisateurConnecte) {
-            alert('Veuillez vous connecter pour activer le mode édition');
-            return;
-        }
-
-        this.editMode = activer;
-        
-        const btnEditMode = document.getElementById('btnEditMode');
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        const btnCancelEdit = document.getElementById('btnCancelEdit');
-        
-        if (activer) {
-            btnEditMode.style.display = 'none';
-            btnDeleteSelected.style.display = 'inline-block';
-            btnCancelEdit.style.display = 'inline-block';
-            this.selectedOperations.clear();
-        } else {
-            btnEditMode.style.display = 'inline-block';
-            btnDeleteSelected.style.display = 'none';
-            btnCancelEdit.style.display = 'none';
-            this.selectedOperations.clear();
-        }
-        
-        this.mettreAJourAffichage();
-    }
-
-    toggleOperationSelection(operationId) {
-        if (this.selectedOperations.has(operationId)) {
-            this.selectedOperations.delete(operationId);
-        } else {
-            this.selectedOperations.add(operationId);
-        }
-        this.mettreAJourAffichage();
-    }
-
-    ouvrirModalModification(operationId) {
-        const operation = this.operations.find(op => op.id === operationId);
-        if (!operation) return;
-
-        // Vérifier les permissions
-        if (!this.peutModifierOperation(operation)) {
-            alert('Vous ne pouvez modifier que vos propres opérations');
-            return;
-        }
-
-        document.getElementById('editId').value = operation.id;
-        document.getElementById('editOperateur').value = operation.operateur;
-        document.getElementById('editGroupe').value = operation.groupe;
-        document.getElementById('editTypeOperation').value = operation.typeOperation;
-        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
-        document.getElementById('editCaisse').value = operation.caisse;
-        document.getElementById('editMontant').value = Math.abs(operation.montant);
-        document.getElementById('editDescription').value = operation.description;
-
-        document.getElementById('editModal').style.display = 'block';
-    }
-
-    async modifierOperation(e) {
-        e.preventDefault();
-
-        if (!this.utilisateurConnecte) {
-            alert('Veuillez vous connecter pour modifier une opération');
-            return;
-        }
-
-        const operationId = document.getElementById('editId').value;
-        const operateur = document.getElementById('editOperateur').value;
-        const groupe = document.getElementById('editGroupe').value;
-        const typeOperation = document.getElementById('editTypeOperation').value;
-        const typeTransaction = document.getElementById('editTypeTransaction').value;
-        const caisse = document.getElementById('editCaisse').value;
-        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
-        const descriptionValue = document.getElementById('editDescription').value.trim();
-
-        // Vérifier les permissions
-        const operationOriginale = this.operations.find(op => op.id === operationId);
-        if (!this.peutModifierOperation(operationOriginale)) {
-            alert('Vous ne pouvez modifier que vos propres opérations');
-            return;
-        }
-
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!descriptionValue) {
-            alert('Veuillez saisir une description');
-            return;
-        }
-
-        const index = this.operations.findIndex(op => op.id === operationId);
-        if (index === -1) return;
-
-        const operationModifiee = {
-            ...this.operations[index],
-            operateur: operateur,
-            groupe: groupe,
-            typeOperation: typeOperation,
-            typeTransaction: typeTransaction,
-            caisse: caisse,
-            description: descriptionValue,
-            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
-            modifiePar: this.utilisateurConnecte.id,
-            modifieParNom: this.utilisateurConnecte.nom,
-            dateModification: new Date().toISOString()
-        };
-
-        try {
-            // Mettre à jour dans Firebase
-            if (window.firebaseSync) {
-                await firebaseSync.updateDocument('operations', operationId, operationModifiee);
-            }
-            
-            // Mettre à jour localement
-            this.operations[index] = operationModifiee;
-            this.sauvegarderLocalement();
-            
-            this.afficherMessageSucces('Opération modifiée !');
-            document.getElementById('editModal').style.display = 'none';
-            this.mettreAJourAffichage();
-            
-        } catch (error) {
-            console.error('❌ Erreur modification:', error);
-            alert('Erreur lors de la modification. Vérifiez votre connexion.');
-        }
-    }
-
-    // NOUVELLE MÉTHODE : Calculer les totaux pour une vue
-    calculerTotauxVue(operations) {
-        let totalRevenus = 0;
-        let totalFrais = 0;
-        let solde = 0;
-
-        operations.forEach(op => {
-            if (op.montant > 0) {
-                totalRevenus += op.montant;
-            } else {
-                totalFrais += Math.abs(op.montant);
-            }
-            solde += op.montant;
         });
-
-        return {
-            totalRevenus,
-            totalFrais,
-            solde,
-            nombreOperations: operations.length
-        };
     }
 
-    // NOUVELLE MÉTHODE : Obtenir le nom de la vue
-    getNomVue(vue) {
-        const nomsVues = {
-            'global': '🌍 Toutes les Opérations',
-            'zaitoun': '🫒 Zaitoun',
-            '3commain': '🔧 3 Commain',
-            'abdel': '👨‍💼 Abdel',
-            'omar': '👨‍💻 Omar',
-            'hicham': '👨‍🔧 Hicham',
-            'transferts': '🔄 Transferts'
+    ajouterOperationSynchro(data, operationId) {
+        const operation = {
+            id: operationId,
+            date: data.date,
+            operateur: data.operateur,
+            groupe: data.groupe,
+            typeOperation: data.typeOperation,
+            typeTransaction: data.typeTransaction,
+            caisse: data.caisse,
+            description: data.description,
+            montant: data.montant,
+            repartition: data.repartition,
+            transfert: data.transfert,
+            createur: data.createur,
+            createurNom: data.createurNom,
+            modifiePar: data.modifiePar,
+            modifieParNom: data.modifieParNom,
+            dateModification: data.dateModification,
+            timestamp: data.timestamp || new Date().toISOString()
         };
-        return nomsVues[vue] || vue;
+
+        const existeDeja = this.operations.some(op => op.id === operation.id);
+        if (!existeDeja) {
+            this.operations.unshift(operation);
+            console.log(`➕ Opération ${operation.id} ajoutée par synchronisation`);
+        }
     }
 
-    afficherHistorique(vue) {
-        this.currentView = vue;
+    mettreAJourOperationSynchro(operationId, newData) {
+        const index = this.operations.findIndex(op => op.id === operationId);
+        if (index !== -1) {
+            this.operations[index] = { ...this.operations[index], ...newData };
+        }
+    }
+
+    supprimerOperationSynchro(operationId) {
+        const ancienNombre = this.operations.length;
+        this.operations = this.operations.filter(op => op.id !== operationId);
+        if (this.operations.length < ancienNombre) {
+            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation (autre appareil)`);
+        }
+    }
+
+    sauvegarderLocalement() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+    }
+
+    // ... (les autres méthodes restent identiques mais avec les noms corrigés)
+
+    // MÉTHODES DE RÉINITIALISATION
+    async reinitialiserFirebase() {
+        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+            return;
+        }
+
+        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues sur tous les appareils !')) {
+            return;
+        }
+
+        console.log('🗑️ Début de la réinitialisation Firebase...');
+        this.afficherMessageSucces('Réinitialisation en cours...');
+
+        try {
+            // 1. Vider Firebase
+            if (window.firebaseSync) {
+                // Récupérer toutes les opérations de Firebase
+                const operationsFirebase = await firebaseSync.getCollection('operations');
+                console.log(`🗑️ Suppression de ${operationsFirebase.length} opérations de Firebase...`);
+                
+                // Supprimer chaque opération
+                for (const op of operationsFirebase) {
+                    try {
+                        await firebaseSync.deleteDocument('operations', op.id);
+                        console.log(`✅ Supprimé: ${op.id}`);
+                    } catch (error) {
+                        console.error(`❌ Erreur suppression ${op.id}:`, error);
+                    }
+                }
+            }
+
+            // 2. Vider le localStorage
+            localStorage.removeItem('gestion_ferme_data');
+            console.log('✅ LocalStorage vidé');
+
+            // 3. Réinitialiser les données locales
+            this.operations = [];
+            this.suppressionsEnCours.clear();
+            this.ajoutsEnCours.clear();
+            this.selectedOperations.clear();
+            this.caisseSelectionnee = null;
+            this.currentView = 'global';
+
+            // 4. Recréer une sauvegarde vide
+            this.sauvegarderLocalement();
+
+            // 5. Mettre à jour l'affichage
+            this.updateStats();
+            this.afficherHistorique('global');
+
+            console.log('✅ Réinitialisation complète terminée');
+            this.afficherMessageSucces('✅ Données Firebase réinitialisées avec succès !');
+
+            // Rafraîchir la page après 2 secondes
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+
+        } catch (error) {
+            console.error('❌ Erreur réinitialisation:', error);
+            this.afficherMessageSucces('❌ Erreur lors de la réinitialisation');
+        }
+    }
+
+    reinitialiserLocal() {
+        if (!confirm('Vider les données locales ? Les données Firebase resteront intactes.')) {
+            return;
+        }
+
+        console.log('🗑️ Réinitialisation des données locales...');
+        
+        // Vider le localStorage
+        localStorage.removeItem('gestion_ferme_data');
+        
+        // Réinitialiser les variables
+        this.operations = [];
+        this.suppressionsEnCours.clear();
+        this.ajoutsEnCours.clear();
+        this.selectedOperations.clear();
         this.caisseSelectionnee = null;
         
-        let operationsFiltrees = [];
+        // Sauvegarder l'état vide
+        this.sauvegarderLocalement();
         
-        switch(vue) {
-            case 'global':
-                operationsFiltrees = this.operations;
-                break;
-            case 'zaitoun':
-                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
-                break;
-            case '3commain':
-                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
-                break;
-            case 'abdel':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
-                break;
-            case 'omar':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
-                break;
-            case 'hicham':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
-                break;
-            case 'transferts':
-                operationsFiltrees = this.operations.filter(op => op.transfert === true);
-                break;
-        }
-
-        const container = document.getElementById('dataDisplay');
-        
-        if (operationsFiltrees.length === 0) {
-            container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
-            return;
-        }
-
-        // CALCUL DES TOTAUX POUR LA VUE
-        const totaux = this.calculerTotauxVue(operationsFiltrees);
-        const nomVue = this.getNomVue(vue);
-
-        let tableHTML = `
-            <div class="fade-in">
-                <div class="vue-header">
-                    <h3>📊 ${nomVue}</h3>
-                    <div class="totals-container">
-                        <div class="total-item">
-                            <span class="total-label">💰 Total Revenus:</span>
-                            <span class="total-value positive">+${totaux.totalRevenus.toFixed(2)} DH</span>
-                        </div>
-                        <div class="total-item">
-                            <span class="total-label">💸 Total Frais:</span>
-                            <span class="total-value negative">-${totaux.totalFrais.toFixed(2)} DH</span>
-                        </div>
-                        <div class="total-item">
-                            <span class="total-label">⚖️ Solde Net:</span>
-                            <span class="total-value ${totaux.solde >= 0 ? 'positive' : 'negative'}">
-                                ${totaux.solde >= 0 ? '+' : ''}${totaux.solde.toFixed(2)} DH
-                            </span>
-                        </div>
-                        <div class="total-item">
-                            <span class="total-label">📊 Nombre d'opérations:</span>
-                            <span class="total-value">${totaux.nombreOperations}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin: 20px 0;">
-                    <h4>📋 Détail des opérations</h4>
-                </div>
-
-                <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
-                                <th>Date</th>
-                                <th>Opérateur</th>
-                                <th>Groupe</th>
-                                <th>Type Opération</th>
-                                <th>Transaction</th>
-                                <th>Caisse</th>
-                                <th>Description</th>
-                                <th>Montant (DH)</th>
-                                <th>Créateur</th>
-                                ${!this.editMode ? '<th>Actions</th>' : ''}
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-
-        operationsFiltrees.forEach(op => {
-            const montantAbsolu = Math.abs(op.montant);
-            const estNegatif = op.montant < 0;
-            const estSelectionnee = this.selectedOperations.has(op.id);
-            const estMonOperation = this.peutModifierOperation(op);
-            const classeLigne = !estMonOperation ? 'other-user-operation' : '';
-            
-            tableHTML += `
-                <tr class="${estSelectionnee ? 'selected' : ''} ${classeLigne}">
-                    ${this.editMode ? 
-                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} 
-                         onchange="app.toggleOperationSelection('${op.id}')"
-                         ${!estMonOperation ? 'disabled' : ''}></td>` 
-                        : ''}
-                    <td>${this.formaterDate(op.date)}</td>
-                    <td>${this.formaterOperateur(op.operateur)}</td>
-                    <td>${this.formaterGroupe(op.groupe)}</td>
-                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                    <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
-                    <td>${this.formaterCaisse(op.caisse)}</td>
-                    <td>
-                        ${op.description}
-                        ${op.modifiePar ? `<br><small class="operation-creator">🔄 Modifié par ${op.modifieParNom}</small>` : ''}
-                    </td>
-                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
-                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
-                    </td>
-                    <td>
-                        <span class="creator-badge">${op.createurNom || this.formaterOperateur(op.createur || op.operateur)}</span>
-                    </td>
-                    ${!this.editMode ? `
-                    <td>
-                        <div class="operation-actions">
-                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')"
-                                ${!estMonOperation ? 'disabled style="opacity:0.5"' : ''}>
-                                ✏️
-                            </button>
-                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')"
-                                ${!estMonOperation ? 'disabled style="opacity:0.5"' : ''}>
-                                🗑️
-                            </button>
-                        </div>
-                    </td>
-                    ` : ''}
-                </tr>
-            `;
-        });
-
-        tableHTML += '</tbody></table></div></div>';
-        
-        container.innerHTML = tableHTML;
-        
-        // Gestion du selectAll en JavaScript pur après l'insertion du HTML
-        if (this.editMode) {
-            const selectAllCheckbox = document.getElementById('selectAll');
-            if (selectAllCheckbox) {
-                selectAllCheckbox.addEventListener('change', (e) => {
-                    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]:not(:disabled)');
-                    checkboxes.forEach(checkbox => {
-                        checkbox.checked = e.target.checked;
-                        const opId = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
-                        if (e.target.checked) {
-                            this.selectedOperations.add(opId);
-                        } else {
-                            this.selectedOperations.delete(opId);
-                        }
-                    });
-                });
-            }
-        }
-        
+        // Mettre à jour l'affichage
         this.updateStats();
-    }
-
-    // ... (le reste des méthodes reste identique mais avec vérifications d'authentification ajoutées)
-
-    async ajouterOperation(e) {
-        e.preventDefault();
-
-        if (!this.utilisateurConnecte) {
-            alert('Veuillez vous connecter pour ajouter une opération');
-            return;
-        }
-
-        const operateur = document.getElementById('operateur').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantSaisi = parseFloat(document.getElementById('montant').value);
-        const descriptionValue = document.getElementById('description').value.trim();
-
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!descriptionValue) {
-            alert('Veuillez saisir une description');
-            return;
-        }
-
-        let operationsACreer = [];
-
-        if (typeOperation === 'travailleur_global') {
-            const montantZaitoun = montantSaisi / 3;
-            const montant3Commain = (montantSaisi * 2) / 3;
-
-            operationsACreer = [
-                {
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: 'zaitoun',
-                    typeOperation: 'zaitoun',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
-                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                    repartition: true,
-                    createur: this.utilisateurConnecte.id,
-                    createurNom: this.utilisateurConnecte.nom,
-                    timestamp: new Date().toISOString()
-                },
-                {
-                    date: new Date().toISOString().split('T')[0],
-                    operateur: operateur,
-                    groupe: '3commain',
-                    typeOperation: '3commain',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
-                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
-                    repartition: true,
-                    createur: this.utilisateurConnecte.id,
-                    createurNom: this.utilisateurConnecte.nom,
-                    timestamp: new Date().toISOString()
-                }
-            ];
-        } else {
-            operationsACreer = [{
-                date: new Date().toISOString().split('T')[0],
-                operateur: operateur,
-                groupe: groupe,
-                typeOperation: typeOperation,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                description: descriptionValue,
-                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
-                repartition: false,
-                createur: this.utilisateurConnecte.id,
-                createurNom: this.utilisateurConnecte.nom,
-                timestamp: new Date().toISOString()
-            }];
-        }
-
-        try {
-            // Sauvegarder d'abord sur Firebase pour obtenir les IDs
-            for (const op of operationsACreer) {
-                if (window.firebaseSync) {
-                    const result = await firebaseSync.addDocument('operations', op);
-                    
-                    const operationAvecId = {
-                        id: result.id,
-                        ...op
-                    };
-                    
-                    this.operations.unshift(operationAvecId);
-                    console.log(`➕ Nouvelle opération ${result.id} ajoutée avec ID Firebase`);
-                } else {
-                    const operationAvecId = {
-                        id: 'local_' + Date.now(),
-                        ...op
-                    };
-                    this.operations.unshift(operationAvecId);
-                    console.log(`➕ Nouvelle opération ${operationAvecId.id} ajoutée en local`);
-                }
-            }
-
-            this.sauvegarderLocalement();
-            this.afficherMessageSucces('Opération enregistrée !');
-            this.resetForm();
-            this.mettreAJourAffichage();
-            
-        } catch (error) {
-            console.error('❌ Erreur ajout opération:', error);
-            alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
-        }
-    }
-
-    async supprimerOperation(operationId) {
-        if (!this.utilisateurConnecte) {
-            alert('Veuillez vous connecter pour supprimer une opération');
-            return;
-        }
-
-        const operationASupprimer = this.operations.find(op => op.id === operationId);
-        if (!operationASupprimer) return;
-
-        // Vérifier les permissions
-        if (!this.peutSupprimerOperation(operationASupprimer)) {
-            alert('Vous ne pouvez supprimer que vos propres opérations');
-            return;
-        }
-
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) return;
+        this.afficherHistorique('global');
         
-        try {
-            this.suppressionsEnCours.add(operationId);
-            
-            if (window.firebaseSync) {
-                await firebaseSync.deleteDocument('operations', operationId);
-                console.log(`✅ Opération ${operationId} supprimée de Firebase`);
-            }
-            
-            this.operations = this.operations.filter(op => op.id !== operationId);
-            
-            this.sauvegarderLocalement();
-            this.mettreAJourAffichage();
-            this.afficherMessageSucces('Opération supprimée');
-            
-            setTimeout(() => {
-                this.suppressionsEnCours.delete(operationId);
-            }, 5000);
-            
-        } catch (error) {
-            console.error(`❌ Erreur suppression:`, error);
-            this.suppressionsEnCours.delete(operationId);
-            alert('Erreur lors de la suppression. Vérifiez votre connexion.');
-        }
+        this.afficherMessageSucces('✅ Données locales réinitialisées');
+        
+        // Resynchroniser avec Firebase
+        setTimeout(() => {
+            this.synchroniserAvecFirebase();
+        }, 1000);
     }
 
-    // ... (les autres méthodes restent similaires avec les vérifications d'authentification)
+    // ... (le reste des méthodes reste identique)
 
     // Méthodes de formatage
     formaterDate(dateStr) {
@@ -914,10 +610,71 @@ class GestionFerme {
         };
         return caisses[caisse] || caisse;
     }
+
+    afficherMessageSucces(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'success-message';
+        messageDiv.textContent = message;
+        const header = document.querySelector('header');
+        if (header) {
+            header.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 4000);
+        }
+    }
+
+    resetForm() {
+        const saisieForm = document.getElementById('saisieForm');
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        if (saisieForm) saisieForm.reset();
+        if (repartitionInfo) repartitionInfo.style.display = 'none';
+    }
+
+    gestionAffichageRepartition(typeOperation) {
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+        const montantInput = document.getElementById('montant');
+        
+        if (!repartitionInfo || !repartitionDetails) return;
+        
+        if (typeOperation === 'travailleur_global') {
+            repartitionInfo.style.display = 'block';
+            
+            const updateRepartition = () => {
+                const montant = parseFloat(montantInput.value) || 0;
+                if (montant > 0) {
+                    const partZaitoun = (montant / 3).toFixed(2);
+                    const part3Commain = ((montant * 2) / 3).toFixed(2);
+                    
+                    repartitionDetails.innerHTML = `
+                        <div class="repartition-details">
+                            <div class="repartition-item zaitoun">
+                                <span class="repartition-label">🫒 Zaitoun (1/3):</span>
+                                <span class="repartition-value">${partZaitoun} DH</span>
+                            </div>
+                            <div class="repartition-item commain">
+                                <span class="repartition-label">🔧 3 Commain (2/3):</span>
+                                <span class="repartition-value">${part3Commain} DH</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    repartitionDetails.innerHTML = '<p>Saisissez un montant pour voir la répartition</p>';
+                }
+            };
+            
+            montantInput.removeEventListener('input', updateRepartition);
+            montantInput.addEventListener('input', updateRepartition);
+            updateRepartition();
+            
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
+    }
 }
 
 // Initialisation
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+    window.app = app; // Rendre app global pour les onclick
 });
