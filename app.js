@@ -26,6 +26,418 @@ class GestionFerme {
         console.log('✅ Application Gestion Ferme initialisée');
     }
 
+    setupEventListeners() {
+        console.log('🔧 Configuration des écouteurs d\'événements...');
+        
+        // Formulaire de saisie
+        const saisieForm = document.getElementById('saisieForm');
+        if (saisieForm) {
+            saisieForm.addEventListener('submit', (e) => this.ajouterOperation(e));
+        }
+        
+        // Formulaire de transfert
+        const transfertForm = document.getElementById('transfertForm');
+        if (transfertForm) {
+            transfertForm.addEventListener('submit', (e) => this.ajouterTransfert(e));
+        }
+        
+        // Bouton reset
+        const btnReset = document.getElementById('btnReset');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => this.resetForm());
+        }
+        
+        // Mode édition
+        const btnEditMode = document.getElementById('btnEditMode');
+        if (btnEditMode) {
+            btnEditMode.addEventListener('click', () => this.toggleEditMode(true));
+        }
+        
+        // Suppression sélectionnée
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected) {
+            btnDeleteSelected.addEventListener('click', () => this.supprimerOperationsSelectionnees());
+        }
+        
+        // Annuler édition
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        if (btnCancelEdit) {
+            btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
+        }
+        
+        // Gestion des onglets
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const sheet = e.target.getAttribute('data-sheet');
+                this.afficherHistorique(sheet);
+                
+                // Mettre à jour l'onglet actif
+                tabButtons.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+        
+        // Modal de modification
+        const editModal = document.getElementById('editModal');
+        const closeModalButtons = document.querySelectorAll('.close-modal');
+        
+        closeModalButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                editModal.style.display = 'none';
+            });
+        });
+        
+        // Formulaire de modification
+        const editForm = document.getElementById('editForm');
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => this.modifierOperation(e));
+        }
+        
+        // Fermer modal en cliquant à l'extérieur
+        window.addEventListener('click', (e) => {
+            if (e.target === editModal) {
+                editModal.style.display = 'none';
+            }
+        });
+        
+        // Gestion du type d'opération pour afficher la répartition
+        const typeOperationSelect = document.getElementById('typeOperation');
+        if (typeOperationSelect) {
+            typeOperationSelect.addEventListener('change', (e) => {
+                this.gestionAffichageRepartition(e.target.value);
+            });
+        }
+        
+        console.log('✅ Écouteurs d\'événements configurés');
+    }
+
+    gestionAffichageRepartition(typeOperation) {
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+        const montantInput = document.getElementById('montant');
+        
+        if (!repartitionInfo || !repartitionDetails) return;
+        
+        if (typeOperation === 'travailleur_global') {
+            repartitionInfo.style.display = 'block';
+            
+            // Mettre à jour en temps réel quand le montant change
+            const updateRepartition = () => {
+                const montant = parseFloat(montantInput.value) || 0;
+                if (montant > 0) {
+                    const partZaitoun = (montant / 3).toFixed(2);
+                    const part3Commain = ((montant * 2) / 3).toFixed(2);
+                    
+                    repartitionDetails.innerHTML = `
+                        <div class="repartition-grid">
+                            <div class="repartition-item">
+                                <span class="repartition-label">🫒 Zaitoun (1/3):</span>
+                                <span class="repartition-value">${partZaitoun} DH</span>
+                            </div>
+                            <div class="repartition-item">
+                                <span class="repartition-label">🔧 3 Commain (2/3):</span>
+                                <span class="repartition-value">${part3Commain} DH</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    repartitionDetails.innerHTML = '<p>Saisissez un montant pour voir la répartition</p>';
+                }
+            };
+            
+            // Écouter les changements de montant
+            montantInput.removeEventListener('input', updateRepartition);
+            montantInput.addEventListener('input', updateRepartition);
+            updateRepartition();
+            
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
+    }
+
+    async ajouterTransfert(e) {
+        e.preventDefault();
+
+        const caisseSource = document.getElementById('caisseSource').value;
+        const caisseDestination = document.getElementById('caisseDestination').value;
+        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
+        const descriptionTransfert = document.getElementById('descriptionTransfert').value.trim();
+
+        if (caisseSource === caisseDestination) {
+            alert('Les caisses source et destination doivent être différentes');
+            return;
+        }
+
+        if (montantTransfert <= 0 || isNaN(montantTransfert)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionTransfert) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        // Vérifier si la caisse source a suffisamment de fonds
+        const soldeSource = this.caisses[caisseSource];
+        if (soldeSource < montantTransfert) {
+            alert(`Fonds insuffisants dans ${this.formaterCaisse(caisseSource)}. Solde disponible: ${soldeSource.toFixed(2)} DH`);
+            return;
+        }
+
+        // Créer les deux opérations de transfert
+        const operationsTransfert = [
+            {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                operateur: 'system',
+                groupe: 'system',
+                typeOperation: 'transfert',
+                typeTransaction: 'frais',
+                caisse: caisseSource,
+                description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${descriptionTransfert}`,
+                montant: -montantTransfert,
+                repartition: false,
+                transfert: true,
+                timestamp: new Date().toISOString()
+            },
+            {
+                id: Date.now() + 1,
+                date: new Date().toISOString().split('T')[0],
+                operateur: 'system',
+                groupe: 'system',
+                typeOperation: 'transfert',
+                typeTransaction: 'revenu',
+                caisse: caisseDestination,
+                description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${descriptionTransfert}`,
+                montant: montantTransfert,
+                repartition: false,
+                transfert: true,
+                timestamp: new Date().toISOString()
+            }
+        ];
+
+        for (const op of operationsTransfert) {
+            this.operations.unshift(op);
+        }
+
+        await this.sauvegarderDonnees();
+        this.afficherMessageSucces('Transfert effectué !');
+        
+        // Réinitialiser le formulaire
+        document.getElementById('transfertForm').reset();
+        this.mettreAJourAffichage();
+    }
+
+    toggleEditMode(activer) {
+        this.editMode = activer;
+        
+        const btnEditMode = document.getElementById('btnEditMode');
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        
+        if (activer) {
+            btnEditMode.style.display = 'none';
+            btnDeleteSelected.style.display = 'inline-block';
+            btnCancelEdit.style.display = 'inline-block';
+            this.selectedOperations.clear();
+        } else {
+            btnEditMode.style.display = 'inline-block';
+            btnDeleteSelected.style.display = 'none';
+            btnCancelEdit.style.display = 'none';
+            this.selectedOperations.clear();
+        }
+        
+        this.mettreAJourAffichage();
+    }
+
+    toggleOperationSelection(operationId) {
+        if (this.selectedOperations.has(operationId)) {
+            this.selectedOperations.delete(operationId);
+        } else {
+            this.selectedOperations.add(operationId);
+        }
+        this.mettreAJourAffichage();
+    }
+
+    ouvrirModalModification(operationId) {
+        const operation = this.operations.find(op => op.id === operationId);
+        if (!operation) return;
+
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = Math.abs(operation.montant);
+        document.getElementById('editDescription').value = operation.description;
+
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    async modifierOperation(e) {
+        e.preventDefault();
+
+        const operationId = parseInt(document.getElementById('editId').value);
+        const operateur = document.getElementById('editOperateur').value;
+        const groupe = document.getElementById('editGroupe').value;
+        const typeOperation = document.getElementById('editTypeOperation').value;
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+        const caisse = document.getElementById('editCaisse').value;
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const descriptionValue = document.getElementById('editDescription').value.trim();
+
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        const index = this.operations.findIndex(op => op.id === operationId);
+        if (index === -1) return;
+
+        this.operations[index] = {
+            ...this.operations[index],
+            operateur: operateur,
+            groupe: groupe,
+            typeOperation: typeOperation,
+            typeTransaction: typeTransaction,
+            caisse: caisse,
+            description: descriptionValue,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi
+        };
+
+        await this.sauvegarderDonnees();
+        this.afficherMessageSucces('Opération modifiée !');
+        document.getElementById('editModal').style.display = 'none';
+        this.mettreAJourAffichage();
+    }
+
+    afficherHistorique(vue) {
+        this.currentView = vue;
+        this.caisseSelectionnee = null;
+        
+        let operationsFiltrees = [];
+        
+        switch(vue) {
+            case 'global':
+                operationsFiltrees = this.operations;
+                break;
+            case 'zaitoun':
+                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                break;
+            case '3commain':
+                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                break;
+            case 'abdel':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                break;
+            case 'omar':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                break;
+            case 'hicham':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                break;
+            case 'transferts':
+                operationsFiltrees = this.operations.filter(op => op.transfert === true);
+                break;
+        }
+
+        const container = document.getElementById('dataDisplay');
+        
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
+            return;
+        }
+
+        let tableHTML = `
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Groupe</th>
+                            <th>Type Opération</th>
+                            <th>Transaction</th>
+                            <th>Caisse</th>
+                            <th>Description</th>
+                            <th>Montant (DH)</th>
+                            ${!this.editMode ? '<th>Actions</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        operationsFiltrees.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            const estSelectionnee = this.selectedOperations.has(op.id);
+            
+            tableHTML += `
+                <tr class="${estSelectionnee ? 'selected' : ''}">
+                    ${this.editMode ? 
+                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection(${op.id})"></td>` 
+                        : ''}
+                    <td>${this.formaterDate(op.date)}</td>
+                    <td>${this.formaterOperateur(op.operateur)}</td>
+                    <td>${this.formaterGroupe(op.groupe)}</td>
+                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                    <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
+                    <td>${this.formaterCaisse(op.caisse)}</td>
+                    <td>${op.description}</td>
+                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
+                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
+                    </td>
+                    ${!this.editMode ? `
+                    <td>
+                        <div class="operation-actions">
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">✏️</button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
+                        </div>
+                    </td>
+                    ` : ''}
+                </tr>
+            `;
+        });
+
+        tableHTML += '</tbody></table></div>';
+        
+        if (this.editMode) {
+            tableHTML += `
+                <script>
+                    document.getElementById('selectAll')?.addEventListener('change', function(e) {
+                        const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = e.target.checked;
+                            const opId = parseInt(checkbox.getAttribute('onchange').match(/\\d+/)[0]);
+                            if (e.target.checked) {
+                                app.selectedOperations.add(opId);
+                            } else {
+                                app.selectedOperations.delete(opId);
+                            }
+                        });
+                    });
+                </script>
+            `;
+        }
+
+        container.innerHTML = tableHTML;
+        this.updateStats();
+    }
+
+    mettreAJourOngletsCaisse(caisse) {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+    }
+
     // RÉINITIALISER COMPLÈTEMENT FIREBASE
     async reinitialiserFirebase() {
         if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
@@ -121,7 +533,6 @@ class GestionFerme {
         }, 1000);
     }
 
-    // ... (TOUTES LES AUTRES MÉTHODES EXISTANTES RESTENT IDENTIQUES)
     async chargerDonneesAvecSynchro() {
         console.log('📥 Chargement automatique des données...');
         
@@ -378,7 +789,6 @@ class GestionFerme {
         this.afficherMessageSucces(`${this.selectedOperations.size} opération(s) supprimée(s)`);
     }
 
-    // ... (LES AUTRES MÉTHODES RESTENT IDENTIQUES)
     updateStats() {
         this.calculerSoldes();
         const container = document.getElementById('statsContainer');
@@ -530,7 +940,6 @@ class GestionFerme {
         return tableHTML;
     }
 
-    // ... (LES MÉTHODES RESTANTES)
     async ajouterOperation(e) {
         e.preventDefault();
 
@@ -666,8 +1075,6 @@ class GestionFerme {
         };
         return caisses[caisse] || caisse;
     }
-
-    // ... (autres méthodes)
 }
 
 // Initialisation
