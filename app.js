@@ -1,13 +1,12 @@
 // Configuration Firebase - REMPLACEZ AVEC VOS CLÉS
 const firebaseConfig = {
-    apiKey: "AIzaSyCLaR4eJ3VvqKdLqJqY9V8X8WZ8X8WZ8X8",
-    authDomain: "ferme-ben-amara.firebaseapp.com",
-    projectId: "ferme-ben-amara",
-    storageBucket: "ferme-ben-amara.firebasestorage.app",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef123456"
+  apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+  authDomain: "gestion-fermebenamara.firebaseapp.com",
+  projectId: "gestion-fermebenamara",
+  storageBucket: "gestion-fermebenamara.firebasestorage.app",
+  messagingSenderId: "668129137491",
+  appId: "1:668129137491:web:b56522302ea789044507a6"
 };
-
 // Initialisation Firebase
 try {
     firebase.initializeApp(firebaseConfig);
@@ -391,3 +390,4 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('error', (event) => {
     console.error('Erreur globale:', event.error);
 });
+
