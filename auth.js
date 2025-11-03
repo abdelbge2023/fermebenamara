@@ -128,15 +128,23 @@ class AuthSystem {
     }
 
     hideAuthModal() {
-        document.getElementById('authModal').style.display = 'none';
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            authModal.style.display = 'none';
+        }
     }
 
     showAuthModal() {
-        document.getElementById('authModal').style.display = 'flex';
+        const authModal = document.getElementById('authModal');
+        if (authModal) {
+            authModal.style.display = 'flex';
+        }
     }
 
     updateUIForUser() {
         const header = document.querySelector('header');
+        if (!header) return;
+
         const existingUserInfo = document.getElementById('userInfo');
         
         if (existingUserInfo) {
@@ -150,7 +158,7 @@ class AuthSystem {
                     <button onclick="auth.logout()" class="btn-secondary btn-small">🚪 Déconnexion</button>
                 </div>
             `;
-            header.insertAdjacentHTML('beforeend', userInfoInfoHTML);
+            header.insertAdjacentHTML('beforeend', userInfoHTML);
         }
     }
 
