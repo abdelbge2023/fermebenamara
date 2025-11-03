@@ -1,4 +1,4 @@
-// app.js - Version complète corrigée avec anti-boucle de synchronisation
+// app.js - Version complète corrigée avec gestion des IDs Firebase
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -189,60 +189,68 @@ class GestionFerme {
             return;
         }
 
-        // Créer les deux opérations de transfert
-        const operationsTransfert = [
-            {
-                id: Date.now(),
-                date: new Date().toISOString().split('T')[0],
-                operateur: 'system',
-                groupe: 'system',
-                typeOperation: 'transfert',
-                typeTransaction: 'frais',
-                caisse: caisseSource,
-                description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${descriptionTransfert}`,
-                montant: -montantTransfert,
-                repartition: false,
-                transfert: true,
-                timestamp: new Date().toISOString()
-            },
-            {
-                id: Date.now() + 1,
-                date: new Date().toISOString().split('T')[0],
-                operateur: 'system',
-                groupe: 'system',
-                typeOperation: 'transfert',
-                typeTransaction: 'revenu',
-                caisse: caisseDestination,
-                description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${descriptionTransfert}`,
-                montant: montantTransfert,
-                repartition: false,
-                transfert: true,
-                timestamp: new Date().toISOString()
+        try {
+            // Créer les deux opérations de transfert
+            const operationsTransfert = [
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: 'system',
+                    groupe: 'system',
+                    typeOperation: 'transfert',
+                    typeTransaction: 'frais',
+                    caisse: caisseSource,
+                    description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${descriptionTransfert}`,
+                    montant: -montantTransfert,
+                    repartition: false,
+                    transfert: true,
+                    timestamp: new Date().toISOString()
+                },
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: 'system',
+                    groupe: 'system',
+                    typeOperation: 'transfert',
+                    typeTransaction: 'revenu',
+                    caisse: caisseDestination,
+                    description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${descriptionTransfert}`,
+                    montant: montantTransfert,
+                    repartition: false,
+                    transfert: true,
+                    timestamp: new Date().toISOString()
+                }
+            ];
+
+            // Sauvegarder sur Firebase pour obtenir les IDs
+            for (const op of operationsTransfert) {
+                if (window.firebaseSync) {
+                    const result = await firebaseSync.addDocument('operations', op);
+                    const operationAvecId = {
+                        id: result.id,
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Transfert ${result.id} ajouté avec ID Firebase`);
+                } else {
+                    const operationAvecId = {
+                        id: 'local_' + Date.now(),
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Transfert ${operationAvecId.id} ajouté en local`);
+                }
             }
-        ];
 
-        // Marquer les ajouts comme initiés localement
-        operationsTransfert.forEach(op => {
-            this.ajoutsEnCours.add(op.id);
-        });
-
-        for (const op of operationsTransfert) {
-            this.operations.unshift(op);
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Transfert effectué !');
+            
+            // Réinitialiser le formulaire
+            document.getElementById('transfertForm').reset();
+            this.mettreAJourAffichage();
+            
+        } catch (error) {
+            console.error('❌ Erreur transfert:', error);
+            alert('Erreur lors du transfert. Vérifiez votre connexion.');
         }
-
-        await this.sauvegarderDonnees();
-        this.afficherMessageSucces('Transfert effectué !');
-        
-        // Retirer les ajouts de la liste après un délai
-        setTimeout(() => {
-            operationsTransfert.forEach(op => {
-                this.ajoutsEnCours.delete(op.id);
-            });
-        }, 5000);
-        
-        // Réinitialiser le formulaire
-        document.getElementById('transfertForm').reset();
-        this.mettreAJourAffichage();
     }
 
     toggleEditMode(activer) {
@@ -295,7 +303,7 @@ class GestionFerme {
     async modifierOperation(e) {
         e.preventDefault();
 
-        const operationId = parseInt(document.getElementById('editId').value);
+        const operationId = document.getElementById('editId').value;
         const operateur = document.getElementById('editOperateur').value;
         const groupe = document.getElementById('editGroupe').value;
         const typeOperation = document.getElementById('editTypeOperation').value;
@@ -317,7 +325,7 @@ class GestionFerme {
         const index = this.operations.findIndex(op => op.id === operationId);
         if (index === -1) return;
 
-        this.operations[index] = {
+        const operationModifiee = {
             ...this.operations[index],
             operateur: operateur,
             groupe: groupe,
@@ -328,10 +336,24 @@ class GestionFerme {
             montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi
         };
 
-        await this.sauvegarderDonnees();
-        this.afficherMessageSucces('Opération modifiée !');
-        document.getElementById('editModal').style.display = 'none';
-        this.mettreAJourAffichage();
+        try {
+            // Mettre à jour dans Firebase
+            if (window.firebaseSync) {
+                await firebaseSync.updateDocument('operations', operationId, operationModifiee);
+            }
+            
+            // Mettre à jour localement
+            this.operations[index] = operationModifiee;
+            this.sauvegarderLocalement();
+            
+            this.afficherMessageSucces('Opération modifiée !');
+            document.getElementById('editModal').style.display = 'none';
+            this.mettreAJourAffichage();
+            
+        } catch (error) {
+            console.error('❌ Erreur modification:', error);
+            alert('Erreur lors de la modification. Vérifiez votre connexion.');
+        }
     }
 
     afficherHistorique(vue) {
@@ -399,7 +421,7 @@ class GestionFerme {
             tableHTML += `
                 <tr class="${estSelectionnee ? 'selected' : ''}">
                     ${this.editMode ? 
-                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection(${op.id})"></td>` 
+                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection('${op.id}')"></td>` 
                         : ''}
                     <td>${this.formaterDate(op.date)}</td>
                     <td>${this.formaterOperateur(op.operateur)}</td>
@@ -414,8 +436,8 @@ class GestionFerme {
                     ${!this.editMode ? `
                     <td>
                         <div class="operation-actions">
-                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">✏️</button>
-                            <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">✏️</button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">🗑️</button>
                         </div>
                     </td>
                     ` : ''}
@@ -435,7 +457,7 @@ class GestionFerme {
                     const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
                     checkboxes.forEach(checkbox => {
                         checkbox.checked = e.target.checked;
-                        const opId = parseInt(checkbox.getAttribute('onchange').match(/\d+/)[0]);
+                        const opId = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
                         if (e.target.checked) {
                             this.selectedOperations.add(opId);
                         } else {
@@ -591,30 +613,24 @@ class GestionFerme {
                 console.log(`📡 ${operationsFirebase.length} opérations sur Firebase`);
                 
                 let nouvellesOperations = 0;
-                let operationsMisesAJour = 0;
+
+                // Réinitialiser les opérations avec celles de Firebase
+                this.operations = [];
 
                 operationsFirebase.forEach(opFirebase => {
-                    const indexLocal = this.operations.findIndex(op => op.id === opFirebase.id);
-                    
-                    if (indexLocal === -1) {
-                        // Nouvelle opération - l'ajouter
-                        this.operations.unshift(opFirebase);
-                        nouvellesOperations++;
-                        console.log(`➕ Nouvelle opération ${opFirebase.id} ajoutée`);
-                    } else {
-                        // Opération existante - mettre à jour si nécessaire
-                        this.operations[indexLocal] = { ...this.operations[indexLocal], ...opFirebase };
-                        operationsMisesAJour++;
-                    }
+                    // Utiliser directement les opérations de Firebase avec leurs IDs
+                    this.operations.unshift(opFirebase);
+                    nouvellesOperations++;
+                    console.log(`➕ Opération ${opFirebase.id} synchronisée depuis Firebase`);
                 });
 
                 this.operations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 this.sauvegarderLocalement();
 
-                console.log(`✅ Synchronisation: ${nouvellesOperations} nouvelles, ${operationsMisesAJour} mises à jour`);
+                console.log(`✅ Synchronisation: ${nouvellesOperations} opérations chargées depuis Firebase`);
                 
-                if (nouvellesOperations > 0 || operationsMisesAJour > 0) {
-                    this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} nouvelles opérations`);
+                if (nouvellesOperations > 0) {
+                    this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} opérations`);
                     this.mettreAJourAffichage();
                 }
             }
@@ -652,22 +668,16 @@ class GestionFerme {
                         modificationsIgnorees++;
                         return;
                     }
-                    
-                    if (this.ajoutsEnCours.has(operationId)) {
-                        console.log(`🚫 Ajout ${operationId} ignoré (initié localement)`);
-                        modificationsIgnorees++;
-                        return;
-                    }
 
                     if (change.type === 'added') {
-                        this.ajouterOperationSynchro(change.data);
+                        this.ajouterOperationSynchro(change.data, operationId);
                         modifications++;
                     } else if (change.type === 'modified') {
-                        this.mettreAJourOperationSynchro(change.id, change.data);
+                        this.mettreAJourOperationSynchro(operationId, change.data);
                         modifications++;
                     } else if (change.type === 'removed') {
                         // Accepter les suppressions venant d'autres appareils
-                        this.supprimerOperationSynchro(change.id);
+                        this.supprimerOperationSynchro(operationId);
                         modifications++;
                     }
                 });
@@ -681,9 +691,9 @@ class GestionFerme {
         });
     }
 
-    ajouterOperationSynchro(data) {
+    ajouterOperationSynchro(data, operationId) {
         const operation = {
-            id: data.id,
+            id: operationId, // Utiliser l'ID de Firebase
             date: data.date,
             operateur: data.operateur,
             groupe: data.groupe,
@@ -733,26 +743,20 @@ class GestionFerme {
         try {
             for (const operation of this.operations) {
                 try {
-                    // Marquer l'ajout comme initié localement
-                    this.ajoutsEnCours.add(operation.id);
-                    
+                    // Vérifier si l'opération existe déjà sur Firebase
                     const operationsFirebase = await firebaseSync.getCollection('operations');
                     const existeSurFirebase = operationsFirebase.some(op => op.id === operation.id);
                     
                     if (!existeSurFirebase) {
+                        // Si elle n'existe pas, l'ajouter
                         await firebaseSync.addDocument('operations', operation);
                     } else {
+                        // Si elle existe, la mettre à jour
                         await firebaseSync.updateDocument('operations', operation.id, operation);
                     }
                     
-                    // Retirer après un délai
-                    setTimeout(() => {
-                        this.ajoutsEnCours.delete(operation.id);
-                    }, 5000);
-                    
                 } catch (error) {
                     console.error(`❌ Erreur synchro ${operation.id}:`, error);
-                    this.ajoutsEnCours.delete(operation.id);
                 }
             }
         } catch (error) {
@@ -762,7 +766,7 @@ class GestionFerme {
 
     async sauvegarderDonnees() {
         this.sauvegarderLocalement();
-        this.sauvegarderSurFirebase();
+        await this.sauvegarderSurFirebase();
     }
 
     mettreAJourAffichage() {
@@ -1001,8 +1005,8 @@ class GestionFerme {
                     </td>
                     <td>
                         <div class="operation-actions">
-                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">✏️</button>
-                            <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">✏️</button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">🗑️</button>
                         </div>
                     </td>
                 </tr>
@@ -1042,7 +1046,6 @@ class GestionFerme {
 
             operationsACreer = [
                 {
-                    id: Date.now(),
                     date: new Date().toISOString().split('T')[0],
                     operateur: operateur,
                     groupe: 'zaitoun',
@@ -1055,7 +1058,6 @@ class GestionFerme {
                     timestamp: new Date().toISOString()
                 },
                 {
-                    id: Date.now() + 1,
                     date: new Date().toISOString().split('T')[0],
                     operateur: operateur,
                     groupe: '3commain',
@@ -1070,7 +1072,6 @@ class GestionFerme {
             ];
         } else {
             operationsACreer = [{
-                id: Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 operateur: operateur,
                 groupe: groupe,
@@ -1084,27 +1085,41 @@ class GestionFerme {
             }];
         }
 
-        // Marquer les ajouts comme initiés localement
-        operationsACreer.forEach(op => {
-            this.ajoutsEnCours.add(op.id);
-        });
+        try {
+            // Sauvegarder d'abord sur Firebase pour obtenir les IDs
+            for (const op of operationsACreer) {
+                if (window.firebaseSync) {
+                    // Firebase générera automatiquement l'ID
+                    const result = await firebaseSync.addDocument('operations', op);
+                    
+                    // Récupérer l'ID généré par Firebase
+                    const operationAvecId = {
+                        id: result.id, // ID généré par Firebase
+                        ...op
+                    };
+                    
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Nouvelle opération ${result.id} ajoutée avec ID Firebase`);
+                } else {
+                    // Fallback local si Firebase n'est pas disponible
+                    const operationAvecId = {
+                        id: 'local_' + Date.now(), // ID local temporaire
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Nouvelle opération ${operationAvecId.id} ajoutée en local`);
+                }
+            }
 
-        for (const op of operationsACreer) {
-            this.operations.unshift(op);
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Opération enregistrée !');
+            this.resetForm();
+            this.mettreAJourAffichage();
+            
+        } catch (error) {
+            console.error('❌ Erreur ajout opération:', error);
+            alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
         }
-
-        await this.sauvegarderDonnees();
-        this.afficherMessageSucces('Opération enregistrée !');
-        
-        // Retirer les ajouts de la liste après un délai
-        setTimeout(() => {
-            operationsACreer.forEach(op => {
-                this.ajoutsEnCours.delete(op.id);
-            });
-        }, 5000);
-        
-        this.resetForm();
-        this.mettreAJourAffichage();
     }
 
     resetForm() {
