@@ -1,4 +1,4 @@
-// app.js - Version complète avec réinitialisation
+// app.js - Version complète corrigée
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -318,195 +318,63 @@ class GestionFerme {
         document.getElementById('editModal').style.display = 'none';
         this.mettreAJourAffichage();
     }
-afficherHistorique(vue) {
-    this.currentView = vue;
-    this.caisseSelectionnee = null;
-    
-    let operationsFiltrees = [];
-    
-    switch(vue) {
-        case 'global':
-            operationsFiltrees = this.operations;
-            break;
-        case 'zaitoun':
-            operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
-            break;
-        case '3commain':
-            operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
-            break;
-        case 'abdel':
-            operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
-            break;
-        case 'omar':
-            operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
-            break;
-        case 'hicham':
-            operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
-            break;
-        case 'transferts':
-            operationsFiltrees = this.operations.filter(op => op.transfert === true);
-            break;
-    }
 
-    const container = document.getElementById('dataDisplay');
-    
-    if (operationsFiltrees.length === 0) {
-        container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
-        return;
-    }
-
-    let tableHTML = `
-        <div style="overflow-x: auto;">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
-                        <th>Date</th>
-                        <th>Opérateur</th>
-                        <th>Groupe</th>
-                        <th>Type Opération</th>
-                        <th>Transaction</th>
-                        <th>Caisse</th>
-                        <th>Description</th>
-                        <th>Montant (DH)</th>
-                        ${!this.editMode ? '<th>Actions</th>' : ''}
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    operationsFiltrees.forEach(op => {
-        const montantAbsolu = Math.abs(op.montant);
-        const estNegatif = op.montant < 0;
-        const estSelectionnee = this.selectedOperations.has(op.id);
+    afficherHistorique(vue) {
+        this.currentView = vue;
+        this.caisseSelectionnee = null;
         
-        tableHTML += `
-            <tr class="${estSelectionnee ? 'selected' : ''}">
-                ${this.editMode ? 
-                    `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} data-opid="${op.id}"></td>` 
-                    : ''}
-                <td>${this.formaterDate(op.date)}</td>
-                <td>${this.formaterOperateur(op.operateur)}</td>
-                <td>${this.formaterGroupe(op.groupe)}</td>
-                <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
-                <td>${this.formaterCaisse(op.caisse)}</td>
-                <td>${op.description}</td>
-                <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
-                    ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
-                </td>
-                ${!this.editMode ? `
-                <td>
-                    <div class="operation-actions">
-                        <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">✏️</button>
-                        <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
-                    </div>
-                </td>
-                ` : ''}
-            </tr>
-        `;
-    });
-
-    tableHTML += '</tbody></table></div>';
-    
-    container.innerHTML = tableHTML;
-    
-    // Gestion du selectAll en JavaScript pur après l'insertion du HTML
-    if (this.editMode) {
-        const selectAllCheckbox = document.getElementById('selectAll');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', (e) => {
-                const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = e.target.checked;
-                    const opId = parseInt(checkbox.getAttribute('data-opid'));
-                    if (e.target.checked) {
-                        this.selectedOperations.add(opId);
-                    } else {
-                        this.selectedOperations.delete(opId);
-                    }
-                });
-            });
+        let operationsFiltrees = [];
+        
+        switch(vue) {
+            case 'global':
+                operationsFiltrees = this.operations;
+                break;
+            case 'zaitoun':
+                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                break;
+            case '3commain':
+                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                break;
+            case 'abdel':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                break;
+            case 'omar':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                break;
+            case 'hicham':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                break;
+            case 'transferts':
+                operationsFiltrees = this.operations.filter(op => op.transfert === true);
+                break;
         }
 
-        // Ajouter les écouteurs d'événements pour les cases à cocher individuelles
-        const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const opId = parseInt(e.target.getAttribute('data-opid'));
-                this.toggleOperationSelection(opId);
-            });
-        });
-    }
-    
-    this.updateStats();
-}
-    operationsFiltrees.forEach(op => {
-        const montantAbsolu = Math.abs(op.montant);
-        const estNegatif = op.montant < 0;
-        const estSelectionnee = this.selectedOperations.has(op.id);
+        const container = document.getElementById('dataDisplay');
         
-        tableHTML += `
-            <tr class="${estSelectionnee ? 'selected' : ''}">
-                ${this.editMode ? 
-                    `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} data-opid="${op.id}"></td>` 
-                    : ''}
-                <td>${this.formaterDate(op.date)}</td>
-                <td>${this.formaterOperateur(op.operateur)}</td>
-                <td>${this.formaterGroupe(op.groupe)}</td>
-                <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
-                <td>${this.formaterCaisse(op.caisse)}</td>
-                <td>${op.description}</td>
-                <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
-                    ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
-                </td>
-                ${!this.editMode ? `
-                <td>
-                    <div class="operation-actions">
-                        <button class="btn-small btn-warning" onclick="app.ouvrirModalModification(${op.id})">✏️</button>
-                        <button class="btn-small btn-danger" onclick="app.supprimerOperation(${op.id})">🗑️</button>
-                    </div>
-                </td>
-                ` : ''}
-            </tr>
-        `;
-    });
-
-    tableHTML += '</tbody></table></div>';
-    
-    container.innerHTML = tableHTML;
-    
-    // Gestion du selectAll en JavaScript pur après l'insertion du HTML
-    if (this.editMode) {
-        const selectAllCheckbox = document.getElementById('selectAll');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', (e) => {
-                const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = e.target.checked;
-                    const opId = parseInt(checkbox.getAttribute('data-opid'));
-                    if (e.target.checked) {
-                        this.selectedOperations.add(opId);
-                    } else {
-                        this.selectedOperations.delete(opId);
-                    }
-                });
-            });
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
+            return;
         }
 
-        // Ajouter les écouteurs d'événements pour les cases à cocher individuelles
-        const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const opId = parseInt(e.target.getAttribute('data-opid'));
-                this.toggleOperationSelection(opId);
-            });
-        });
-    }
-    
-    this.updateStats();
-}
+        let tableHTML = `
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Groupe</th>
+                            <th>Type Opération</th>
+                            <th>Transaction</th>
+                            <th>Caisse</th>
+                            <th>Description</th>
+                            <th>Montant (DH)</th>
+                            ${!this.editMode ? '<th>Actions</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
 
         operationsFiltrees.forEach(op => {
             const montantAbsolu = Math.abs(op.montant);
@@ -516,7 +384,7 @@ afficherHistorique(vue) {
             tableHTML += `
                 <tr class="${estSelectionnee ? 'selected' : ''}">
                     ${this.editMode ? 
-                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection(${op.id})"></td>` 
+                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} data-opid="${op.id}"></td>` 
                         : ''}
                     <td>${this.formaterDate(op.date)}</td>
                     <td>${this.formaterOperateur(op.operateur)}</td>
@@ -552,7 +420,7 @@ afficherHistorique(vue) {
                     const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
                     checkboxes.forEach(checkbox => {
                         checkbox.checked = e.target.checked;
-                        const opId = parseInt(checkbox.getAttribute('onchange').match(/\d+/)[0]);
+                        const opId = parseInt(checkbox.getAttribute('data-opid'));
                         if (e.target.checked) {
                             this.selectedOperations.add(opId);
                         } else {
@@ -561,6 +429,15 @@ afficherHistorique(vue) {
                     });
                 });
             }
+
+            // Ajouter les écouteurs d'événements pour les cases à cocher individuelles
+            const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const opId = parseInt(e.target.getAttribute('data-opid'));
+                    this.toggleOperationSelection(opId);
+                });
+            });
         }
         
         this.updateStats();
@@ -1230,5 +1107,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
-
-
