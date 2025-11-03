@@ -35,24 +35,51 @@ class GestionFerme {
 
     // Méthode pour attendre que Firebase soit disponible
   async attendreFirebase() {
+    console.log('🔍 Début attente Firebase...');
+    
     return new Promise((resolve) => {
-        const verifierFirebase = () => {
-            if (window.firebaseSync || window.firebasesync) {
-                console.log('✅ FirebaseSync est disponible');
+        let tentatives = 0;
+        const maxTentatives = 25; // 25 tentatives
+        const interval = 400; // 400ms entre chaque tentative
+        
+        const verifier = () => {
+            tentatives++;
+            
+            // Vérifier sous différents noms possibles
+            const firebaseSync = window.firebaseSync || window.firebasesync || window.FirebaseSync;
+            
+            if (firebaseSync) {
+                console.log(`✅ FirebaseSync trouvé après ${tentatives} tentatives`);
                 this.firebaseInitialized = true;
-                resolve();
-            } else {
-                this.attenteFirebase++;
-                console.log(`⏳ Attente de FirebaseSync... (${this.attenteFirebase})`);
-                if (this.attenteFirebase < 10) {
-                    setTimeout(verifierFirebase, 1000);
-                } else {
-                    console.log('⚠️ Mode hors ligne activé');
-                    resolve();
+                
+                // Vérifier si Firebase est vraiment opérationnel
+                if (typeof firebaseSync.isInitialized === 'function') {
+                    if (firebaseSync.isInitialized()) {
+                        console.log('✅ FirebaseSync complètement initialisé');
+                    } else {
+                        console.log('⚠️ FirebaseSync présent mais pas encore initialisé');
+                    }
                 }
+                
+                resolve();
+            } else if (tentatives < maxTentatives) {
+                console.log(`⏳ Attente FirebaseSync... (${tentatives}/${maxTentatives})`);
+                setTimeout(verifier, interval);
+            } else {
+                console.log(`❌ FirebaseSync non disponible après ${maxTentatives} tentatives`);
+                console.log('🔍 État actuel:', {
+                    firebaseSync: !!window.firebaseSync,
+                    firebasesync: !!window.firebasesync,
+                    FirebaseSync: !!window.FirebaseSync,
+                    firebase: !!window.firebase
+                });
+                this.afficherMessageSucces('⚠️ Mode hors ligne activé');
+                resolve();
             }
         };
-        verifierFirebase();
+        
+        // Commencer la vérification
+        verifier();
     });
 }
     setupEventListeners() {
@@ -1247,5 +1274,6 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
 
 
