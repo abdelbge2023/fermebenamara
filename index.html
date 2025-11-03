@@ -345,7 +345,147 @@
     
     <!-- 2. Application principale (APRÈS Firebase) -->
     <script src="./app.js"></script>
+    <!-- Modal Manuel d'utilisation -->
+<div id="manualModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+        <div class="modal-header">
+            <h3>📖 Manuel d'Utilisation - Gestion Ferme Ben Amara</h3>
+            <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px; overflow-y: auto;">
+            <div class="manual-content">
+                
+                <h3>🔐 1. PREMIÈRE CONNEXION</h3>
+                <div class="manual-section">
+                    <p><strong>Comptes par défaut :</strong></p>
+                    <ul>
+                        <li><strong>Abdel</strong> : abdel123</li>
+                        <li><strong>Omar</strong> : omar123</li>
+                        <li><strong>Hicham</strong> : hicham123</li>
+                    </ul>
+                    <p><strong>À la première connexion :</strong></p>
+                    <ul>
+                        <li>Le système vous demandera de changer votre mot de passe</li>
+                        <li>Choisissez un mot de passe sécurisé (minimum 6 caractères)</li>
+                        <li>Ce mot de passe sera sauvegardé localement</li>
+                    </ul>
+                </div>
+
+                <h3>📝 2. AJOUTER UNE OPÉRATION</h3>
+                <div class="manual-section">
+                    <ol>
+                        <li>Remplir le formulaire "Nouvelle Opération"</li>
+                        <li>Choisir l'opérateur, le groupe, le type d'opération</li>
+                        <li>Pour "Travailleur global" : répartition automatique 1/3 - 2/3</li>
+                        <li>Sélectionner le type (Revenu 💰 ou Frais 💸)</li>
+                        <li>Choisir la caisse concernée</li>
+                        <li>Saisir le montant et la description</li>
+                        <li>Cliquer sur "✅ Enregistrer"</li>
+                    </ol>
+                </div>
+
+                <h3>🔄 3. TRANSFERT ENTRE CAISSES</h3>
+                <div class="manual-section">
+                    <ol>
+                        <li>Remplir le formulaire "Transfert entre Caisses"</li>
+                        <li>Sélectionner la caisse source et destination</li>
+                        <li>Saisir le montant et la raison</li>
+                        <li>Cliquer sur "🔄 Effectuer le transfert"</li>
+                    </ol>
+                </div>
+
+                <h3>👀 4. CONSULTER L'HISTORIQUE</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li><strong>🌍 Toutes</strong> : Toutes les opérations</li>
+                        <li><strong>🫒 Zaitoun</strong> : Opérations du groupe Zaitoun</li>
+                        <li><strong>🔧 3 Commain</strong> : Opérations du groupe 3 Commain</li>
+                        <li><strong>👨‍💼 Abdel</strong> : Opérations créées par Abdel</li>
+                        <li><strong>👨‍💻 Omar</strong> : Opérations créées par Omar</li>
+                        <li><strong>👨‍🔧 Hicham</strong> : Opérations créées par Hicham</li>
+                        <li><strong>🔄 Transferts</strong> : Tous les transferts entre caisses</li>
+                    </ul>
+                </div>
+
+                <h3>✏️ 5. MODIFIER UNE OPÉRATION</h3>
+                <div class="manual-section">
+                    <ol>
+                        <li>Cliquer sur "✏️ Mode Édition"</li>
+                        <li>Sélectionner les opérations à modifier/supprimer</li>
+                        <li><strong>Important</strong> : Vous ne pouvez modifier que vos propres opérations</li>
+                        <li>Les opérations des autres utilisateurs sont grisées</li>
+                    </ol>
+                </div>
+
+                <h3>🔐 6. GESTION DES COMPTES</h3>
+                <div class="manual-section">
+                    <p><strong>Changer son mot de passe :</strong></p>
+                    <ol>
+                        <li>Cliquer sur "🔐 Changer mot de passe" dans l'en-tête</li>
+                        <li>Saisir le nouveau mot de passe deux fois</li>
+                        <li>Cliquer sur "💾 Enregistrer"</li>
+                    </ol>
+                    <p><strong>Déconnexion :</strong></p>
+                    <ul>
+                        <li>Cliquer sur "🚪 Déconnexion" dans l'en-tête</li>
+                        <li>Toutes les données restent sauvegardées</li>
+                    </ul>
+                </div>
+
+                <h3>📊 7. EXPORT DES DONNÉES</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li><strong>📊 Export Excel Complet</strong> : Toutes les opérations + soldes</li>
+                        <li><strong>📋 Export Vue Actuelle</strong> : Opérations de la vue actuelle</li>
+                        <li><strong>📈 Rapport Complet</strong> : Rapport détaillé avec statistiques</li>
+                    </ul>
+                </div>
+
+                <h3>🔄 8. SYNCHRONISATION</h3>
+                <div class="manual-section">
+                    <ul>
+                        <li>Les données se synchronisent entre tous les appareils</li>
+                        <li>Fonctionne même hors ligne (mode cache)</li>
+                        <li>Reconnexion automatique quand internet revient</li>
+                    </ul>
+                </div>
+
+                <h3>🚨 9. RÉINITIALISATION</h3>
+                <div class="manual-section">
+                    <p><strong>🗑️ Vider Local :</strong></p>
+                    <ul>
+                        <li>Supprime seulement les données locales</li>
+                        <li>Les données Firebase restent intactes</li>
+                        <li>Utile pour résoudre des problèmes de synchronisation</li>
+                    </ul>
+                    <p><strong>🚨 Tout Réinitialiser :</strong></p>
+                    <ul>
+                        <li><strong>DANGEREUX</strong> : Supprime TOUTES les données</li>
+                        <li>Nécessite deux confirmations</li>
+                        <li>Utiliser seulement en cas de problème majeur</li>
+                    </ul>
+                </div>
+
+                <h3>📞 10. SUPPORT</h3>
+                <div class="manual-section">
+                    <p>En cas de problème :</p>
+                    <ul>
+                        <li>Vérifier la connexion internet</li>
+                        <li>Rafraîchir la page (F5)</li>
+                        <li>Utiliser "🗑️ Vider Local" si problème de synchronisation</li>
+                        <li>Contacter l'administrateur si problème persiste</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-primary close-modal">✅ Compris</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
+
 
 
