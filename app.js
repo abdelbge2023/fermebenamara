@@ -1,3 +1,15 @@
+// Gestion globale des erreurs
+window.addEventListener('error', function(e) {
+    console.error('💥 ERREUR GLOBALE:', e.error);
+    console.error('📄 Fichier:', e.filename);
+    console.error('📏 Ligne:', e.lineno);
+    console.error('🔍 Colonne:', e.colno);
+});
+
+// Gestion des promesses rejetées
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('💥 PROMESSE REJETÉE:', e.reason);
+});
 // app.js - Version complète avec chargement Firebase corrigé
 class GestionFerme {
     constructor() {
@@ -1274,6 +1286,7 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
 
 
 
