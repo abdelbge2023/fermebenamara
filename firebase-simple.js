@@ -1,4 +1,4 @@
-// firebase-simple.js - Configuration Firebase avec synchronisation automatique CORRIGÉE
+// firebase-simple.js - Configuration Firebase avec authentification
 console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
 
 // Configuration Firebase
@@ -59,21 +59,59 @@ function initializeFirebase() {
     }
 }
 
-// Classe de synchronisation Firebase
+// Classe de synchronisation Firebase avec authentification
 class FirebaseSync {
     constructor() {
         this.isOnline = navigator.onLine;
         this.pendingOperations = [];
-        this.suppressionsEnCours = new Set(); // Pour éviter les boucles de suppression
+        this.suppressionsEnCours = new Set();
+        this.user = null;
         console.log('🔄 FirebaseSync créé');
         
         if (db) {
-            this.initEventListeners();
+            this.initAuth();
         } else {
             console.warn('⚠️ Firestore non disponible, réessai dans 1s...');
             setTimeout(() => {
-                if (db) this.initEventListeners();
+                if (db) this.initAuth();
             }, 1000);
+        }
+    }
+
+    async initAuth() {
+        try {
+            // Écouter les changements d'état d'authentification
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    this.user = user;
+                    console.log('✅ Utilisateur authentifié:', user.uid);
+                    this.initEventListeners();
+                    this.syncPendingOperations();
+                    
+                    // Notifier l'application que Firebase est prêt
+                    if (window.app && window.app.onFirebaseReady) {
+                        window.app.onFirebaseReady();
+                    }
+                } else {
+                    console.log('🔐 Aucun utilisateur connecté - Connexion anonyme...');
+                    // Se connecter anonymement
+                    this.signInAnonymously();
+                }
+            });
+        } catch (error) {
+            console.error('❌ Erreur initialisation auth:', error);
+        }
+    }
+
+    async signInAnonymously() {
+        try {
+            const result = await firebase.auth().signInAnonymously();
+            this.user = result.user;
+            console.log('✅ Connexion anonyme réussie:', result.user.uid);
+        } catch (error) {
+            console.error('❌ Erreur connexion anonyme:', error);
+            // Réessayer après 2 secondes
+            setTimeout(() => this.signInAnonymously(), 2000);
         }
     }
 
@@ -113,6 +151,19 @@ class FirebaseSync {
             throw new Error('Firestore non initialisé');
         }
 
+        // Attendre que l'utilisateur soit authentifié
+        if (!this.user) {
+            console.log('⏳ En attente de l\'authentification...');
+            await new Promise(resolve => {
+                const checkAuth = setInterval(() => {
+                    if (this.user) {
+                        clearInterval(checkAuth);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+
         const { type, collection, data, id } = operation;
 
         switch (type) {
@@ -144,7 +195,7 @@ class FirebaseSync {
     }
 
     addOperation(operation) {
-        if (this.isOnline && db) {
+        if (this.isOnline && db && this.user) {
             return this.executeOperation(operation);
         } else {
             this.pendingOperations.push(operation);
@@ -157,6 +208,19 @@ class FirebaseSync {
         if (!db) {
             console.error('❌ Firestore non initialisé');
             return [];
+        }
+
+        // Attendre que l'utilisateur soit authentifié
+        if (!this.user) {
+            console.log('⏳ En attente de l\'authentification pour la lecture...');
+            await new Promise(resolve => {
+                const checkAuth = setInterval(() => {
+                    if (this.user) {
+                        clearInterval(checkAuth);
+                        resolve();
+                    }
+                }, 100);
+            });
         }
 
         try {
@@ -181,48 +245,63 @@ class FirebaseSync {
 
         console.log(`👂 Début de l'écoute en temps réel sur ${collectionName}`);
         
-        return db.collection(collectionName)
-            .onSnapshot((snapshot) => {
-                const changes = snapshot.docChanges().map(change => ({
-                    type: change.type,
-                    id: change.doc.id,
-                    data: change.doc.data()
-                }));
-                
-                if (changes.length > 0) {
-                    console.log(`🔄 ${changes.length} changement(s) détecté(s) en temps réel`);
-                }
-                
-                callback(changes, snapshot);
-            }, (error) => {
-                console.error(`❌ Erreur écoute ${collectionName}:`, error);
-            });
+        // Attendre que l'utilisateur soit authentifié avant de démarrer l'écoute
+        const startListening = () => {
+            if (!this.user) {
+                console.log('⏳ En attente de l\'authentification pour l\'écoute...');
+                setTimeout(startListening, 100);
+                return () => {};
+            }
+
+            return db.collection(collectionName)
+                .onSnapshot((snapshot) => {
+                    const changes = snapshot.docChanges().map(change => ({
+                        type: change.type,
+                        id: change.doc.id,
+                        data: change.doc.data()
+                    }));
+                    
+                    if (changes.length > 0) {
+                        console.log(`🔄 ${changes.length} changement(s) détecté(s) en temps réel`);
+                    }
+                    
+                    callback(changes, snapshot);
+                }, (error) => {
+                    console.error(`❌ Erreur écoute ${collectionName}:`, error);
+                    // En cas d'erreur de permission, réessayer l'authentification
+                    if (error.code === 'permission-denied') {
+                        console.log('🔐 Erreur de permission - Reconnexion...');
+                        this.signInAnonymously();
+                    }
+                });
+        };
+
+        return startListening();
     }
 
-   async addDocument(collectionName, data) {
-    console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
-    
-    if (this.isOnline && db) {
-        try {
-            // Firebase génère automatiquement l'ID
-            const docRef = await db.collection(collectionName).add(data);
-            console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
-            return docRef; // Retourner la référence avec l'ID
-        } catch (error) {
-            console.error('❌ Erreur ajout document:', error);
-            throw error;
+    async addDocument(collectionName, data) {
+        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
+        
+        if (this.isOnline && db && this.user) {
+            try {
+                // Firebase génère automatiquement l'ID
+                const docRef = await db.collection(collectionName).add(data);
+                console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
+                return docRef;
+            } catch (error) {
+                console.error('❌ Erreur ajout document:', error);
+                throw error;
+            }
+        } else {
+            this.pendingOperations.push({
+                type: 'add',
+                collection: collectionName,
+                data: data
+            });
+            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
+            return Promise.resolve({ id: 'pending_' + Date.now() });
         }
-    } else {
-        this.pendingOperations.push({
-            type: 'add',
-            collection: collectionName,
-            data: data
-        });
-        console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
-        // Retourner une promesse résolue avec un ID temporaire
-        return Promise.resolve({ id: 'pending_' + Date.now() });
     }
-}
 
     async updateDocument(collectionName, id, data) {
         console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
@@ -254,6 +333,11 @@ class FirebaseSync {
     isSuppressionEnCours(id) {
         return this.suppressionsEnCours.has(id);
     }
+
+    // Méthode pour vérifier si Firebase est prêt
+    isReady() {
+        return db !== null && this.user !== null;
+    }
 }
 
 // Initialiser Firebase quand le DOM est chargé
@@ -261,4 +345,3 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
 });
-
