@@ -316,6 +316,29 @@
         </div>
     </div>
 </div>
+    <!-- Modal changement mot de passe -->
+<div id="passwordModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>🔐 Changer votre mot de passe</h3>
+        </div>
+        <form id="changePasswordForm" class="modal-form">
+            <div class="form-group">
+                <label for="newPassword">Nouveau mot de passe :</label>
+                <input type="password" id="newPassword" required placeholder="Minimum 6 caractères">
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">Confirmer le mot de passe :</label>
+                <input type="password" id="confirmPassword" required placeholder="Répétez le mot de passe">
+            </div>
+            
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary">💾 Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
     <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
     <!-- 1. Configuration Firebase -->
     <script src="./firebase-simple.js"></script>
@@ -324,4 +347,5 @@
     <script src="./app.js"></script>
 </body>
 </html>
+
 
