@@ -1,4 +1,4 @@
-// app.js - Version complète avec export Excel
+// app.js - Version complète avec export Excel et totaux par vue
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -356,6 +356,43 @@ class GestionFerme {
         }
     }
 
+    // NOUVELLE MÉTHODE : Calculer les totaux pour une vue
+    calculerTotauxVue(operations) {
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let solde = 0;
+
+        operations.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+            solde += op.montant;
+        });
+
+        return {
+            totalRevenus,
+            totalFrais,
+            solde,
+            nombreOperations: operations.length
+        };
+    }
+
+    // NOUVELLE MÉTHODE : Obtenir le nom de la vue
+    getNomVue(vue) {
+        const nomsVues = {
+            'global': '🌍 Toutes les Opérations',
+            'zaitoun': '🫒 Zaitoun',
+            '3commain': '🔧 3 Commain',
+            'abdel': '👨‍💼 Abdel',
+            'omar': '👨‍💻 Omar',
+            'hicham': '👨‍🔧 Hicham',
+            'transferts': '🔄 Transferts'
+        };
+        return nomsVues[vue] || vue;
+    }
+
     afficherHistorique(vue) {
         this.currentView = vue;
         this.caisseSelectionnee = null;
@@ -393,24 +430,57 @@ class GestionFerme {
             return;
         }
 
+        // CALCUL DES TOTAUX POUR LA VUE
+        const totaux = this.calculerTotauxVue(operationsFiltrees);
+        const nomVue = this.getNomVue(vue);
+
         let tableHTML = `
-            <div style="overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
-                            <th>Date</th>
-                            <th>Opérateur</th>
-                            <th>Groupe</th>
-                            <th>Type Opération</th>
-                            <th>Transaction</th>
-                            <th>Caisse</th>
-                            <th>Description</th>
-                            <th>Montant (DH)</th>
-                            ${!this.editMode ? '<th>Actions</th>' : ''}
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="fade-in">
+                <div class="vue-header">
+                    <h3>📊 ${nomVue}</h3>
+                    <div class="totals-container">
+                        <div class="total-item">
+                            <span class="total-label">💰 Total Revenus:</span>
+                            <span class="total-value positive">+${totaux.totalRevenus.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">💸 Total Frais:</span>
+                            <span class="total-value negative">-${totaux.totalFrais.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">⚖️ Solde Net:</span>
+                            <span class="total-value ${totaux.solde >= 0 ? 'positive' : 'negative'}">
+                                ${totaux.solde >= 0 ? '+' : ''}${totaux.solde.toFixed(2)} DH
+                            </span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">📊 Nombre d'opérations:</span>
+                            <span class="total-value">${totaux.nombreOperations}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4>📋 Détail des opérations</h4>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
+                                <th>Date</th>
+                                <th>Opérateur</th>
+                                <th>Groupe</th>
+                                <th>Type Opération</th>
+                                <th>Transaction</th>
+                                <th>Caisse</th>
+                                <th>Description</th>
+                                <th>Montant (DH)</th>
+                                ${!this.editMode ? '<th>Actions</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
         `;
 
         operationsFiltrees.forEach(op => {
@@ -445,7 +515,7 @@ class GestionFerme {
             `;
         });
 
-        tableHTML += '</tbody></table></div>';
+        tableHTML += '</tbody></table></div></div>';
         
         container.innerHTML = tableHTML;
         
