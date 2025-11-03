@@ -35,6 +35,11 @@ class AuthSystem {
     }
 
     createAuthModal() {
+        // Vérifier si le modal existe déjà
+        if (document.getElementById('authModal')) {
+            return;
+        }
+
         const modalHTML = `
             <div id="authModal" class="modal" style="display: flex;">
                 <div class="modal-content" style="max-width: 400px;">
