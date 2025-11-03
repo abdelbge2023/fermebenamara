@@ -235,3 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
 });
+isInitialized() {
+    return this.initialized;
+}
+
