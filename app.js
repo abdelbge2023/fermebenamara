@@ -1,4 +1,4 @@
-// app.js - Version complète avec export Excel, totaux par vue et manuel
+// app.js - Version complète avec Authentification, Export Excel et totaux par vue
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -12,6 +12,7 @@ class GestionFerme {
         this.caisseSelectionnee = null;
         this.firebaseInitialized = false;
         this.synchronisationEnCours = false;
+        this.currentUser = null;
         
         // Pour éviter les boucles de synchronisation
         this.suppressionsEnCours = new Set();
@@ -19,30 +20,89 @@ class GestionFerme {
         
         this.init();
     }
-// Dans la classe GestionFerme - Ajouter cette méthode
-gestionErreurSynchronisation(error) {
-    console.error('❌ Erreur synchronisation:', error);
-    
-    let message = 'Erreur de synchronisation ';
-    if (error.code === 'permission-denied') {
-        message += '- Vérifiez les règles de sécurité Firebase';
-    } else {
-        message += '- Mode hors ligne activé';
-    }
-    
-    this.afficherMessageSucces(message);
-}
+
     async init() {
+        this.setupAuthListeners();
         this.setupEventListeners();
-        await this.chargerDonneesAvecSynchro();
-        this.setupFirebaseRealtimeListeners();
+        
+        // Attendre que Firebase soit initialisé
+        await this.waitForFirebase();
+        
+        // Vérifier si l'utilisateur est déjà connecté
+        if (window.firebaseAuthFunctions && window.firebaseAuthFunctions.isUserLoggedIn()) {
+            this.currentUser = window.firebaseAuthFunctions.getCurrentUser();
+            this.showApp();
+            await this.chargerDonneesAvecSynchro();
+            this.setupFirebaseRealtimeListeners();
+        } else {
+            this.showLogin();
+        }
+        
+        console.log('✅ Application Gestion Ferme initialisée');
+    }
+
+    // Attendre que Firebase soit initialisé
+    waitForFirebase() {
+        return new Promise((resolve) => {
+            const checkFirebase = () => {
+                if (window.firebaseSync && window.firebaseAuthFunctions) {
+                    resolve();
+                } else {
+                    setTimeout(checkFirebase, 100);
+                }
+            };
+            checkFirebase();
+        });
+    }
+
+    // Écouteurs d'authentification
+    setupAuthListeners() {
+        window.addEventListener('userAuthenticated', (e) => {
+            this.currentUser = e.detail.user;
+            this.showApp();
+            this.chargerDonneesAvecSynchro();
+            this.setupFirebaseRealtimeListeners();
+        });
+
+        window.addEventListener('userSignedOut', () => {
+            this.currentUser = null;
+            this.showLogin();
+            this.operations = [];
+            this.updateStats();
+            this.afficherHistorique('global');
+        });
+    }
+
+    // Afficher l'écran de connexion
+    showLogin() {
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        if (loginScreen) loginScreen.style.display = 'block';
+        if (appContent) appContent.style.display = 'none';
+    }
+
+    // Afficher l'application
+    showApp() {
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        
+        // Mettre à jour l'email utilisateur
+        const userEmailElement = document.getElementById('userEmail');
+        if (userEmailElement && this.currentUser) {
+            userEmailElement.textContent = this.currentUser.email;
+        }
+        
         this.updateStats();
         this.afficherHistorique('global');
-        console.log('✅ Application Gestion Ferme initialisée');
     }
 
     setupEventListeners() {
         console.log('🔧 Configuration des écouteurs d\'événements...');
+        
+        // Écouteurs pour l'authentification
+        this.setupAuthEventListeners();
         
         // Formulaire de saisie
         const saisieForm = document.getElementById('saisieForm');
@@ -99,8 +159,9 @@ gestionErreurSynchronisation(error) {
         
         closeModalButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                editModal.style.display = 'none';
-                document.getElementById('manualModal').style.display = 'none';
+                if (editModal) editModal.style.display = 'none';
+                const manualModal = document.getElementById('manualModal');
+                if (manualModal) manualModal.style.display = 'none';
             });
         });
         
@@ -118,11 +179,14 @@ gestionErreurSynchronisation(error) {
         
         // Fermer modal en cliquant à l'extérieur
         window.addEventListener('click', (e) => {
+            const editModal = document.getElementById('editModal');
+            const manualModal = document.getElementById('manualModal');
+            
             if (e.target === editModal) {
                 editModal.style.display = 'none';
             }
-            if (e.target === document.getElementById('manualModal')) {
-                document.getElementById('manualModal').style.display = 'none';
+            if (e.target === manualModal) {
+                manualModal.style.display = 'none';
             }
         });
         
@@ -137,31 +201,172 @@ gestionErreurSynchronisation(error) {
         console.log('✅ Écouteurs d\'événements configurés');
     }
 
-   // Dans la classe GestionFerme - Remplacer/Ajouter cette méthode
-afficherManuel() {
-    console.log('📖 Ouverture du manuel d\'utilisation');
-    const manualModal = document.getElementById('manualModal');
-    if (manualModal) {
-        manualModal.style.display = 'flex';
-        
-        // Ajouter l'écouteur pour le bouton fermer du manuel
-        const closeButtons = manualModal.querySelectorAll('.close-modal');
-        closeButtons.forEach(btn => {
-            btn.onclick = () => {
-                manualModal.style.display = 'none';
-            };
-        });
-        
-        // Fermer en cliquant à l'extérieur
-        manualModal.onclick = (e) => {
-            if (e.target === manualModal) {
-                manualModal.style.display = 'none';
-            }
-        };
-    } else {
-        console.error('❌ Modal manuel non trouvé');
+    // Nouveaux écouteurs pour l'authentification
+    setupAuthEventListeners() {
+        // Formulaire de connexion
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        }
+
+        // Formulaire d'inscription
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm) {
+            registerForm.addEventListener('submit', (e) => this.handleRegister(e));
+        }
+
+        // Boutons de bascule entre connexion/inscription
+        const btnShowRegister = document.getElementById('btnShowRegister');
+        if (btnShowRegister) {
+            btnShowRegister.addEventListener('click', () => this.showRegisterForm());
+        }
+
+        const btnShowLogin = document.getElementById('btnShowLogin');
+        if (btnShowLogin) {
+            btnShowLogin.addEventListener('click', () => this.showLoginForm());
+        }
+
+        // Bouton de déconnexion
+        const btnLogout = document.getElementById('btnLogout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => this.handleLogout());
+        }
     }
-}
+
+    // Gestion de la connexion
+    async handleLogin(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        if (!email || !password) {
+            this.afficherMessageAuth('Veuillez remplir tous les champs', 'error');
+            return;
+        }
+
+        this.afficherMessageAuth('Connexion en cours...', 'loading');
+        
+        const result = await window.firebaseAuthFunctions.signInWithEmail(email, password);
+        
+        if (result.success) {
+            this.afficherMessageAuth('Connexion réussie !', 'success');
+        } else {
+            let message = 'Erreur de connexion';
+            if (result.code === 'auth/user-not-found') {
+                message = 'Utilisateur non trouvé';
+            } else if (result.code === 'auth/wrong-password') {
+                message = 'Mot de passe incorrect';
+            } else if (result.code === 'auth/invalid-email') {
+                message = 'Email invalide';
+            }
+            this.afficherMessageAuth(message, 'error');
+        }
+    }
+
+    // Gestion de l'inscription
+    async handleRegister(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const name = document.getElementById('registerName').value;
+        
+        if (!email || !password || !name) {
+            this.afficherMessageAuth('Veuillez remplir tous les champs', 'error');
+            return;
+        }
+
+        if (password.length < 6) {
+            this.afficherMessageAuth('Le mot de passe doit contenir au moins 6 caractères', 'error');
+            return;
+        }
+
+        this.afficherMessageAuth('Création du compte...', 'loading');
+        
+        const result = await window.firebaseAuthFunctions.createUserWithEmail(email, password, name);
+        
+        if (result.success) {
+            this.afficherMessageAuth('Compte créé avec succès !', 'success');
+        } else {
+            let message = 'Erreur lors de la création du compte';
+            if (result.code === 'auth/email-already-in-use') {
+                message = 'Cet email est déjà utilisé';
+            } else if (result.code === 'auth/weak-password') {
+                message = 'Le mot de passe est trop faible';
+            } else if (result.code === 'auth/invalid-email') {
+                message = 'Email invalide';
+            }
+            this.afficherMessageAuth(message, 'error');
+        }
+    }
+
+    // Gestion de la déconnexion
+    async handleLogout() {
+        const result = await window.firebaseAuthFunctions.signOut();
+        if (result.success) {
+            this.afficherMessageSucces('Déconnexion réussie');
+        } else {
+            this.afficherMessageErreur('Erreur lors de la déconnexion');
+        }
+    }
+
+    // Afficher le formulaire d'inscription
+    showRegisterForm() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+    }
+
+    // Afficher le formulaire de connexion
+    showLoginForm() {
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+    }
+
+    // Messages pour l'authentification
+    afficherMessageAuth(message, type = 'info') {
+        const loginContainer = document.querySelector('.login-container');
+        if (!loginContainer) return;
+
+        // Supprimer les anciens messages
+        const oldMessages = loginContainer.querySelectorAll('.auth-message');
+        oldMessages.forEach(msg => msg.remove());
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `auth-message auth-${type}`;
+        messageDiv.textContent = message;
+
+        const forms = loginContainer.querySelectorAll('form');
+        if (forms.length > 0) {
+            forms[0].parentNode.insertBefore(messageDiv, forms[0]);
+        }
+
+        if (type !== 'loading') {
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+    }
+
+    // Méthode pour afficher le manuel
+    afficherManuel() {
+        console.log('📖 Ouverture du manuel d\'utilisation');
+        const manualModal = document.getElementById('manualModal');
+        if (manualModal) {
+            manualModal.style.display = 'flex';
+            
+            const closeButtons = manualModal.querySelectorAll('.close-modal');
+            closeButtons.forEach(btn => {
+                btn.onclick = () => {
+                    manualModal.style.display = 'none';
+                };
+            });
+            
+            manualModal.onclick = (e) => {
+                if (e.target === manualModal) {
+                    manualModal.style.display = 'none';
+                }
+            };
+        }
+    }
 
     gestionAffichageRepartition(typeOperation) {
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -181,12 +386,12 @@ afficherManuel() {
                     const part3Commain = ((montant * 2) / 3).toFixed(2);
                     
                     repartitionDetails.innerHTML = `
-                        <div class="repartition-grid">
-                            <div class="repartition-item">
+                        <div class="repartition-details">
+                            <div class="repartition-item zaitoun">
                                 <span class="repartition-label">🫒 Zaitoun (1/3):</span>
                                 <span class="repartition-value">${partZaitoun} DH</span>
                             </div>
-                            <div class="repartition-item">
+                            <div class="repartition-item commain">
                                 <span class="repartition-label">🔧 3 Commain (2/3):</span>
                                 <span class="repartition-value">${part3Commain} DH</span>
                             </div>
@@ -209,6 +414,12 @@ afficherManuel() {
 
     async ajouterTransfert(e) {
         e.preventDefault();
+
+        // Vérifier authentification
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour effectuer un transfert');
+            return;
+        }
 
         const caisseSource = document.getElementById('caisseSource').value;
         const caisseDestination = document.getElementById('caisseDestination').value;
@@ -251,7 +462,9 @@ afficherManuel() {
                     montant: -montantTransfert,
                     repartition: false,
                     transfert: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
                 },
                 {
                     date: new Date().toISOString().split('T')[0],
@@ -264,7 +477,9 @@ afficherManuel() {
                     montant: montantTransfert,
                     repartition: false,
                     transfert: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
                 }
             ];
 
@@ -351,6 +566,12 @@ afficherManuel() {
     async modifierOperation(e) {
         e.preventDefault();
 
+        // Vérifier authentification
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour modifier une opération');
+            return;
+        }
+
         const operationId = document.getElementById('editId').value;
         const operateur = document.getElementById('editOperateur').value;
         const groupe = document.getElementById('editGroupe').value;
@@ -381,7 +602,9 @@ afficherManuel() {
             typeTransaction: typeTransaction,
             caisse: caisse,
             description: descriptionValue,
-            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
         };
 
         try {
@@ -404,7 +627,7 @@ afficherManuel() {
         }
     }
 
-    // NOUVELLE MÉTHODE : Calculer les totaux pour une vue
+    // Calculer les totaux pour une vue
     calculerTotauxVue(operations) {
         let totalRevenus = 0;
         let totalFrais = 0;
@@ -427,7 +650,7 @@ afficherManuel() {
         };
     }
 
-    // NOUVELLE MÉTHODE : Obtenir le nom de la vue
+    // Obtenir le nom de la vue
     getNomVue(vue) {
         const nomsVues = {
             'global': '🌍 Toutes les Opérations',
@@ -596,11 +819,16 @@ afficherManuel() {
 
     // RÉINITIALISER COMPLÈTEMENT FIREBASE
     async reinitialiserFirebase() {
-        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour réinitialiser les données');
             return;
         }
 
-        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues sur tous les appareils !')) {
+        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES vos données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+            return;
+        }
+
+        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes vos opérations seront perdues !')) {
             return;
         }
 
@@ -608,9 +836,9 @@ afficherManuel() {
         this.afficherMessageSucces('Réinitialisation en cours...');
 
         try {
-            // 1. Vider Firebase
+            // 1. Vider Firebase (seulement les données de l'utilisateur)
             if (window.firebaseSync) {
-                // Récupérer toutes les opérations de Firebase
+                // Récupérer toutes les opérations de l'utilisateur
                 const operationsFirebase = await firebaseSync.getCollection('operations');
                 console.log(`🗑️ Suppression de ${operationsFirebase.length} opérations de Firebase...`);
                 
@@ -646,11 +874,6 @@ afficherManuel() {
 
             console.log('✅ Réinitialisation complète terminée');
             this.afficherMessageSucces('✅ Données Firebase réinitialisées avec succès !');
-
-            // Rafraîchir la page après 2 secondes
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
 
         } catch (error) {
             console.error('❌ Erreur réinitialisation:', error);
@@ -705,7 +928,14 @@ afficherManuel() {
         if (saved) {
             try {
                 const data = JSON.parse(saved);
-                this.operations = data.operations || [];
+                // Filtrer les opérations par utilisateur si connecté
+                if (this.currentUser) {
+                    this.operations = (data.operations || []).filter(op => 
+                        op.userId === this.currentUser.uid || !op.userId
+                    );
+                } else {
+                    this.operations = data.operations || [];
+                }
                 console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
@@ -715,9 +945,8 @@ afficherManuel() {
     }
 
     async synchroniserAvecFirebase() {
-        if (!window.firebaseSync) {
-            console.log('⏳ Attente de FirebaseSync...');
-            setTimeout(() => this.synchroniserAvecFirebase(), 2000);
+        if (!window.firebaseSync || !this.currentUser) {
+            console.log('⏳ Attente de FirebaseSync ou authentification...');
             return;
         }
 
@@ -763,7 +992,7 @@ afficherManuel() {
     }
 
     setupFirebaseRealtimeListeners() {
-        if (!window.firebaseSync) {
+        if (!window.firebaseSync || !this.currentUser) {
             setTimeout(() => this.setupFirebaseRealtimeListeners(), 2000);
             return;
         }
@@ -810,6 +1039,12 @@ afficherManuel() {
     }
 
     ajouterOperationSynchro(data, operationId) {
+        // Vérifier que l'opération appartient à l'utilisateur courant
+        if (data.userId && data.userId !== this.currentUser.uid) {
+            console.log(`🚫 Opération ${operationId} ignorée (appartient à un autre utilisateur)`);
+            return;
+        }
+
         const operation = {
             id: operationId, // Utiliser l'ID de Firebase
             date: data.date,
@@ -822,7 +1057,9 @@ afficherManuel() {
             montant: data.montant,
             repartition: data.repartition,
             transfert: data.transfert,
-            timestamp: data.timestamp || new Date().toISOString()
+            timestamp: data.timestamp || new Date().toISOString(),
+            userId: data.userId || this.currentUser.uid,
+            userEmail: data.userEmail || this.currentUser.email
         };
 
         const existeDeja = this.operations.some(op => op.id === operation.id);
@@ -856,7 +1093,7 @@ afficherManuel() {
     }
 
     async sauvegarderSurFirebase() {
-        if (!window.firebaseSync) return;
+        if (!window.firebaseSync || !this.currentUser) return;
 
         try {
             for (const operation of this.operations) {
@@ -897,6 +1134,11 @@ afficherManuel() {
     }
 
     async supprimerOperation(operationId) {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour supprimer une opération');
+            return;
+        }
+
         if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) return;
 
         const operationASupprimer = this.operations.find(op => op.id === operationId);
@@ -934,6 +1176,11 @@ afficherManuel() {
     }
 
     async supprimerOperationsSelectionnees() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour supprimer des opérations');
+            return;
+        }
+
         if (this.selectedOperations.size === 0) return;
 
         if (!confirm(`Supprimer ${this.selectedOperations.size} opération(s) ?`)) return;
@@ -1138,6 +1385,12 @@ afficherManuel() {
     async ajouterOperation(e) {
         e.preventDefault();
 
+        // Vérifier que l'utilisateur est connecté
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour ajouter une opération');
+            return;
+        }
+
         const operateur = document.getElementById('operateur').value;
         const groupe = document.getElementById('groupe').value;
         const typeOperation = document.getElementById('typeOperation').value;
@@ -1173,7 +1426,9 @@ afficherManuel() {
                     description: descriptionValue + ' (Part Zaitoun - 1/3)',
                     montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
                 },
                 {
                     date: new Date().toISOString().split('T')[0],
@@ -1185,7 +1440,9 @@ afficherManuel() {
                     description: descriptionValue + ' (Part 3 Commain - 2/3)',
                     montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
                 }
             ];
         } else {
@@ -1199,7 +1456,9 @@ afficherManuel() {
                 description: descriptionValue,
                 montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                userId: this.currentUser.uid,
+                userEmail: this.currentUser.email
             }];
         }
 
@@ -1242,6 +1501,11 @@ afficherManuel() {
 
     // MÉTHODES D'EXPORT EXCEL
     async exporterVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
         console.log('📊 Exportation vers Excel...');
         
         try {
@@ -1303,6 +1567,11 @@ afficherManuel() {
 
     // Méthode pour exporter par vue
     exporterVueVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
         console.log(`📊 Export de la vue ${this.currentView} vers Excel...`);
         
         try {
@@ -1374,6 +1643,11 @@ afficherManuel() {
 
     // Méthode d'export détaillé avec statistiques
     async exporterDetailVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
         console.log('📊 Export détaillé vers Excel...');
         
         try {
@@ -1485,6 +1759,25 @@ afficherManuel() {
         }
     }
 
+    afficherMessageErreur(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'error-message';
+        messageDiv.style.cssText = `
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #dc3545;
+        `;
+        messageDiv.textContent = message;
+        const header = document.querySelector('header');
+        if (header) {
+            header.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 4000);
+        }
+    }
+
     // Méthodes de formatage
     formaterDate(dateStr) {
         return new Date(dateStr).toLocaleDateString('fr-FR');
@@ -1528,5 +1821,3 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
-
-
