@@ -810,44 +810,66 @@ class GestionFermeApp {
     try {
         if (window.firebaseSync) {
             if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montantTotal > 0) {
-                // CORRECTION : Une seule opération avec groupe "les_deux_groupes"
-                // Le montant total est enregistré sur la caisse qui paie
-                // L'information de répartition est stockée pour les calculs
-                
+                // CORRECTION : Créer DEUX opérations distinctes pour Zaitoun et 3 Commain
                 const zaitounPart = parseFloat((montantTotal * (1/3)).toFixed(2));
                 const commainPart = parseFloat((montantTotal * (2/3)).toFixed(2));
                 
                 console.log('💰 Répartition pour les deux groupes:', {
                     total: montantTotal,
-                    caisse_payante: caisse,
                     zaitoun_part: zaitounPart,
                     commain_part: commainPart
                 });
                 
-                // Une seule opération avec toutes les informations
-                const operation = {
+                // Opération pour Zaitoun (1/3)
+                const operationZaitoun = {
                     operateur: document.getElementById('operateur').value,
-                    groupe: 'les_deux_groupes', // Groupe spécial pour cette opération
-                    typeOperation: typeOperation,
+                    groupe: 'zaitoun',
+                    typeOperation: 'zaitoun',
                     typeTransaction: typeTransaction,
-                    caisse: caisse, // La caisse qui paie réellement
-                    montant: montantTotal, // Montant total payé
-                    description: `${description} | Répartition: Zaitoun ${zaitounPart} DH (1/3) + 3 Commain ${commainPart} DH (2/3)`,
+                    caisse: 'zaitoun_caisse', // CORRECTION : caisse spécifique à Zaitoun
+                    montant: typeTransaction === 'frais' ? -zaitounPart : zaitounPart,
+                    description: `${description} (Part Zaitoun - 1/3)`,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
                     userEmail: this.currentUser.email,
-                    // Stocker la répartition pour les calculs
                     repartition: {
-                        zaitoun: zaitounPart,
-                        commain: commainPart,
-                        total: montantTotal
+                        type: 'travailleur_global',
+                        part: 'zaitoun',
+                        montant_original: montantTotal,
+                        pourcentage: '33.3%'
                     }
                 };
                 
-                console.log('📝 Opération à enregistrer:', operation);
+                // Opération pour 3 Commain (2/3)
+                const operationCommain = {
+                    operateur: document.getElementById('operateur').value,
+                    groupe: '3commain',
+                    typeOperation: '3commain',
+                    typeTransaction: typeTransaction,
+                    caisse: '3commain_caisse', // CORRECTION : caisse spécifique à 3 Commain
+                    montant: typeTransaction === 'frais' ? -commainPart : commainPart,
+                    description: `${description} (Part 3 Commain - 2/3)`,
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email,
+                    repartition: {
+                        type: 'travailleur_global',
+                        part: '3commain',
+                        montant_original: montantTotal,
+                        pourcentage: '66.7%'
+                    }
+                };
                 
-                await window.firebaseSync.addDocument('operations', operation);
-                this.showMessage(`✅ Opération enregistrée! Montant total: ${montantTotal} DH sur ${this.getNomCaisse(caisse)} pour les deux groupes`, 'success');
+                console.log('📝 Opérations à enregistrer:', {
+                    zaitoun: operationZaitoun,
+                    commain: operationCommain
+                });
+                
+                // Enregistrer les deux opérations
+                await window.firebaseSync.addDocument('operations', operationZaitoun);
+                await window.firebaseSync.addDocument('operations', operationCommain);
+                
+                this.showMessage(`✅ Opération répartie! Zaitoun: ${zaitounPart} DH (1/3) + 3 Commain: ${commainPart} DH (2/3)`, 'success');
                 
             } else {
                 // Opération normale (pour un seul groupe)
@@ -857,7 +879,7 @@ class GestionFermeApp {
                     typeOperation: typeOperation,
                     typeTransaction: typeTransaction,
                     caisse: caisse,
-                    montant: montantTotal,
+                    montant: typeTransaction === 'frais' ? -montantTotal : montantTotal,
                     description: description,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
@@ -1568,6 +1590,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
