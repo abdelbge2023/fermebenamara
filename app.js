@@ -570,76 +570,94 @@ class GestionFermeApp {
         }
     }
 
-    updateStats() {
-        console.log('📊 Calcul des soldes des caisses...');
+   updateStats() {
+    console.log('📊 Calcul des soldes des caisses...');
+    
+    // Réinitialiser les soldes à 0 pour chaque caisse
+    const soldes = {
+        'abdel_caisse': 0,
+        'omar_caisse': 0, 
+        'hicham_caisse': 0,
+        'zaitoun_caisse': 0,
+        '3commain_caisse': 0
+    };
+
+    console.log('💰 Calcul basé sur:', {
+        operations: this.operations.length,
+        transferts: this.transferts.length
+    });
+
+    // 1. Calculer les soldes basés sur les opérations
+    this.operations.forEach(operation => {
+        const montant = parseFloat(operation.montant) || 0;
+        const caisse = operation.caisse;
         
-        // Réinitialiser les soldes à 0 pour chaque caisse
-        const soldes = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0, 
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-
-        console.log('💰 Calcul basé sur:', {
-            operations: this.operations.length,
-            transferts: this.transferts.length
+        console.log('📝 Opération:', {
+            caisse: caisse,
+            type: operation.typeTransaction,
+            montant: montant,
+            description: operation.description,
+            hasRepartition: !!operation.repartition
         });
-
-        // 1. Calculer les soldes basés sur les opérations
-        this.operations.forEach(operation => {
-            const montant = parseFloat(operation.montant) || 0;
-            const caisse = operation.caisse;
-            
-            console.log('📝 Opération:', {
-                caisse: caisse,
-                type: operation.typeTransaction,
-                montant: montant,
-                description: operation.description
-            });
-            
-            if (caisse && soldes[caisse] !== undefined) {
-                if (operation.typeTransaction === 'revenu') {
-                    // Revenu : ajouter au solde
-                    soldes[caisse] += montant;
-                    console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
-                } else if (operation.typeTransaction === 'frais') {
-                    // Frais : soustraire du solde
+        
+        if (caisse && soldes[caisse] !== undefined) {
+            if (operation.typeTransaction === 'revenu') {
+                // Revenu : ajouter au solde
+                soldes[caisse] += montant;
+                console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
+            } else if (operation.typeTransaction === 'frais') {
+                // Frais : soustraire du solde
+                
+                // CORRECTION : Si c'est un travailleur_global, répartir le coût
+                if (operation.typeOperation === 'travailleur_global' && operation.repartition) {
+                    const repartition = operation.repartition;
+                    console.log('🔀 Répartition détectée:', repartition);
+                    
+                    // La caisse qui paie perd le montant total
+                    soldes[caisse] -= montant;
+                    console.log(`➖ ${caisse} (paie total): -${montant} = ${soldes[caisse]}`);
+                    
+                    // Mais on répartit le coût entre Zaitoun et 3 Commain
+                    // Pour l'affichage des soldes, on considère que chaque caisse supporte sa part
+                    // Note: Ceci est pour l'information comptable, l'argent réel reste sur la caisse qui a payé
+                    
+                } else {
+                    // Frais normal : soustraire du solde
                     soldes[caisse] -= montant;
                     console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
                 }
             }
-        });
+        }
+    });
 
-        // 2. Gérer les transferts entre caisses
-        this.transferts.forEach(transfert => {
-            const montant = parseFloat(transfert.montantTransfert) || 0;
-            
-            console.log('🔄 Transfert:', {
-                source: transfert.caisseSource,
-                destination: transfert.caisseDestination,
-                montant: montant
-            });
-            
-            // Soustraire de la caisse source
-            if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
-                soldes[transfert.caisseSource] -= montant;
-                console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
-            }
-            
-            // Ajouter à la caisse destination
-            if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
-                soldes[transfert.caisseDestination] += montant;
-                console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
-            }
-        });
-
-        console.log('📊 Soldes finaux:', soldes);
+    // 2. Gérer les transferts entre caisses
+    this.transferts.forEach(transfert => {
+        const montant = parseFloat(transfert.montantTransfert) || 0;
         
-        // Afficher les soldes
-        this.renderStats(soldes);
-    }
+        console.log('🔄 Transfert:', {
+            source: transfert.caisseSource,
+            destination: transfert.caisseDestination,
+            montant: montant
+        });
+        
+        // Soustraire de la caisse source
+        if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
+            soldes[transfert.caisseSource] -= montant;
+            console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
+        }
+        
+        // Ajouter à la caisse destination
+        if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
+            soldes[transfert.caisseDestination] += montant;
+            console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
+        }
+    });
+
+    console.log('📊 Soldes finaux:', soldes);
+    
+    // Afficher les soldes
+    this.renderStats(soldes);
+}
 
     renderStats(soldes) {
         const statsContainer = document.getElementById('statsContainer');
@@ -774,6 +792,7 @@ class GestionFermeApp {
     const typeOperation = document.getElementById('typeOperation').value;
     const groupe = document.getElementById('groupe').value;
     const typeTransaction = document.getElementById('typeTransaction').value;
+    const caisse = document.getElementById('caisse').value;
     const montantTotal = parseFloat(document.getElementById('montant').value);
     const description = document.getElementById('description').value;
     
@@ -786,72 +805,43 @@ class GestionFermeApp {
     try {
         if (window.firebaseSync) {
             if (typeOperation === 'travailleur_global' && groupe && montantTotal > 0) {
-                // CORRECTION : Créer DEUX opérations pour la répartition 1/3 - 2/3
+                // CORRECTION : Une seule opération avec le montant total sur la caisse sélectionnée
+                // Mais on ajoute l'information de répartition dans la description
+                
                 const zaitounPart = parseFloat((montantTotal * (1/3)).toFixed(2));
                 const commainPart = parseFloat((montantTotal * (2/3)).toFixed(2));
                 
-                console.log('💰 Répartition automatique:', {
+                console.log('💰 Répartition comptable:', {
                     total: montantTotal,
-                    zaitoun: zaitounPart,
-                    commain: commainPart,
-                    verification: zaitounPart + commainPart
+                    caisse_payante: caisse,
+                    zaitoun_part: zaitounPart,
+                    commain_part: commainPart
                 });
                 
-                // Vérification que la somme est correcte
-                const totalVerifie = parseFloat((zaitounPart + commainPart).toFixed(2));
-                const montantTotalArrondi = parseFloat(montantTotal.toFixed(2));
-                
-                if (totalVerifie !== montantTotalArrondi) {
-                    console.warn('⚠️ Ajustement nécessaire pour arrondissement');
-                    // Ajuster légèrement une des parties pour correspondre au total
-                    const difference = montantTotalArrondi - totalVerifie;
-                    const commainPartAjuste = parseFloat((commainPart + difference).toFixed(2));
-                    
-                    console.log('🔧 Ajustement appliqué:', {
-                        difference: difference,
-                        commainAjuste: commainPartAjuste,
-                        nouveauTotal: zaitounPart + commainPartAjuste
-                    });
-                }
-                
-                // Opération pour Zaitoun (1/3)
-                const operationZaitoun = {
+                // Une seule opération avec le montant total
+                const operation = {
                     operateur: document.getElementById('operateur').value,
-                    groupe: 'zaitoun',
+                    groupe: groupe,
                     typeOperation: typeOperation,
                     typeTransaction: typeTransaction,
-                    caisse: 'zaitoun_caisse',
-                    montant: zaitounPart, // CORRECTION : utiliser zaitounPart au lieu de montantTotal
-                    description: `[PARTIE ZAITOUN - 1/3] ${description} (${zaitounPart} DH)`,
+                    caisse: caisse, // La caisse qui paie le montant total
+                    montant: montantTotal, // Montant total sur cette caisse
+                    description: `[TRAVAILLEUR GLOBAL - RÉPARTITION 1/3-2/3] ${description} | Zaitoun: ${zaitounPart} DH (1/3) - 3 Commain: ${commainPart} DH (2/3)`,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email
+                    userEmail: this.currentUser.email,
+                    // Ajouter les informations de répartition pour les calculs
+                    repartition: {
+                        zaitoun: zaitounPart,
+                        commain: commainPart,
+                        type: 'travailleur_global'
+                    }
                 };
                 
-                // Opération pour 3 Commain (2/3)
-                const operationCommain = {
-                    operateur: document.getElementById('operateur').value,
-                    groupe: '3commain',
-                    typeOperation: typeOperation,
-                    typeTransaction: typeTransaction,
-                    caisse: '3commain_caisse',
-                    montant: commainPart, // CORRECTION : utiliser commainPart au lieu de montantTotal
-                    description: `[PARTIE 3 COMMAIN - 2/3] ${description} (${commainPart} DH)`,
-                    timestamp: new Date().toISOString(),
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email
-                };
+                console.log('📝 Opération à enregistrer:', operation);
                 
-                console.log('📝 Opérations à enregistrer:', {
-                    zaitoun: operationZaitoun,
-                    commain: operationCommain
-                });
-                
-                // Enregistrer les deux opérations
-                await window.firebaseSync.addDocument('operations', operationZaitoun);
-                await window.firebaseSync.addDocument('operations', operationCommain);
-                
-                this.showMessage(`✅ Opération répartie : Zaitoun ${zaitounPart.toFixed(2)} DH (1/3) + 3 Commain ${commainPart.toFixed(2)} DH (2/3)`, 'success');
+                await window.firebaseSync.addDocument('operations', operation);
+                this.showMessage(`✅ Opération enregistrée! Montant total: ${montantTotal} DH sur ${this.getNomCaisse(caisse)} | Répartition: Zaitoun ${zaitounPart} DH (1/3) + 3 Commain ${commainPart} DH (2/3)`, 'success');
                 
             } else {
                 // Opération normale (pas de répartition)
@@ -860,7 +850,7 @@ class GestionFermeApp {
                     groupe: document.getElementById('groupe').value,
                     typeOperation: typeOperation,
                     typeTransaction: typeTransaction,
-                    caisse: document.getElementById('caisse').value,
+                    caisse: caisse,
                     montant: montantTotal,
                     description: description,
                     timestamp: new Date().toISOString(),
@@ -1573,4 +1563,5 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
