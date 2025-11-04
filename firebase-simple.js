@@ -154,30 +154,31 @@ window.firebaseAuthFunctions = {
         return operateurs[email] || null;
     },
 
-    // Vérifier si l'utilisateur peut modifier une opération
-    canModifyOperation(operation, currentUser) {
-        if (!currentUser) return false;
-        
-        const operateur = this.getOperateurFromEmail(currentUser.email);
-        if (!operateur) return false;
+ // Vérifier si l'utilisateur peut modifier une opération
+canModifyOperation(operation, currentUser) {
+    if (!currentUser) return false;
+    
+    const operateur = this.getOperateurFromEmail(currentUser.email);
+    if (!operateur) return false;
 
-        console.log('🔐 Vérification permissions:', {
-            operateurConnecte: operateur,
-            operateurOperation: operation.operateur,
-            userId: currentUser.uid,
-            operationUserId: operation.userId,
-            userEmail: currentUser.email,
-            operationUserEmail: operation.userEmail
-        });
+    console.log('🔐 Vérification permissions:', {
+        operateurConnecte: operateur,
+        operateurOperation: operation.operateur,
+        userEmail: currentUser.email
+    });
 
-        // TOUS les opérateurs peuvent modifier leurs propres opérations
-        const canModify = operation.userId === currentUser.uid || 
-                         operation.operateur === operateur ||
-                         operation.userEmail === currentUser.email;
-        
-        console.log('🔐 Résultat vérification:', canModify);
-        return canModify;
-    },
+    // Abdel (admin) peut modifier TOUTES les opérations
+    if (operateur === 'abdel') {
+        console.log('🔐 Abdel (admin) - Accès complet à la modification');
+        return true;
+    }
+
+    // Les autres opérateurs ne peuvent modifier que leurs propres opérations
+    const canModify = operation.operateur === operateur;
+    
+    console.log('🔐 Résultat vérification:', canModify);
+    return canModify;
+},
 
     // Vérifier les permissions de visualisation
     getViewPermissions(currentUser) {
@@ -763,4 +764,5 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
 
