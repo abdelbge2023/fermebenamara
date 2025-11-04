@@ -149,7 +149,7 @@ window.firebaseAuthFunctions = {
             'abdelbge2022@gmal': 'abdel',
             'elazharamra@homail.com': 'omar', 
             'xx12@hotmail.fr': 'hicham',
-            'test@test.com': 'abdel' // Compte de test
+          //  'test@test.com': 'abdel' // Compte de test
         };
         return operateurs[email] || null;
     },
@@ -763,3 +763,4 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
