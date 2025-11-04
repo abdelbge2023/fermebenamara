@@ -108,24 +108,6 @@ window.firebaseAuthFunctions = {
         }
     },
 
-    // Création de compte
-    async createUserWithEmail(email, password, displayName) {
-        try {
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            
-            // Mettre à jour le profil
-            await userCredential.user.updateProfile({
-                displayName: displayName
-            });
-            
-            console.log('✅ Compte créé:', userCredential.user.email);
-            return { success: true, user: userCredential.user };
-        } catch (error) {
-            console.error('❌ Erreur création compte:', error.code, error.message);
-            return { success: false, error: error.message, code: error.code };
-        }
-    },
-
     // Déconnexion
     async signOut() {
         try {
@@ -193,7 +175,7 @@ function gestionErreurFirebase(error) {
     }
 }
 
-// Classe de synchronisation Firebase avec gestion utilisateur
+// Classe de synchronisation Firebase
 class FirebaseSync {
     constructor() {
         this.isOnline = navigator.onLine;
@@ -231,7 +213,6 @@ class FirebaseSync {
         console.log('🔌 Hors ligne - Mode cache activé');
     }
 
-    // Méthodes de synchronisation existantes...
     async syncPendingOperations() {
         if (this.pendingOperations.length === 0) return;
         console.log(`🔄 Synchronisation automatique de ${this.pendingOperations.length} opérations...`);
@@ -277,14 +258,7 @@ class FirebaseSync {
             let result;
             switch (type) {
                 case 'add':
-                    // Ajouter l'ID utilisateur aux données
-                    const user = window.firebaseAuthFunctions.getCurrentUser();
-                    const dataWithUser = {
-                        ...data,
-                        userId: user ? user.uid : 'anonymous',
-                        userEmail: user ? user.email : 'anonymous'
-                    };
-                    result = await db.collection(collection).add(dataWithUser);
+                    result = await db.collection(collection).add(data);
                     break;
                 case 'set':
                     result = await db.collection(collection).doc(id.toString()).set(data);
@@ -325,50 +299,6 @@ class FirebaseSync {
         }
     }
 
-    // ... autres méthodes existantes ...
-
-    async getCollection(collectionName) {
-        if (!db) {
-            console.error('❌ Firestore non initialisé');
-            return [];
-        }
-
-        if (this.erreursConsecutives >= this.maxErreursConsecutives) {
-            console.warn('🚨 Synchronisation suspendue - Trop d\'erreurs');
-            return [];
-        }
-
-        try {
-            const user = window.firebaseAuthFunctions.getCurrentUser();
-            let query = db.collection(collectionName);
-            
-            // Filtrer par utilisateur si connecté
-            if (user) {
-                query = query.where('userId', '==', user.uid);
-            }
-            
-            const snapshot = await query.get();
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`✅ ${data.length} documents synchronisés depuis ${collectionName}`);
-            
-            this.erreursConsecutives = 0;
-            return data;
-            
-        } catch (error) {
-            this.erreursConsecutives++;
-            console.error(`❌ Erreur lecture ${collectionName}:`, error.code, error.message);
-            
-            if (error.code === 'permission-denied') {
-                this.afficherMessageSync('Impossible de charger les données - Vérifiez les permissions');
-            }
-            
-            return [];
-        }
-    }
-
     afficherMessageSync(message) {
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = `
@@ -394,7 +324,138 @@ class FirebaseSync {
         }
     }
 
-    // ... autres méthodes existantes ...
+    addOperation(operation) {
+        if (this.isOnline && db && this.erreursConsecutives < this.maxErreursConsecutives) {
+            return this.executeOperation(operation);
+        } else {
+            this.pendingOperations.push(operation);
+            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
+            return Promise.resolve();
+        }
+    }
+
+    async getCollection(collectionName) {
+        if (!db) {
+            console.error('❌ Firestore non initialisé');
+            return [];
+        }
+
+        if (this.erreursConsecutives >= this.maxErreursConsecutives) {
+            console.warn('🚨 Synchronisation suspendue - Trop d\'erreurs');
+            return [];
+        }
+
+        try {
+            // MODIFICATION IMPORTANTE : Ne pas filtrer par utilisateur pour permettre la lecture
+            const snapshot = await db.collection(collectionName).get();
+            const data = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log(`✅ ${data.length} documents synchronisés depuis ${collectionName}`);
+            
+            this.erreursConsecutives = 0;
+            return data;
+            
+        } catch (error) {
+            this.erreursConsecutives++;
+            console.error(`❌ Erreur lecture ${collectionName}:`, error.code, error.message);
+            
+            if (error.code === 'permission-denied') {
+                this.afficherMessageSync('Impossible de charger les données - Vérifiez les permissions');
+            }
+            
+            return [];
+        }
+    }
+
+    listenToCollection(collectionName, callback) {
+        if (!db) {
+            console.error('❌ Firestore non initialisé');
+            return () => {};
+        }
+
+        console.log(`👂 Début de l'écoute en temps réel sur ${collectionName}`);
+        
+        try {
+            return db.collection(collectionName)
+                .onSnapshot((snapshot) => {
+                    const changes = snapshot.docChanges().map(change => ({
+                        type: change.type,
+                        id: change.doc.id,
+                        data: change.doc.data()
+                    }));
+                    
+                    if (changes.length > 0) {
+                        console.log(`🔄 ${changes.length} changement(s) détecté(s) en temps réel`);
+                    }
+                    
+                    callback(changes, snapshot);
+                }, (error) => {
+                    console.error(`❌ Erreur écoute ${collectionName}:`, error.code, error.message);
+                    
+                    if (error.code === 'permission-denied') {
+                        console.error('🚨 Écoute en temps réel bloquée - Permissions insuffisantes');
+                        this.afficherMessageSync('Connexion temps réel impossible - Vérifiez les règles de sécurité');
+                    }
+                });
+        } catch (error) {
+            console.error('❌ Erreur création écoute:', error);
+            return () => {};
+        }
+    }
+
+    async addDocument(collectionName, data) {
+        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
+        
+        if (this.isOnline && db && this.erreursConsecutives < this.maxErreursConsecutives) {
+            try {
+                const docRef = await db.collection(collectionName).add(data);
+                console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
+                return docRef;
+            } catch (error) {
+                console.error('❌ Erreur ajout document:', error);
+                throw error;
+            }
+        } else {
+            this.pendingOperations.push({
+                type: 'add',
+                collection: collectionName,
+                data: data
+            });
+            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
+            return Promise.resolve({ id: 'pending_' + Date.now() });
+        }
+    }
+
+    async updateDocument(collectionName, id, data) {
+        console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
+        return this.addOperation({
+            type: 'update',
+            collection: collectionName,
+            id: id,
+            data: data
+        });
+    }
+
+    async deleteDocument(collectionName, id) {
+        if (this.suppressionsEnCours.has(id)) {
+            console.log(`⏳ Suppression ${id} déjà en cours, ignorée`);
+            return Promise.resolve();
+        }
+        
+        console.log(`📤 Synchronisation automatique: suppression ${collectionName}/${id}`);
+        return this.addOperation({
+            type: 'delete',
+            collection: collectionName,
+            id: id,
+            data: {}
+        });
+    }
+
+    isSuppressionEnCours(id) {
+        return this.suppressionsEnCours.has(id);
+    }
 }
 
 // Initialiser Firebase quand le DOM est chargé
