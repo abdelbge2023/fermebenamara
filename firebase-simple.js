@@ -144,16 +144,36 @@ window.firebaseAuthFunctions = {
     },
 
     // Obtenir le profil opérateur basé sur l'email
-    getOperateurFromEmail(email) {
-        const operateurs = {
-            'abdelbge2022@gmail.com': 'abdel',
-            'elazhariamara@homail.com': 'omar', 
-            'xx12@hotmail.fr': 'hicham',
-          //  'test@test.com': 'abdel' // Compte de test
-        };
-        return operateurs[email] || null;
-    },
-
+    // Obtenir le profil opérateur basé sur l'email - CORRIGÉ
+getOperateurFromEmail(email) {
+    const operateurs = {
+        'abdelbge2022@gmail.com': 'abdel',  // CORRECTION: .com au lieu de .gmal
+        'elazhariamara@hotmail.com': 'omar', // CORRECTION: elazhariamara@hotmail.com
+        'xx12@hotmail.fr': 'hicham',
+    };
+    
+    if (!email) return null;
+    
+    const emailLower = email.toLowerCase().trim();
+    console.log('🔍 Recherche opérateur pour email:', emailLower);
+    
+    // Recherche exacte d'abord
+    if (operateurs[emailLower]) {
+        console.log(`✅ Opérateur trouvé (exact): ${operateurs[emailLower]} pour email: ${emailLower}`);
+        return operateurs[emailLower];
+    }
+    
+    // Recherche par correspondance partielle
+    for (const [key, value] of Object.entries(operateurs)) {
+        if (emailLower.includes(key.toLowerCase())) {
+            console.log(`✅ Opérateur trouvé (partiel): ${value} pour email: ${emailLower}`);
+            return value;
+        }
+    }
+    
+    console.log('❌ Aucun opérateur trouvé pour email:', emailLower);
+    return null;
+},
  // Vérifier si l'utilisateur peut modifier une opération
 canModifyOperation(operation, currentUser) {
     if (!currentUser) return false;
@@ -764,6 +784,7 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
 
 
 
