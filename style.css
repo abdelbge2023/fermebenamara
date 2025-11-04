@@ -885,3 +885,136 @@ tr:hover .operation-actions {
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
+/* Styles pour les cases à cocher et actions */
+.operation-checkbox {
+    transform: scale(1.3);
+    margin: 0 auto;
+    display: block;
+    cursor: pointer;
+}
+
+.no-checkbox {
+    display: block;
+    text-align: center;
+    color: #999;
+    font-size: 12px;
+}
+
+.operation-actions {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+tr:hover .operation-actions {
+    opacity: 1;
+}
+
+.read-only-text {
+    color: #999;
+    font-size: 11px;
+    font-style: italic;
+}
+
+/* Amélioration de l'affichage du tableau */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    min-width: 1000px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 8px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+.data-table th {
+    background: #3498db;
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: center;
+}
+
+.data-table th:first-child {
+    text-align: center;
+    width: 50px;
+}
+
+.data-table td:first-child {
+    text-align: center;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+.data-table tr.operation-readonly {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+}
+
+.data-table tr.operation-readonly:hover {
+    background-color: #e9ecef;
+}
+
+/* Boutons d'action */
+.btn-small {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+}
+
+.btn-small:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+/* Mode édition */
+.edit-mode-active .data-table tr {
+    background: #fff3cd;
+}
+
+.edit-mode-active .data-table tr:hover {
+    background: #ffeaa7;
+}
+
+/* Indicateur de mode édition */
+.edit-mode-indicator {
+    background: #ffc107;
+    color: #856404;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-left: 10px;
+}
