@@ -810,62 +810,50 @@ class GestionFermeApp {
     try {
         if (window.firebaseSync) {
             if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montantTotal > 0) {
-                // CORRECTION : Créer DEUX opérations distinctes pour Zaitoun et 3 Commain
+                // CORRECTION DÉFINITIVE : Créer DEUX opérations distinctes
                 const zaitounPart = parseFloat((montantTotal * (1/3)).toFixed(2));
                 const commainPart = parseFloat((montantTotal * (2/3)).toFixed(2));
                 
-                console.log('💰 Répartition pour les deux groupes:', {
+                console.log('💰 Répartition CORRECTE pour les deux groupes:', {
                     total: montantTotal,
                     zaitoun_part: zaitounPart,
                     commain_part: commainPart
                 });
                 
-                // Opération pour Zaitoun (1/3)
+                // Opération pour Zaitoun (1/3) - 200 DH pour 600 DH total
                 const operationZaitoun = {
                     operateur: document.getElementById('operateur').value,
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
                     typeTransaction: typeTransaction,
-                    caisse: 'zaitoun_caisse', // CORRECTION : caisse spécifique à Zaitoun
+                    caisse: 'zaitoun_caisse', // IMPORTANT: caisse Zaitoun
                     montant: typeTransaction === 'frais' ? -zaitounPart : zaitounPart,
-                    description: `${description} (Part Zaitoun - 1/3)`,
+                    description: `${description} (Part Zaitoun - 1/3 = ${zaitounPart} DH)`,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email,
-                    repartition: {
-                        type: 'travailleur_global',
-                        part: 'zaitoun',
-                        montant_original: montantTotal,
-                        pourcentage: '33.3%'
-                    }
+                    userEmail: this.currentUser.email
                 };
                 
-                // Opération pour 3 Commain (2/3)
+                // Opération pour 3 Commain (2/3) - 400 DH pour 600 DH total  
                 const operationCommain = {
                     operateur: document.getElementById('operateur').value,
                     groupe: '3commain',
                     typeOperation: '3commain',
                     typeTransaction: typeTransaction,
-                    caisse: '3commain_caisse', // CORRECTION : caisse spécifique à 3 Commain
+                    caisse: '3commain_caisse', // IMPORTANT: caisse 3 Commain
                     montant: typeTransaction === 'frais' ? -commainPart : commainPart,
-                    description: `${description} (Part 3 Commain - 2/3)`,
+                    description: `${description} (Part 3 Commain - 2/3 = ${commainPart} DH)`,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email,
-                    repartition: {
-                        type: 'travailleur_global',
-                        part: '3commain',
-                        montant_original: montantTotal,
-                        pourcentage: '66.7%'
-                    }
+                    userEmail: this.currentUser.email
                 };
                 
-                console.log('📝 Opérations à enregistrer:', {
+                console.log('📝 DEUX opérations créées:', {
                     zaitoun: operationZaitoun,
                     commain: operationCommain
                 });
                 
-                // Enregistrer les deux opérations
+                // Enregistrer les DEUX opérations séparément
                 await window.firebaseSync.addDocument('operations', operationZaitoun);
                 await window.firebaseSync.addDocument('operations', operationCommain);
                 
@@ -1590,6 +1578,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
