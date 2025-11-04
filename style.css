@@ -27,9 +27,18 @@ header {
     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
 header h1 {
     color: #2c3e50;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     font-size: 2.2em;
 }
 
@@ -384,6 +393,10 @@ tr:hover .operation-actions {
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
+.manual-content {
+    max-width: 900px;
+}
+
 .modal-header {
     background: #3498db;
     color: white;
@@ -548,6 +561,51 @@ tr:hover .operation-actions {
     font-size: 1.1em;
 }
 
+/* Manuel d'utilisation */
+.manual-body {
+    padding: 25px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.manual-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.manual-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.manual-section h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    border-left: 4px solid #3498db;
+    padding-left: 10px;
+}
+
+.manual-section ul, .manual-section ol {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.manual-section li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.manual-section strong {
+    color: #2c3e50;
+}
+
+.manual-section ul ul {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .main-grid {
@@ -567,6 +625,11 @@ tr:hover .operation-actions {
 @media (max-width: 768px) {
     body {
         padding: 10px;
+    }
+
+    .header-top {
+        flex-direction: column;
+        text-align: center;
     }
 
     .form-grid {
@@ -626,6 +689,16 @@ tr:hover .operation-actions {
     .caisses-grid {
         grid-template-columns: 1fr;
     }
+
+    .manual-content {
+        margin: 10px;
+        width: calc(100% - 20px);
+    }
+
+    .manual-body {
+        padding: 15px;
+        max-height: 70vh;
+    }
 }
 
 /* Animation de chargement */
@@ -636,55 +709,4 @@ tr:hover .operation-actions {
 
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
-}
-/* Styles pour les totaux par vue */
-.vue-header {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    border-left: 4px solid #3498db;
-}
-
-.vue-header h3 {
-    margin: 0 0 15px 0;
-    color: #2c3e50;
-    font-size: 1.4em;
-}
-
-.totals-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.total-item {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    text-align: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    border: 1px solid #e9ecef;
-}
-
-.total-label {
-    display: block;
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 5px;
-    font-weight: 500;
-}
-
-.total-value {
-    display: block;
-    font-size: 1.3em;
-    font-weight: bold;
-}
-
-.total-value.positive {
-    color: #27ae60;
-}
-
-.total-value.negative {
-    color: #e74c3c;
 }
