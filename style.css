@@ -1069,3 +1069,37 @@ tr:hover .operation-actions {
 .total-value.negative {
     color: #e74c3c;
 }
+
+.repartition-total {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    border-left: 4px solid #9b59b6;
+    grid-column: 1 / -1;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.repartition-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.repartition-item {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    border-left: 4px solid #4caf50;
+}
+
+.repartition-item.zaitoun {
+    border-left-color: #ff9800;
+}
+
+.repartition-item.commain {
+    border-left-color: #2196f3;
+}
