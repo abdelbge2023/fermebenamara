@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -64,7 +64,7 @@ class GestionFermeApp {
             btnCancelEdit.addEventListener('click', () => this.cancelEditMode());
         }
 
-        // Export - CORRIGÉ
+        // Export
         const btnExportComplet = document.getElementById('btnExportComplet');
         if (btnExportComplet) {
             btnExportComplet.addEventListener('click', () => this.exportExcelComplet());
@@ -80,7 +80,7 @@ class GestionFermeApp {
             btnExportDetail.addEventListener('click', () => this.exportRapportComplet());
         }
 
-        // Réinitialisation - CORRIGÉ
+        // Réinitialisation
         const btnResetLocal = document.getElementById('btnResetLocal');
         if (btnResetLocal) {
             btnResetLocal.addEventListener('click', () => this.resetLocalData());
@@ -267,6 +267,9 @@ class GestionFermeApp {
                 this.transferts = transferts || [];
                 console.log(`✅ ${this.transferts.length} transferts chargés`);
                 
+                // Debug des données
+                this.debugData();
+                
                 // Mettre à jour l'affichage
                 this.updateAffichage();
                 this.updateStats();
@@ -278,6 +281,24 @@ class GestionFermeApp {
         } catch (error) {
             console.error('❌ Erreur chargement données:', error);
             this.showMessage('❌ Erreur de chargement des données', 'error');
+        }
+    }
+
+    debugData() {
+        console.log('🐛 Données de débogage:');
+        console.log('- Opérations:', this.operations.length);
+        console.log('- Transferts:', this.transferts.length);
+        console.log('- Mode édition:', this.editMode);
+        console.log('- Permissions:', this.userPermissions);
+        
+        // Afficher les IDs des premières opérations
+        if (this.operations.length > 0) {
+            console.log('- Exemple ID opération:', this.operations[0].id);
+            console.log('- Données opération:', this.operations[0]);
+        }
+        if (this.transferts.length > 0) {
+            console.log('- Exemple ID transfert:', this.transferts[0].id);
+            console.log('- Données transfert:', this.transferts[0]);
         }
     }
 
@@ -341,7 +362,7 @@ class GestionFermeApp {
             <table class="data-table">
                 <thead>
                     <tr>
-                        ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
+                        ${this.editMode ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
                         <th>Date</th>
                         <th>Opérateur</th>
                         <th>Type</th>
@@ -361,14 +382,20 @@ class GestionFermeApp {
             const canEdit = this.userPermissions.canEditAll || 
                            (this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser));
             
+            // Utiliser l'ID Firebase comme identifiant
+            const itemId = item.id;
+            
             html += `
-                <tr class="${!canEdit ? 'operation-readonly' : ''}">
+                <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
                     ${this.editMode ? `
-                        <td>
-                            ${canEdit ? `<input type="checkbox" class="operation-checkbox" value="${item.id}">` : ''}
+                        <td style="text-align: center; vertical-align: middle;">
+                            ${canEdit ? 
+                                `<input type="checkbox" class="operation-checkbox" value="${itemId}" title="Sélectionner cette opération">` : 
+                                '<span style="color: #999; font-size: 12px;">🔒</span>'
+                            }
                         </td>
                     ` : ''}
-                    <td>${new Date(item.timestamp).toLocaleDateString()}</td>
+                    <td>${new Date(item.timestamp).toLocaleDateString('fr-FR')}</td>
                     <td>${item.operateur || 'N/A'}</td>
                     <td>${item.typeOperation || 'Transfert'}</td>
                     <td>${item.groupe || 'N/A'}</td>
@@ -383,9 +410,9 @@ class GestionFermeApp {
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
-                                <button onclick="gestionFermeApp.editOperation('${item.id}')" class="btn-small btn-warning">✏️</button>
-                                <button onclick="gestionFermeApp.deleteOperation('${item.id}')" class="btn-small btn-danger">🗑️</button>
-                            ` : '<span style="color: #999;">Lecture seule</span>'}
+                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="Modifier">✏️</button>
+                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="Supprimer">🗑️</button>
+                            ` : '<span style="color: #999; font-size: 11px; font-style: italic;">Lecture seule</span>'}
                         </td>
                     ` : ''}
                 </tr>
@@ -395,23 +422,36 @@ class GestionFermeApp {
         html += '</tbody></table>';
         container.innerHTML = html;
         
+        // Ajouter les écouteurs d'événements pour les cases à cocher
         if (this.editMode) {
-            const selectAll = document.getElementById('selectAll');
-            if (selectAll) {
-                selectAll.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
-            }
-            
-            // Ajouter les écouteurs pour les cases à cocher individuelles
-            document.querySelectorAll('.operation-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', (e) => {
-                    if (e.target.checked) {
-                        this.selectedOperations.add(e.target.value);
-                    } else {
-                        this.selectedOperations.delete(e.target.value);
-                    }
-                });
-            });
+            this.setupCheckboxListeners();
         }
+    }
+
+    setupCheckboxListeners() {
+        const selectAll = document.getElementById('selectAll');
+        if (selectAll) {
+            selectAll.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
+        }
+        
+        // Ajouter les écouteurs pour les cases à cocher individuelles
+        document.querySelectorAll('.operation-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const operationId = e.target.value;
+                if (e.target.checked) {
+                    this.selectedOperations.add(operationId);
+                } else {
+                    this.selectedOperations.delete(operationId);
+                }
+                console.log('📋 Opérations sélectionnées:', this.selectedOperations.size);
+                this.updateSelectedCount();
+                
+                // Désélectionner "Tout sélectionner" si une case est décochée
+                if (selectAll && !e.target.checked) {
+                    selectAll.checked = false;
+                }
+            });
+        });
     }
 
     updateStats() {
@@ -598,21 +638,74 @@ class GestionFermeApp {
         const btnEditMode = document.getElementById('btnEditMode');
         const btnDeleteSelected = document.getElementById('btnDeleteSelected');
         const btnCancelEdit = document.getElementById('btnCancelEdit');
+        const appContent = document.getElementById('appContent');
         
         if (btnEditMode) {
-            btnEditMode.textContent = this.editMode ? '💾 Sauvegarder' : '✏️ Mode Édition';
-            btnEditMode.className = this.editMode ? 'btn-success' : 'btn-warning';
+            if (this.editMode) {
+                btnEditMode.textContent = '💾 Quitter Édition';
+                btnEditMode.className = 'btn-success';
+                // Ajouter un indicateur visuel
+                if (appContent) {
+                    appContent.classList.add('edit-mode-active');
+                }
+            } else {
+                btnEditMode.textContent = '✏️ Mode Édition';
+                btnEditMode.className = 'btn-warning';
+                // Retirer l'indicateur visuel
+                if (appContent) {
+                    appContent.classList.remove('edit-mode-active');
+                }
+                this.selectedOperations.clear();
+            }
         }
         
         if (btnDeleteSelected) {
             btnDeleteSelected.style.display = this.editMode ? 'inline-block' : 'none';
+            if (this.editMode) {
+                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+            }
         }
         
         if (btnCancelEdit) {
             btnCancelEdit.style.display = this.editMode ? 'inline-block' : 'none';
         }
         
+        // Mettre à jour l'affichage
         this.updateAffichage();
+        
+        // Afficher un message
+        if (this.editMode) {
+            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
+        } else {
+            this.showMessage('✅ Mode édition désactivé', 'success');
+        }
+    }
+
+    toggleSelectAll(checked) {
+        const checkboxes = document.querySelectorAll('.operation-checkbox');
+        let selectedCount = 0;
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checked;
+            if (checked) {
+                this.selectedOperations.add(checkbox.value);
+                selectedCount++;
+            } else {
+                this.selectedOperations.delete(checkbox.value);
+            }
+        });
+        
+        // Mettre à jour le bouton de suppression
+        this.updateSelectedCount();
+        
+        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
+    }
+
+    updateSelectedCount() {
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected && this.editMode) {
+            btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+        }
     }
 
     updateRepartition() {
@@ -688,7 +781,7 @@ class GestionFermeApp {
         }
     }
 
-    // FONCTIONS D'EXPORT CORRIGÉES
+    // FONCTIONS D'EXPORT
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
         try {
@@ -702,7 +795,8 @@ class GestionFermeApp {
             
             // Préparer les données pour les opérations
             const operationsData = this.operations.map(op => ({
-                'Date': new Date(op.timestamp).toLocaleDateString(),
+                'Date': new Date(op.timestamp).toLocaleDateString('fr-FR'),
+                'Heure': new Date(op.timestamp).toLocaleTimeString('fr-FR'),
                 'Opérateur': op.operateur,
                 'Type Opération': op.typeOperation,
                 'Groupe': op.groupe,
@@ -715,7 +809,8 @@ class GestionFermeApp {
             
             // Préparer les données pour les transferts
             const transfertsData = this.transferts.map(tr => ({
-                'Date': new Date(tr.timestamp).toLocaleDateString(),
+                'Date': new Date(tr.timestamp).toLocaleDateString('fr-FR'),
+                'Heure': new Date(tr.timestamp).toLocaleTimeString('fr-FR'),
                 'Opérateur': tr.operateur,
                 'Type': 'Transfert',
                 'Caisse Source': tr.caisseSource,
@@ -803,7 +898,8 @@ class GestionFermeApp {
                 if (item.hasOwnProperty('typeOperation')) {
                     // C'est une opération
                     return {
-                        'Date': new Date(item.timestamp).toLocaleDateString(),
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
                         'Opérateur': item.operateur,
                         'Type': item.typeOperation,
                         'Groupe': item.groupe,
@@ -815,7 +911,8 @@ class GestionFermeApp {
                 } else {
                     // C'est un transfert
                     return {
-                        'Date': new Date(item.timestamp).toLocaleDateString(),
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
                         'Opérateur': item.operateur,
                         'Type': 'Transfert',
                         'Caisse Source': item.caisseSource,
@@ -879,8 +976,8 @@ class GestionFermeApp {
                 
             const operationsData = allOperations.map(item => {
                 const base = {
-                    'Date': new Date(item.timestamp).toLocaleDateString(),
-                    'Heure': new Date(item.timestamp).toLocaleTimeString(),
+                    'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                    'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
                     'Opérateur': item.operateur
                 };
                 
@@ -1012,7 +1109,7 @@ class GestionFermeApp {
         return noms[caisse] || caisse;
     }
 
-    // FONCTIONS DE RÉINITIALISATION CORRIGÉES
+    // FONCTIONS DE RÉINITIALISATION
     resetLocalData() {
         if (confirm('Êtes-vous sûr de vouloir vider les données locales? Les données Firebase ne seront pas affectées.')) {
             console.log('🗑️ Reset données locales...');
@@ -1079,7 +1176,7 @@ class GestionFermeApp {
         }
     }
 
-    // FONCTIONS D'ÉDITION CORRIGÉES
+    // FONCTIONS D'ÉDITION
     editOperation(id) {
         console.log('✏️ Édition opération:', id);
         
@@ -1188,19 +1285,6 @@ class GestionFermeApp {
                     this.showMessage('❌ Erreur lors de la suppression', 'error');
                 });
         }
-    }
-
-    toggleSelectAll(checked) {
-        const checkboxes = document.querySelectorAll('.operation-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = checked;
-            if (checked) {
-                this.selectedOperations.add(checkbox.value);
-            } else {
-                this.selectedOperations.delete(checkbox.value);
-            }
-        });
-        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
     }
 
     deleteSelectedOperations() {
