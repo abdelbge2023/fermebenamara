@@ -148,7 +148,7 @@ window.firebaseAuthFunctions = {
         const operateurs = {
             'abdelbge2022@gmal': 'abdel',
             'elazharamra@homail.com': 'omar', 
-            'xx12@hotmail.com': 'hicham',
+            'xx12@hotmail.fr': 'hicham',
             'test@test.com': 'abdel' // Compte de test
             // Ajoutez ici les emails réels de vos opérateurs
             // Format: 'email@domaine.com': 'operateur'
@@ -737,3 +737,4 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
