@@ -19,7 +19,19 @@ class GestionFerme {
         
         this.init();
     }
-
+// Dans la classe GestionFerme - Ajouter cette méthode
+gestionErreurSynchronisation(error) {
+    console.error('❌ Erreur synchronisation:', error);
+    
+    let message = 'Erreur de synchronisation ';
+    if (error.code === 'permission-denied') {
+        message += '- Vérifiez les règles de sécurité Firebase';
+    } else {
+        message += '- Mode hors ligne activé';
+    }
+    
+    this.afficherMessageSucces(message);
+}
     async init() {
         this.setupEventListeners();
         await this.chargerDonneesAvecSynchro();
@@ -1494,3 +1506,4 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
