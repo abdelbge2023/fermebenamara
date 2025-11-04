@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -181,9 +181,14 @@ class GestionFermeApp {
     }
 
     handleUserAuthenticated(user) {
-        console.log('👤 Utilisateur authentifié dans l\'app:', user.email);
+        console.log('👤 Utilisateur authentifié dans l\'app:', user);
+        console.log('📧 Email:', user.email);
+        console.log('🔑 UID:', user.uid);
+        
         this.currentUser = user;
         this.userPermissions = window.firebaseAuthFunctions.getViewPermissions(user);
+        
+        console.log('🔐 Permissions calculées:', this.userPermissions);
         
         // Masquer écran connexion, afficher application
         document.getElementById('loginScreen').style.display = 'none';
@@ -379,11 +384,17 @@ class GestionFermeApp {
         
         data.forEach(item => {
             const isOperation = item.hasOwnProperty('typeOperation');
-            const canEdit = this.userPermissions.canEditAll || 
-                           (this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser));
+            const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
             
             // Utiliser l'ID Firebase comme identifiant
             const itemId = item.id;
+            
+            console.log('🔐 Permission pour item:', {
+                id: itemId,
+                operateur: item.operateur,
+                canEdit: canEdit,
+                currentUser: this.currentUser ? this.currentUser.email : 'null'
+            });
             
             html += `
                 <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
