@@ -710,3 +710,71 @@ tr:hover .operation-actions {
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
+
+/* Styles pour le modal manuel */
+.manual-content {
+    max-width: 900px;
+    max-height: 85vh;
+}
+
+.manual-body {
+    padding: 25px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.manual-section {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.manual-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.manual-section h4 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    border-left: 4px solid #3498db;
+    padding-left: 10px;
+}
+
+.manual-section ul, .manual-section ol {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.manual-section li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.manual-section strong {
+    color: #2c3e50;
+}
+
+.manual-section ul ul {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+/* Responsive pour le modal manuel */
+@media (max-width: 768px) {
+    .manual-content {
+        margin: 10px;
+        width: calc(100% - 20px);
+        max-height: 80vh;
+    }
+
+    .manual-body {
+        padding: 15px;
+        max-height: 65vh;
+    }
+    
+    .manual-section h4 {
+        font-size: 1.1em;
+    }
+}
