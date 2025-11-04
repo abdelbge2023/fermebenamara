@@ -7,9 +7,23 @@
     <link rel="stylesheet" href="./style.css">
     
     <!-- Firebase CDN - Charger D'ABORD -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <button onclick="firebase.auth().signOut()">Se déconnecter</button>
+   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+    authDomain: "gestion-fermebenamara.firebaseapp.com",
+    projectId: "gestion-fermebenamara"
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  const auth = firebase.auth();
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      window.location.href = "login.html"; // redirige vers login si non connecté
+    }
+  });
+</script>
 
     <!-- SheetJS pour l'export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -289,25 +303,10 @@
     
     <!-- 2. Application principale (APRÈS Firebase) -->
     <script src="./app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-    authDomain: "gestion-fermebenamara.firebaseapp.com",
-    projectId: "gestion-fermebenamara"
-  };
-  firebase.initializeApp(firebaseConfig);
-
-  const auth = firebase.auth();
-  auth.onAuthStateChanged(user => {
-    if (!user) {
-      window.location.href = "login.html"; // redirige vers login si non connecté
-    }
-  });
-</script>
+    
 
 </body>
 </html>
+
 
 
