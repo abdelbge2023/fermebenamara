@@ -424,8 +424,8 @@ button:hover {
 /* Statistiques */
 .stats-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
     padding: 25px;
 }
 
@@ -437,6 +437,10 @@ button:hover {
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
     cursor: pointer;
     transition: transform 0.3s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .stat-card:hover {
@@ -462,6 +466,13 @@ button:hover {
     font-size: 0.9em;
     opacity: 0.9;
     font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.stat-trend {
+    font-size: 0.8em;
+    opacity: 0.8;
+    margin-top: 5px;
 }
 
 /* Messages */
@@ -635,6 +646,11 @@ tr:hover .operation-actions {
 
 .type-frais {
     color: #e74c3c;
+    font-weight: bold;
+}
+
+.type-transfert {
+    color: #3498db;
     font-weight: bold;
 }
 
