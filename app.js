@@ -1,4 +1,4 @@
-// app.js - Version complète avec export Excel et totaux par vue
+// app.js - Version complète avec export Excel, totaux par vue et manuel
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -88,6 +88,7 @@ class GestionFerme {
         closeModalButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 editModal.style.display = 'none';
+                document.getElementById('manualModal').style.display = 'none';
             });
         });
         
@@ -97,10 +98,19 @@ class GestionFerme {
             editForm.addEventListener('submit', (e) => this.modifierOperation(e));
         }
         
+        // Bouton Manuel d'Utilisation
+        const btnManual = document.getElementById('btnManual');
+        if (btnManual) {
+            btnManual.addEventListener('click', () => this.afficherManuel());
+        }
+        
         // Fermer modal en cliquant à l'extérieur
         window.addEventListener('click', (e) => {
             if (e.target === editModal) {
                 editModal.style.display = 'none';
+            }
+            if (e.target === document.getElementById('manualModal')) {
+                document.getElementById('manualModal').style.display = 'none';
             }
         });
         
@@ -113,6 +123,10 @@ class GestionFerme {
         }
         
         console.log('✅ Écouteurs d\'événements configurés');
+    }
+
+    afficherManuel() {
+        document.getElementById('manualModal').style.display = 'flex';
     }
 
     gestionAffichageRepartition(typeOperation) {
