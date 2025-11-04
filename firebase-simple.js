@@ -1,4 +1,4 @@
-// firebase-simple.js - Configuration Firebase avec Authentification CORRIGÉE
+// firebase-simple.js - Configuration Firebase avec Authentification PERSISTANTE
 console.log('🔧 Chargement de Firebase Simple - Authentification + Synchronisation');
 
 // Configuration Firebase
@@ -260,23 +260,39 @@ class FirebaseSync {
 class AuthManager {
     constructor() {
         this.currentUser = null;
+        this.authChecked = false;
         this.init();
     }
 
     init() {
-        // Écouter les changements d'état d'authentification
-        if (auth) {
-            auth.onAuthStateChanged((user) => {
-                this.currentUser = user;
-                this.handleAuthStateChange(user);
-            });
-        } else {
+        console.log('🔐 Initialisation du gestionnaire d\'authentification...');
+        
+        if (!auth) {
             console.warn('⚠️ Auth non disponible, réessai dans 2s...');
             setTimeout(() => this.init(), 2000);
+            return;
         }
+
+        // Configurer la persistance de l'authentification
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .then(() => {
+                console.log('✅ Persistance d\'authentification activée');
+                
+                // Écouter les changements d'état d'authentification
+                auth.onAuthStateChanged((user) => {
+                    this.currentUser = user;
+                    this.authChecked = true;
+                    this.handleAuthStateChange(user);
+                });
+            })
+            .catch((error) => {
+                console.error('❌ Erreur persistance auth:', error);
+            });
     }
 
     handleAuthStateChange(user) {
+        console.log('🔄 Changement d\'état d\'authentification:', user ? user.email : 'Déconnecté');
+        
         const authSection = document.getElementById('authSection');
         const appSection = document.getElementById('appSection');
         const userEmail = document.getElementById('userEmail');
@@ -291,10 +307,10 @@ class AuthManager {
             if (userEmail) userEmail.textContent = user.email;
             
             // Initialiser l'application si elle existe
-            if (window.app && typeof window.app.init === 'function') {
-                window.app.init();
+            if (window.app && typeof window.app.onUserAuthenticated === 'function') {
+                window.app.onUserAuthenticated();
             } else {
-                console.log('⏳ Application pas encore chargée, elle s\'initialisera automatiquement');
+                console.log('⏳ Application pas encore chargée');
             }
         } else {
             // Utilisateur déconnecté
@@ -303,40 +319,21 @@ class AuthManager {
             
             if (authSection) authSection.style.display = 'block';
             if (appSection) appSection.style.display = 'none';
-            
-            // Créer des utilisateurs de test si nécessaire
-            this.createTestUsers();
-        }
-    }
-
-    async createTestUsers() {
-        // Cette fonction crée les utilisateurs de test s'ils n'existent pas
-        const testUsers = [
-            { email: 'admin@ferme.com', password: '123456' },
-            { email: 'user@ferme.com', password: '123456' }
-        ];
-
-        for (const testUser of testUsers) {
-            try {
-                await auth.createUserWithEmailAndPassword(testUser.email, testUser.password);
-                console.log(`✅ Utilisateur de test créé: ${testUser.email}`);
-                // Se déconnecter immédiatement après la création
-                await auth.signOut();
-            } catch (error) {
-                if (error.code === 'auth/email-already-in-use') {
-                    console.log(`ℹ️ Utilisateur ${testUser.email} existe déjà`);
-                } else {
-                    console.log(`ℹ️ Utilisateur ${testUser.email}: ${error.message}`);
-                }
-            }
         }
     }
 
     async login(email, password) {
         try {
+            console.log('🔐 Tentative de connexion pour:', email);
+            
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
             console.log('✅ Connexion réussie:', userCredential.user.email);
-            return { success: true, user: userCredential.user };
+            
+            return { 
+                success: true, 
+                user: userCredential.user 
+            };
+            
         } catch (error) {
             console.error('❌ Erreur connexion:', error);
             
@@ -348,11 +345,16 @@ class AuthManager {
                 errorMessage = 'Mot de passe incorrect';
             } else if (error.code === 'auth/invalid-email') {
                 errorMessage = 'Email invalide';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'Trop de tentatives, réessayez plus tard';
             } else {
                 errorMessage = error.message;
             }
             
-            return { success: false, error: errorMessage };
+            return { 
+                success: false, 
+                error: errorMessage 
+            };
         }
     }
 
@@ -374,6 +376,10 @@ class AuthManager {
     isAuthenticated() {
         return this.currentUser !== null;
     }
+
+    isAuthChecked() {
+        return this.authChecked;
+    }
 }
 
 // Initialiser Firebase quand le DOM est chargé
@@ -381,9 +387,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
     
-    // Initialiser le gestionnaire d'authentification après un court délai
+    // Initialiser le gestionnaire d'authentification
     setTimeout(() => {
         window.authManager = new AuthManager();
         console.log('🔐 Gestionnaire d\'authentification initialisé');
-    }, 1000);
+    }, 500);
 });
