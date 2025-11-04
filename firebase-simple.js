@@ -143,62 +143,77 @@ window.firebaseAuthFunctions = {
         return !!auth.currentUser;
     },
 
-    // Obtenir le profil opérateur basé sur l'email
     // Obtenir le profil opérateur basé sur l'email - CORRIGÉ
-getOperateurFromEmail(email) {
-    const operateurs = {
-        'abdelbge2022@gmail.com': 'abdel',  // CORRECTION: .com au lieu de .gmal
-        'elazhariamara@hotmail.com': 'omar', // CORRECTION: elazhariamara@hotmail.com
-        'xx12@hotmail.fr': 'hicham',
-    };
-    
-    if (!email) return null;
-    
-    const emailLower = email.toLowerCase().trim();
-    console.log('🔍 Recherche opérateur pour email:', emailLower);
-    
-    // Recherche exacte d'abord
-    if (operateurs[emailLower]) {
-        console.log(`✅ Opérateur trouvé (exact): ${operateurs[emailLower]} pour email: ${emailLower}`);
-        return operateurs[emailLower];
-    }
-    
-    // Recherche par correspondance partielle
-    for (const [key, value] of Object.entries(operateurs)) {
-        if (emailLower.includes(key.toLowerCase())) {
-            console.log(`✅ Opérateur trouvé (partiel): ${value} pour email: ${emailLower}`);
-            return value;
+    getOperateurFromEmail(email) {
+        if (!email) return null;
+        
+        const emailLower = email.toLowerCase().trim();
+        console.log('🔍 Recherche opérateur pour email:', emailLower);
+        
+        // Correspondance par nom d'utilisateur
+        if (emailLower.includes('abdel') || emailLower.includes('abdelbge')) {
+            console.log('✅ Abdel détecté');
+            return 'abdel';
         }
-    }
-    
-    console.log('❌ Aucun opérateur trouvé pour email:', emailLower);
-    return null;
-},
- // Vérifier si l'utilisateur peut modifier une opération
-canModifyOperation(operation, currentUser) {
-    if (!currentUser) return false;
-    
-    const operateur = this.getOperateurFromEmail(currentUser.email);
-    if (!operateur) return false;
+        
+        if (emailLower.includes('omar') || emailLower.includes('elazhariamara')) {
+            console.log('✅ Omar détecté');
+            return 'omar';
+        }
+        
+        if (emailLower.includes('hicham') || emailLower.includes('xx12')) {
+            console.log('✅ Hicham détecté');
+            return 'hicham';
+        }
+        
+        // Correspondance par domaine exact
+        if (emailLower === 'abdelbge2022@gmail.com') return 'abdel';
+        if (emailLower === 'elazhariamara@hotmail.com') return 'omar';
+        if (emailLower === 'xx12@hotmail.fr') return 'hicham';
+        
+        console.log('❌ Aucun opérateur trouvé pour email:', emailLower);
+        return null;
+    },
 
-    console.log('🔐 Vérification permissions:', {
-        operateurConnecte: operateur,
-        operateurOperation: operation.operateur,
-        userEmail: currentUser.email
-    });
+    // Vérifier si l'utilisateur peut modifier une opération - CORRIGÉ
+    canModifyOperation(operation, currentUser) {
+        if (!currentUser) {
+            console.log('❌ Aucun utilisateur connecté');
+            return false;
+        }
+        
+        const operateur = this.getOperateurFromEmail(currentUser.email);
+        if (!operateur) {
+            console.log('❌ Aucun opérateur trouvé pour cet email');
+            return false;
+        }
 
-    // Abdel (admin) peut modifier TOUTES les opérations
-    if (operateur === 'abdel') {
-        console.log('🔐 Abdel (admin) - Accès complet à la modification');
-        return true;
-    }
+        console.log('🔐 Vérification permissions:', {
+            operateurConnecte: operateur,
+            operateurOperation: operation.operateur,
+            userEmail: currentUser.email,
+            isAbdel: operateur === 'abdel'
+        });
 
-    // Les autres opérateurs ne peuvent modifier que leurs propres opérations
-    const canModify = operation.operateur === operateur;
-    
-    console.log('🔐 Résultat vérification:', canModify);
-    return canModify;
-},
+        // CORRECTION : Abdel (admin) peut modifier TOUTES les opérations
+        if (operateur === 'abdel') {
+            console.log('🔐 Abdel (admin) - Accès complet à la modification');
+            return true;
+        }
+
+        // CORRECTION : Hicham peut modifier seulement SES opérations
+        if (operateur === 'hicham') {
+            const canModify = operation.operateur === 'hicham';
+            console.log('🔐 Hicham - Peut modifier seulement ses opérations:', canModify);
+            return canModify;
+        }
+
+        // Omar ne peut modifier que ses propres opérations
+        const canModify = operation.operateur === operateur;
+        
+        console.log('🔐 Résultat vérification:', canModify);
+        return canModify;
+    },
 
     // Vérifier les permissions de visualisation
     getViewPermissions(currentUser) {
@@ -210,14 +225,15 @@ canModifyOperation(operation, currentUser) {
         
         console.log('🔐 Configuration permissions:', {
             email: currentUser.email,
-            operateur: operateur
+            operateur: operateur,
+            isAbdel: operateur === 'abdel'
         });
         
         // TOUS les opérateurs peuvent voir toutes les opérations
-        // Chaque opérateur peut modifier SES PROPRES opérations
+        // Abdel peut modifier toutes les opérations, les autres seulement les leurs
         return {
-            canViewAll: true, // Tout le monde peut voir toutes les opérations
-            canEditAll: false, // Personne ne peut modifier toutes les opérations
+            canViewAll: true,
+            canEditAll: operateur === 'abdel', // Seul Abdel peut tout modifier
             operateur: operateur
         };
     },
@@ -784,8 +800,3 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
-
-
-
-
-
