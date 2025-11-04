@@ -150,8 +150,6 @@ window.firebaseAuthFunctions = {
             'elazharamra@homail.com': 'omar', 
             'xx12@hotmail.fr': 'hicham',
             'test@test.com': 'abdel' // Compte de test
-            // Ajoutez ici les emails réels de vos opérateurs
-            // Format: 'email@domaine.com': 'operateur'
         };
         return operateurs[email] || null;
     },
@@ -163,14 +161,22 @@ window.firebaseAuthFunctions = {
         const operateur = this.getOperateurFromEmail(currentUser.email);
         if (!operateur) return false;
 
-        // Abdel (admin) peut tout modifier
-        if (operateur === 'abdel') return true;
+        console.log('🔐 Vérification permissions:', {
+            operateurConnecte: operateur,
+            operateurOperation: operation.operateur,
+            userId: currentUser.uid,
+            operationUserId: operation.userId,
+            userEmail: currentUser.email,
+            operationUserEmail: operation.userEmail
+        });
+
+        // TOUS les opérateurs peuvent modifier leurs propres opérations
+        const canModify = operation.userId === currentUser.uid || 
+                         operation.operateur === operateur ||
+                         operation.userEmail === currentUser.email;
         
-        // Les autres opérateurs ne peuvent modifier que leurs propres opérations
-        // Vérifier par userId ou par nom d'opérateur
-        return operation.userId === currentUser.uid || 
-               operation.operateur === operateur ||
-               operation.userEmail === currentUser.email;
+        console.log('🔐 Résultat vérification:', canModify);
+        return canModify;
     },
 
     // Vérifier les permissions de visualisation
@@ -181,10 +187,16 @@ window.firebaseAuthFunctions = {
         
         const operateur = this.getOperateurFromEmail(currentUser.email);
         
-        // Tous les opérateurs peuvent voir toutes les opérations
+        console.log('🔐 Configuration permissions:', {
+            email: currentUser.email,
+            operateur: operateur
+        });
+        
+        // TOUS les opérateurs peuvent voir toutes les opérations
+        // Chaque opérateur peut modifier SES PROPRES opérations
         return {
-            canViewAll: true,
-            canEditAll: operateur === 'abdel', // Seul Abdel peut tout éditer
+            canViewAll: true, // Tout le monde peut voir toutes les opérations
+            canEditAll: false, // Personne ne peut modifier toutes les opérations
             operateur: operateur
         };
     },
