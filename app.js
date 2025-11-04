@@ -393,7 +393,8 @@ class GestionFermeApp {
                 id: itemId,
                 operateur: item.operateur,
                 canEdit: canEdit,
-                currentUser: this.currentUser ? this.currentUser.email : 'null'
+                currentUser: this.currentUser ? this.currentUser.email : 'null',
+                operateurConnecte: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser?.email)
             });
             
             html += `
@@ -463,6 +464,33 @@ class GestionFermeApp {
                 }
             });
         });
+    }
+
+    toggleSelectAll(checked) {
+        const checkboxes = document.querySelectorAll('.operation-checkbox');
+        let selectedCount = 0;
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checked;
+            if (checked) {
+                this.selectedOperations.add(checkbox.value);
+                selectedCount++;
+            } else {
+                this.selectedOperations.delete(checkbox.value);
+            }
+        });
+        
+        // Mettre à jour le bouton de suppression
+        this.updateSelectedCount();
+        
+        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
+    }
+
+    updateSelectedCount() {
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected && this.editMode) {
+            btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+        }
     }
 
     updateStats() {
@@ -689,33 +717,6 @@ class GestionFermeApp {
             this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
         } else {
             this.showMessage('✅ Mode édition désactivé', 'success');
-        }
-    }
-
-    toggleSelectAll(checked) {
-        const checkboxes = document.querySelectorAll('.operation-checkbox');
-        let selectedCount = 0;
-        
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = checked;
-            if (checked) {
-                this.selectedOperations.add(checkbox.value);
-                selectedCount++;
-            } else {
-                this.selectedOperations.delete(checkbox.value);
-            }
-        });
-        
-        // Mettre à jour le bouton de suppression
-        this.updateSelectedCount();
-        
-        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
-    }
-
-    updateSelectedCount() {
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        if (btnDeleteSelected && this.editMode) {
-            btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
         }
     }
 
