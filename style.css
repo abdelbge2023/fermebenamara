@@ -850,3 +850,20 @@ tr:hover .operation-actions {
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
 }
+
+.user-operateur {
+    background: #27ae60;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.operation-readonly {
+    opacity: 0.6;
+}
+
+.operation-actions:disabled {
+    display: none;
+}
