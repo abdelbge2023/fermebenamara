@@ -1,4 +1,4 @@
-// app.js - Version complète avec export Excel et totaux par vue
+// app.js - Version complète avec authentification Firebase
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -12,11 +12,19 @@ class GestionFerme {
         this.caisseSelectionnee = null;
         this.firebaseInitialized = false;
         this.synchronisationEnCours = false;
-        
-        // Pour éviter les boucles de synchronisation
         this.suppressionsEnCours = new Set();
         this.ajoutsEnCours = new Set();
         
+        // Vérifier l'authentification avant d'initialiser
+        this.checkAuth();
+    }
+
+    checkAuth() {
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            console.log('⏳ En attente de l\'authentification...');
+            setTimeout(() => this.checkAuth(), 1000);
+            return;
+        }
         this.init();
     }
 
@@ -31,6 +39,18 @@ class GestionFerme {
 
     setupEventListeners() {
         console.log('🔧 Configuration des écouteurs d\'événements...');
+        
+        // Formulaire de connexion
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        }
+        
+        // Bouton de déconnexion
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
         
         // Formulaire de saisie
         const saisieForm = document.getElementById('saisieForm');
@@ -75,7 +95,6 @@ class GestionFerme {
                 const sheet = e.target.getAttribute('data-sheet');
                 this.afficherHistorique(sheet);
                 
-                // Mettre à jour l'onglet actif
                 tabButtons.forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
             });
@@ -115,6 +134,46 @@ class GestionFerme {
         console.log('✅ Écouteurs d\'événements configurés');
     }
 
+    async handleLogin(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const authMessage = document.getElementById('authMessage');
+        
+        if (!email || !password) {
+            this.showAuthMessage('Veuillez remplir tous les champs', 'error');
+            return;
+        }
+        
+        this.showAuthMessage('Connexion en cours...', 'info');
+        
+        const result = await authManager.login(email, password);
+        
+        if (result.success) {
+            this.showAuthMessage('✅ Connexion réussie !', 'success');
+        } else {
+            this.showAuthMessage(`❌ Erreur: ${result.error}`, 'error');
+        }
+    }
+
+    async handleLogout() {
+        const result = await authManager.logout();
+        if (result.success) {
+            console.log('✅ Déconnexion réussie');
+        } else {
+            console.error('❌ Erreur déconnexion:', result.error);
+        }
+    }
+
+    showAuthMessage(message, type) {
+        const authMessage = document.getElementById('authMessage');
+        if (authMessage) {
+            authMessage.textContent = message;
+            authMessage.className = `auth-message ${type}`;
+        }
+    }
+
     gestionAffichageRepartition(typeOperation) {
         const repartitionInfo = document.getElementById('repartitionInfo');
         const repartitionDetails = document.getElementById('repartitionDetails');
@@ -125,7 +184,6 @@ class GestionFerme {
         if (typeOperation === 'travailleur_global') {
             repartitionInfo.style.display = 'block';
             
-            // Mettre à jour en temps réel quand le montant change
             const updateRepartition = () => {
                 const montant = parseFloat(montantInput.value) || 0;
                 if (montant > 0) {
@@ -149,7 +207,6 @@ class GestionFerme {
                 }
             };
             
-            // Écouter les changements de montant
             montantInput.removeEventListener('input', updateRepartition);
             montantInput.addEventListener('input', updateRepartition);
             updateRepartition();
@@ -203,7 +260,8 @@ class GestionFerme {
                     montant: -montantTransfert,
                     repartition: false,
                     transfert: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    createdBy: this.getCurrentUserEmail()
                 },
                 {
                     date: new Date().toISOString().split('T')[0],
@@ -216,7 +274,8 @@ class GestionFerme {
                     montant: montantTransfert,
                     repartition: false,
                     transfert: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    createdBy: this.getCurrentUserEmail()
                 }
             ];
 
@@ -333,7 +392,9 @@ class GestionFerme {
             typeTransaction: typeTransaction,
             caisse: caisse,
             description: descriptionValue,
-            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            modifiedBy: this.getCurrentUserEmail(),
+            modifiedAt: new Date().toISOString()
         };
 
         try {
@@ -356,7 +417,6 @@ class GestionFerme {
         }
     }
 
-    // NOUVELLE MÉTHODE : Calculer les totaux pour une vue
     calculerTotauxVue(operations) {
         let totalRevenus = 0;
         let totalFrais = 0;
@@ -379,7 +439,6 @@ class GestionFerme {
         };
     }
 
-    // NOUVELLE MÉTHODE : Obtenir le nom de la vue
     getNomVue(vue) {
         const nomsVues = {
             'global': '🌍 Toutes les Opérations',
@@ -562,11 +621,9 @@ class GestionFerme {
         try {
             // 1. Vider Firebase
             if (window.firebaseSync) {
-                // Récupérer toutes les opérations de Firebase
                 const operationsFirebase = await firebaseSync.getCollection('operations');
                 console.log(`🗑️ Suppression de ${operationsFirebase.length} opérations de Firebase...`);
                 
-                // Supprimer chaque opération
                 for (const op of operationsFirebase) {
                     try {
                         await firebaseSync.deleteDocument('operations', op.id);
@@ -763,7 +820,7 @@ class GestionFerme {
 
     ajouterOperationSynchro(data, operationId) {
         const operation = {
-            id: operationId, // Utiliser l'ID de Firebase
+            id: operationId,
             date: data.date,
             operateur: data.operateur,
             groupe: data.groupe,
@@ -774,7 +831,8 @@ class GestionFerme {
             montant: data.montant,
             repartition: data.repartition,
             transfert: data.transfert,
-            timestamp: data.timestamp || new Date().toISOString()
+            timestamp: data.timestamp || new Date().toISOString(),
+            createdBy: data.createdBy
         };
 
         const existeDeja = this.operations.some(op => op.id === operation.id);
@@ -1125,7 +1183,8 @@ class GestionFerme {
                     description: descriptionValue + ' (Part Zaitoun - 1/3)',
                     montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     repartition: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    createdBy: this.getCurrentUserEmail()
                 },
                 {
                     date: new Date().toISOString().split('T')[0],
@@ -1137,7 +1196,8 @@ class GestionFerme {
                     description: descriptionValue + ' (Part 3 Commain - 2/3)',
                     montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
                     repartition: true,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    createdBy: this.getCurrentUserEmail()
                 }
             ];
         } else {
@@ -1151,7 +1211,8 @@ class GestionFerme {
                 description: descriptionValue,
                 montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
                 repartition: false,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                createdBy: this.getCurrentUserEmail()
             }];
         }
 
@@ -1159,21 +1220,18 @@ class GestionFerme {
             // Sauvegarder d'abord sur Firebase pour obtenir les IDs
             for (const op of operationsACreer) {
                 if (window.firebaseSync) {
-                    // Firebase générera automatiquement l'ID
                     const result = await firebaseSync.addDocument('operations', op);
                     
-                    // Récupérer l'ID généré par Firebase
                     const operationAvecId = {
-                        id: result.id, // ID généré par Firebase
+                        id: result.id,
                         ...op
                     };
                     
                     this.operations.unshift(operationAvecId);
                     console.log(`➕ Nouvelle opération ${result.id} ajoutée avec ID Firebase`);
                 } else {
-                    // Fallback local si Firebase n'est pas disponible
                     const operationAvecId = {
-                        id: 'local_' + Date.now(), // ID local temporaire
+                        id: 'local_' + Date.now(),
                         ...op
                     };
                     this.operations.unshift(operationAvecId);
@@ -1197,21 +1255,16 @@ class GestionFerme {
         console.log('📊 Exportation vers Excel...');
         
         try {
-            // Créer un workbook et une feuille
             const wb = XLSX.utils.book_new();
             
-            // Données pour l'export
             const donneesExport = this.preparerDonneesPourExport();
             
-            // Créer la feuille principale
             const ws = XLSX.utils.json_to_sheet(donneesExport.operations);
             XLSX.utils.book_append_sheet(wb, ws, "Operations");
             
-            // Créer une feuille pour les soldes
             const wsSoldes = XLSX.utils.json_to_sheet(donneesExport.soldes);
             XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
             
-            // Générer le fichier Excel
             const date = new Date().toISOString().split('T')[0];
             const nomFichier = `Gestion_Ferme_Ben_Amara_${date}.xlsx`;
             XLSX.writeFile(wb, nomFichier);
@@ -1226,7 +1279,6 @@ class GestionFerme {
     }
 
     preparerDonneesPourExport() {
-        // Préparer les données des opérations
         const operationsExport = this.operations.map(op => ({
             'Date': this.formaterDate(op.date),
             'Opérateur': this.formaterOperateur(op.operateur),
@@ -1237,10 +1289,10 @@ class GestionFerme {
             'Description': op.description,
             'Montant (DH)': op.montant,
             'Montant Absolu (DH)': Math.abs(op.montant),
-            'Timestamp': op.timestamp
+            'Timestamp': op.timestamp,
+            'Créé par': op.createdBy || 'Inconnu'
         }));
 
-        // Calculer les soldes actuels
         this.calculerSoldes();
         const soldesExport = Object.keys(this.caisses).map(cle => ({
             'Caisse': this.formaterCaisse(cle),
@@ -1253,14 +1305,12 @@ class GestionFerme {
         };
     }
 
-    // Méthode pour exporter par vue
     exporterVueVersExcel() {
         console.log(`📊 Export de la vue ${this.currentView} vers Excel...`);
         
         try {
             let operationsFiltrees = [];
             
-            // Filtrer selon la vue actuelle
             switch(this.currentView) {
                 case 'global':
                     operationsFiltrees = this.operations;
@@ -1324,7 +1374,6 @@ class GestionFerme {
         }
     }
 
-    // Méthode d'export détaillé avec statistiques
     async exporterDetailVersExcel() {
         console.log('📊 Export détaillé vers Excel...');
         
@@ -1342,7 +1391,8 @@ class GestionFerme {
                 'Caisse': this.formaterCaisse(op.caisse),
                 'Description': op.description,
                 'Montant (DH)': op.montant,
-                'Signe': op.montant >= 0 ? 'Positif' : 'Négatif'
+                'Signe': op.montant >= 0 ? 'Positif' : 'Négatif',
+                'Créé par': op.createdBy || 'Inconnu'
             }));
             
             const wsOps = XLSX.utils.json_to_sheet(operationsExport);
@@ -1367,13 +1417,13 @@ class GestionFerme {
                 { 'Statistique': 'Total frais (DH)', 'Valeur': stats.totalFrais },
                 { 'Statistique': 'Solde global (DH)', 'Valeur': stats.soldeGlobal },
                 { 'Statistique': 'Opérations ce mois', 'Valeur': stats.operationsCeMois },
-                { 'Statistique': 'Date export', 'Valeur': date }
+                { 'Statistique': 'Date export', 'Valeur': date },
+                { 'Statistique': 'Exporté par', 'Valeur': this.getCurrentUserEmail() }
             ];
             
             const wsStats = XLSX.utils.json_to_sheet(statsExport);
             XLSX.utils.book_append_sheet(wb, wsStats, "Statistiques");
             
-            // Générer le fichier
             const nomFichier = `Rapport_Complet_Ferme_${date}.xlsx`;
             XLSX.writeFile(wb, nomFichier);
             
@@ -1400,7 +1450,6 @@ class GestionFerme {
         
         const soldeGlobal = totalRevenus - totalFrais;
         
-        // Opérations du mois en cours
         const maintenant = new Date();
         const moisEnCours = maintenant.getMonth();
         const anneeEnCours = maintenant.getFullYear();
@@ -1435,6 +1484,16 @@ class GestionFerme {
             header.appendChild(messageDiv);
             setTimeout(() => messageDiv.remove(), 4000);
         }
+    }
+
+    // Méthodes d'authentification
+    isUserAuthenticated() {
+        return window.authManager && window.authManager.isAuthenticated();
+    }
+
+    getCurrentUserEmail() {
+        const user = window.authManager ? window.authManager.getCurrentUser() : null;
+        return user ? user.email : 'Utilisateur inconnu';
     }
 
     // Méthodes de formatage
@@ -1479,4 +1538,4 @@ class GestionFerme {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
-});
+});s
