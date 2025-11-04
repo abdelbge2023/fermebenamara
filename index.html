@@ -7,9 +7,8 @@
     <link rel="stylesheet" href="./style.css">
     
     <!-- Firebase CDN - Charger D'ABORD -->
-   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
-<script src="firebase-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
     <!-- SheetJS pour l'export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -17,7 +16,10 @@
 <body>
     <div class="container">
         <header>
-            <h1>💰 Gestion Ferme Ben Amara</h1>
+            <div class="header-top">
+                <h1>💰 Gestion Ferme Ben Amara</h1>
+                <button id="btnManual" class="btn-info">📖 Manuel d'Utilisation</button>
+            </div>
             <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
         </header>
 
@@ -283,6 +285,96 @@
         </div>
     </div>
 
+    <!-- Modal Manuel d'Utilisation -->
+    <div id="manualModal" class="modal" style="display: none;">
+        <div class="modal-content manual-content">
+            <div class="modal-header">
+                <h3>📖 Manuel d'Utilisation - Gestion Ferme Ben Amara</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="manual-body">
+                <div class="manual-section">
+                    <h4>🎯 Fonctionnalités Principales</h4>
+                    <ul>
+                        <li><strong>Gestion des opérations</strong> : Revenus et dépenses</li>
+                        <li><strong>Répartition automatique</strong> : 1/3 Zaitoun - 2/3 3 Commain</li>
+                        <li><strong>Transferts entre caisses</strong> : Gestion des mouvements internes</li>
+                        <li><strong>Synchronisation cloud</strong> : Données sauvegardées sur Firebase</li>
+                        <li><strong>Export Excel</strong> : Rapports détaillés</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section">
+                    <h4>📝 Ajouter une Opération</h4>
+                    <ol>
+                        <li>Choisir l'opérateur (Abdel, Omar, Hicham)</li>
+                        <li>Sélectionner le groupe (Zaitoun, 3 Commain)</li>
+                        <li>Choisir le type d'opération :
+                            <ul>
+                                <li><strong>Travailleur global</strong> : Répartition automatique 1/3-2/3</li>
+                                <li><strong>Zaitoun seul / 3 Commain seul</strong> : Opération spécifique</li>
+                            </ul>
+                        </li>
+                        <li>Sélectionner Revenu ou Frais</li>
+                        <li>Choisir la caisse concernée</li>
+                        <li>Saisir le montant et la description</li>
+                        <li>Cliquer sur "Enregistrer"</li>
+                    </ol>
+                </div>
+
+                <div class="manual-section">
+                    <h4>🔄 Transferts entre Caisses</h4>
+                    <ol>
+                        <li>Choisir la caisse source</li>
+                        <li>Choisir la caisse destination</li>
+                        <li>Saisir le montant du transfert</li>
+                        <li>Ajouter une description</li>
+                        <li>Cliquer sur "Effectuer le transfert"</li>
+                    </ol>
+                </div>
+
+                <div class="manual-section">
+                    <h4>📊 Consultation des Données</h4>
+                    <ul>
+                        <li><strong>Onglets</strong> : Filtrer par vue (Toutes, Zaitoun, 3 Commain, etc.)</li>
+                        <li><strong>Soldes</strong> : Voir les soldes en temps réel de chaque caisse</li>
+                        <li><strong>Mode édition</strong> : Modifier ou supprimer plusieurs opérations</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section">
+                    <h4>📈 Export des Données</h4>
+                    <ul>
+                        <li><strong>Export Complet</strong> : Toutes les données</li>
+                        <li><strong>Export Vue Actuelle</strong> : Données filtrées</li>
+                        <li><strong>Rapport Complet</strong> : Avec statistiques détaillées</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section">
+                    <h4>⚙️ Gestion Avancée</h4>
+                    <ul>
+                        <li><strong>Vider Local</strong> : Supprime seulement les données locales</li>
+                        <li><strong>Tout Réinitialiser</strong> : Supprime TOUTES les données (local + cloud)</li>
+                        <li><strong>Attention</strong> : La réinitialisation complète est irréversible</li>
+                    </ul>
+                </div>
+
+                <div class="manual-section">
+                    <h4>🔧 Synchronisation</h4>
+                    <ul>
+                        <li>Les données se synchronisent automatiquement avec le cloud</li>
+                        <li>Fonctionne hors ligne avec re-synchronisation automatique</li>
+                        <li>Les modifications sont visibles sur tous les appareils</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary close-modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
     <!-- 1. Configuration Firebase -->
     <script src="./firebase-simple.js"></script>
@@ -291,4 +383,3 @@
     <script src="./app.js"></script>
 </body>
 </html>
-
