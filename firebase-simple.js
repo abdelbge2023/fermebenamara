@@ -378,7 +378,7 @@ class FirebaseSync {
                     result = await db.collection(collection).add(data);
                     break;
                 case 'set':
-                    result = await docRef.set(data);
+                    result = await docRef.set(data, { merge: true });
                     break;
                 case 'update':
                     result = await docRef.update(data);
@@ -628,6 +628,20 @@ class FirebaseSync {
         
         return this.addOperation({
             type: 'update',
+            collection: collectionName,
+            id: id,
+            data: data
+        });
+    }
+
+    async setDocument(collectionName, id, data) {
+        console.log(`📤 Synchronisation automatique: set ${collectionName}/${id}`);
+        
+        // Mettre à jour le timestamp
+        data.timestamp = new Date().toISOString();
+        
+        return this.addOperation({
+            type: 'set',
             collection: collectionName,
             id: id,
             data: data
