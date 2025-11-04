@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -321,28 +321,33 @@ class GestionFermeApp {
                 dataToShow = [...this.operations, ...this.transferts];
                 break;
             case 'zaitoun':
+                // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun
                 dataToShow = this.operations.filter(op => 
-                    op.groupe === 'zaitoun' || op.caisse === 'zaitoun_caisse'
+                    op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
                 );
                 break;
             case '3commain':
+                // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain
                 dataToShow = this.operations.filter(op => 
-                    op.groupe === '3commain' || op.caisse === '3commain_caisse'
+                    op.caisse === '3commain_caisse' || op.groupe === '3commain'
                 );
                 break;
             case 'abdel':
+                // Toutes les opérations de la caisse abdel + opérations de l'opérateur abdel
                 dataToShow = this.operations.filter(op => 
-                    op.operateur === 'abdel' || op.caisse === 'abdel_caisse'
+                    op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
                 );
                 break;
             case 'omar':
+                // Toutes les opérations de la caisse omar + opérations de l'opérateur omar
                 dataToShow = this.operations.filter(op => 
-                    op.operateur === 'omar' || op.caisse === 'omar_caisse'
+                    op.caisse === 'omar_caisse' || op.operateur === 'omar'
                 );
                 break;
             case 'hicham':
+                // Toutes les opérations de la caisse hicham + opérations de l'opérateur hicham
                 dataToShow = this.operations.filter(op => 
-                    op.operateur === 'hicham' || op.caisse === 'hicham_caisse'
+                    op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
                 );
                 break;
             case 'transferts':
@@ -350,11 +355,16 @@ class GestionFermeApp {
                 break;
         }
         
+        console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
+        
         // Trier par date (plus récent en premier)
         dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         // Afficher les données
         this.renderDataTable(dataToShow, dataDisplay);
+        
+        // Afficher aussi les totaux pour cette vue
+        this.afficherTotauxVue(dataToShow);
     }
 
     renderDataTable(data, container) {
@@ -440,6 +450,73 @@ class GestionFermeApp {
         }
     }
 
+    afficherTotauxVue(data) {
+        const dataDisplay = document.getElementById('dataDisplay');
+        if (!dataDisplay || data.length === 0) return;
+        
+        // Calculer les totaux
+        let totalRevenus = 0;
+        let totalDepenses = 0;
+        let totalTransferts = 0;
+        
+        data.forEach(item => {
+            if (item.hasOwnProperty('typeOperation')) {
+                // C'est une opération
+                const montant = parseFloat(item.montant) || 0;
+                if (item.typeTransaction === 'revenu') {
+                    totalRevenus += montant;
+                } else {
+                    totalDepenses += montant;
+                }
+            } else {
+                // C'est un transfert
+                totalTransferts += parseFloat(item.montantTransfert) || 0;
+            }
+        });
+        
+        const soldeNet = totalRevenus - totalDepenses;
+        
+        const htmlTotaux = `
+            <div class="vue-header">
+                <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
+                <div class="totals-container">
+                    <div class="total-item">
+                        <span class="total-label">💰 Revenus</span>
+                        <span class="total-value positive">${totalRevenus.toFixed(2)} DH</span>
+                    </div>
+                    <div class="total-item">
+                        <span class="total-label">💸 Dépenses</span>
+                        <span class="total-value negative">${totalDepenses.toFixed(2)} DH</span>
+                    </div>
+                    <div class="total-item">
+                        <span class="total-label">🔄 Transferts</span>
+                        <span class="total-value">${totalTransferts.toFixed(2)} DH</span>
+                    </div>
+                    <div class="total-item">
+                        <span class="total-label">⚖️ Solde Net</span>
+                        <span class="total-value ${soldeNet >= 0 ? 'positive' : 'negative'}">${soldeNet.toFixed(2)} DH</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insérer les totaux avant le tableau
+        dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
+    }
+
+    getNomVue(vue) {
+        const noms = {
+            'global': 'Toutes les opérations',
+            'zaitoun': 'Zaitoun',
+            '3commain': '3 Commain', 
+            'abdel': 'Abdel',
+            'omar': 'Omar',
+            'hicham': 'Hicham',
+            'transferts': 'Transferts'
+        };
+        return noms[vue] || vue;
+    }
+
     setupCheckboxListeners() {
         const selectAll = document.getElementById('selectAll');
         if (selectAll) {
@@ -496,46 +573,70 @@ class GestionFermeApp {
     updateStats() {
         console.log('📊 Calcul des soldes des caisses...');
         
-        // Initialiser les soldes à 0 pour chaque caisse
+        // Réinitialiser les soldes à 0 pour chaque caisse
         const soldes = {
             'abdel_caisse': 0,
-            'omar_caisse': 0,
+            'omar_caisse': 0, 
             'hicham_caisse': 0,
             'zaitoun_caisse': 0,
             '3commain_caisse': 0
         };
 
-        // Calculer les soldes basés sur les opérations
+        console.log('💰 Calcul basé sur:', {
+            operations: this.operations.length,
+            transferts: this.transferts.length
+        });
+
+        // 1. Calculer les soldes basés sur les opérations
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
+            
+            console.log('📝 Opération:', {
+                caisse: caisse,
+                type: operation.typeTransaction,
+                montant: montant,
+                description: operation.description
+            });
             
             if (caisse && soldes[caisse] !== undefined) {
                 if (operation.typeTransaction === 'revenu') {
                     // Revenu : ajouter au solde
                     soldes[caisse] += montant;
+                    console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
                 } else if (operation.typeTransaction === 'frais') {
                     // Frais : soustraire du solde
                     soldes[caisse] -= montant;
+                    console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
                 }
             }
         });
 
-        // Gérer les transferts
+        // 2. Gérer les transferts entre caisses
         this.transferts.forEach(transfert => {
             const montant = parseFloat(transfert.montantTransfert) || 0;
+            
+            console.log('🔄 Transfert:', {
+                source: transfert.caisseSource,
+                destination: transfert.caisseDestination,
+                montant: montant
+            });
             
             // Soustraire de la caisse source
             if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
                 soldes[transfert.caisseSource] -= montant;
+                console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
             }
             
             // Ajouter à la caisse destination
             if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
                 soldes[transfert.caisseDestination] += montant;
+                console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
             }
         });
 
+        console.log('📊 Soldes finaux:', soldes);
+        
         // Afficher les soldes
         this.renderStats(soldes);
     }
@@ -576,13 +677,43 @@ class GestionFermeApp {
         const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
         const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
         
-        let message = `Détails de ${caisse}:\n\n`;
-        message += `Opérations: ${operationsCaisse.length}\n`;
-        message += `Transferts sortants: ${transfertsSource.length}\n`;
-        message += `Transferts entrants: ${transfertsDestination.length}\n\n`;
-        message += `Total opérations: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
+        let totalRevenus = operationsCaisse
+            .filter(op => op.typeTransaction === 'revenu')
+            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+            
+        let totalDepenses = operationsCaisse
+            .filter(op => op.typeTransaction === 'frais')
+            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+        
+        let totalSortants = transfertsSource
+            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
+            
+        let totalEntrants = transfertsDestination
+            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
+        
+        const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
+        
+        let message = `📊 Détails de ${this.getNomCaisse(caisse)}:\n\n`;
+        message += `📝 Opérations: ${operationsCaisse.length}\n`;
+        message += `💰 Revenus: ${totalRevenus.toFixed(2)} DH\n`;
+        message += `💸 Dépenses: ${totalDepenses.toFixed(2)} DH\n`;
+        message += `🔄 Transferts sortants: ${transfertsSource.length} (${totalSortants.toFixed(2)} DH)\n`;
+        message += `🔄 Transferts entrants: ${transfertsDestination.length} (${totalEntrants.toFixed(2)} DH)\n\n`;
+        message += `⚖️ Solde calculé: ${solde.toFixed(2)} DH\n`;
+        message += `📋 Total mouvements: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
         
         alert(message);
+    }
+
+    getNomCaisse(caisse) {
+        const noms = {
+            'abdel_caisse': 'Caisse Abdel',
+            'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham',
+            'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return noms[caisse] || caisse;
     }
 
     async handleNouvelleOperation(e) {
@@ -871,31 +1002,31 @@ class GestionFermeApp {
                     break;
                 case 'zaitoun':
                     dataToExport = this.operations.filter(op => 
-                        op.groupe === 'zaitoun' || op.caisse === 'zaitoun_caisse'
+                        op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
                     );
                     sheetName = 'Zaitoun';
                     break;
                 case '3commain':
                     dataToExport = this.operations.filter(op => 
-                        op.groupe === '3commain' || op.caisse === '3commain_caisse'
+                        op.caisse === '3commain_caisse' || op.groupe === '3commain'
                     );
                     sheetName = '3_Commain';
                     break;
                 case 'abdel':
                     dataToExport = this.operations.filter(op => 
-                        op.operateur === 'abdel' || op.caisse === 'abdel_caisse'
+                        op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
                     );
                     sheetName = 'Abdel';
                     break;
                 case 'omar':
                     dataToExport = this.operations.filter(op => 
-                        op.operateur === 'omar' || op.caisse === 'omar_caisse'
+                        op.caisse === 'omar_caisse' || op.operateur === 'omar'
                     );
                     sheetName = 'Omar';
                     break;
                 case 'hicham':
                     dataToExport = this.operations.filter(op => 
-                        op.operateur === 'hicham' || op.caisse === 'hicham_caisse'
+                        op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
                     );
                     sheetName = 'Hicham';
                     break;
@@ -1108,17 +1239,6 @@ class GestionFermeApp {
         });
         
         return stats;
-    }
-
-    getNomCaisse(caisse) {
-        const noms = {
-            'abdel_caisse': 'Caisse Abdel',
-            'omar_caisse': 'Caisse Omar',
-            'hicham_caisse': 'Caisse Hicham',
-            'zaitoun_caisse': 'Caisse Zaitoun',
-            '3commain_caisse': 'Caisse 3 Commain'
-        };
-        return noms[caisse] || caisse;
     }
 
     // FONCTIONS DE RÉINITIALISATION
