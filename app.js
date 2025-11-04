@@ -154,14 +154,11 @@ class GestionFermeApp {
                 authMessage.className = 'auth-message auth-info';
                 authMessage.textContent = '✅ Connexion réussie! Redirection...';
                 console.log('✅ Utilisateur connecté:', result.user.email);
-                
-                // La redirection se fera automatiquement via l'écouteur d'authentification
             } else {
                 authMessage.className = 'auth-message auth-error';
                 authMessage.textContent = `❌ Erreur: ${result.error}`;
                 console.error('❌ Erreur connexion:', result.error);
                 
-                // Afficher plus de détails selon le code d'erreur
                 if (result.code === 'auth/user-not-found') {
                     authMessage.textContent = '❌ Utilisateur non trouvé';
                 } else if (result.code === 'auth/wrong-password') {
@@ -249,7 +246,7 @@ class GestionFermeApp {
             
             if (operateur && selectOperateur) {
                 selectOperateur.value = operateur;
-                selectOperateur.disabled = true; // Empêcher la modification manuelle
+                selectOperateur.disabled = true;
                 console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
             }
         }
@@ -398,7 +395,6 @@ class GestionFermeApp {
         html += '</tbody></table>';
         container.innerHTML = html;
         
-        // Ajouter l'écouteur pour "sélectionner tout"
         if (this.editMode) {
             const selectAll = document.getElementById('selectAll');
             if (selectAll) {
@@ -422,13 +418,16 @@ class GestionFermeApp {
         // Calculer les soldes basés sur les opérations
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
+            const caisse = operation.caisse;
             
-            if (operation.typeTransaction === 'revenu') {
-                // Revenu : ajouter au solde
-                soldes[operation.caisse] += montant;
-            } else if (operation.typeTransaction === 'frais') {
-                // Frais : soustraire du solde
-                soldes[operation.caisse] -= montant;
+            if (caisse && soldes[caisse] !== undefined) {
+                if (operation.typeTransaction === 'revenu') {
+                    // Revenu : ajouter au solde
+                    soldes[caisse] += montant;
+                } else if (operation.typeTransaction === 'frais') {
+                    // Frais : soustraire du solde
+                    soldes[caisse] -= montant;
+                }
             }
         });
 
@@ -437,12 +436,12 @@ class GestionFermeApp {
             const montant = parseFloat(transfert.montantTransfert) || 0;
             
             // Soustraire de la caisse source
-            if (soldes[transfert.caisseSource] !== undefined) {
+            if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
                 soldes[transfert.caisseSource] -= montant;
             }
             
             // Ajouter à la caisse destination
-            if (soldes[transfert.caisseDestination] !== undefined) {
+            if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
                 soldes[transfert.caisseDestination] += montant;
             }
         });
@@ -483,7 +482,6 @@ class GestionFermeApp {
     }
 
     showDetailsCaisse(caisse) {
-        // Afficher le détail des opérations pour cette caisse
         const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
         const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
         const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
@@ -506,7 +504,6 @@ class GestionFermeApp {
             return;
         }
         
-        const formData = new FormData(e.target);
         const operation = {
             operateur: document.getElementById('operateur').value,
             groupe: document.getElementById('groupe').value,
@@ -525,7 +522,7 @@ class GestionFermeApp {
                 await window.firebaseSync.addDocument('operations', operation);
                 this.showMessage('✅ Opération enregistrée avec succès', 'success');
                 e.target.reset();
-                this.loadInitialData(); // Recharger les données
+                this.loadInitialData();
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement opération:', error);
@@ -566,7 +563,7 @@ class GestionFermeApp {
                 await window.firebaseSync.addDocument('transferts', transfert);
                 this.showMessage('✅ Transfert effectué avec succès', 'success');
                 e.target.reset();
-                this.loadInitialData(); // Recharger les données
+                this.loadInitialData();
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement transfert:', error);
@@ -578,7 +575,6 @@ class GestionFermeApp {
         console.log('🔀 Changement de vue:', view);
         this.currentView = view;
         
-        // Mettre à jour les onglets actifs
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.sheet === view);
         });
@@ -621,11 +617,9 @@ class GestionFermeApp {
             let commainPart = 0;
             
             if (groupe === 'zaitoun') {
-                // Zaitoun: 1/3 pour Zaitoun, 2/3 pour 3 Commain
                 zaitounPart = montant * (1/3);
                 commainPart = montant * (2/3);
             } else if (groupe === '3commain') {
-                // 3 Commain: 1/3 pour Zaitoun, 2/3 pour 3 Commain  
                 zaitounPart = montant * (1/3);
                 commainPart = montant * (2/3);
             }
@@ -681,7 +675,6 @@ class GestionFermeApp {
         modal.style.display = 'none';
     }
 
-    // Méthodes à implémenter
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
         this.showMessage('📊 Export Excel en cours de développement', 'info');
@@ -731,7 +724,6 @@ class GestionFermeApp {
         
         console.log('🗑️ Suppression opération:', id);
         
-        // Trouver si c'est une opération ou un transfert
         const operation = this.operations.find(op => op.id === id);
         const transfert = this.transferts.find(tr => tr.id === id);
         
@@ -800,7 +792,7 @@ class GestionFermeApp {
                 this.showMessage(`✅ ${this.selectedOperations.size} opération(s) supprimée(s)`, 'success');
                 this.selectedOperations.clear();
                 this.loadInitialData();
-                this.toggleEditMode(); // Quitter le mode édition
+                this.toggleEditMode();
             })
             .catch(error => {
                 console.error('❌ Erreur suppression multiple:', error);
@@ -816,7 +808,7 @@ class GestionFermeApp {
     }
 }
 
-// Initialiser l'application quand le DOM est chargé
+// Initialiser l'application
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation application...');
     window.gestionFermeApp = new GestionFermeApp();
