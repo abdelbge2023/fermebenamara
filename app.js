@@ -716,6 +716,52 @@ class GestionFermeApp {
         return noms[caisse] || caisse;
     }
 
+    updateRepartition() {
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
+        
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+        
+        if (typeOperation === 'travailleur_global' && groupe && montant > 0) {
+            let zaitounPart = 0;
+            let commainPart = 0;
+            let description = '';
+            
+            // CORRECTION : Répartition fixe 1/3 Zaitoun - 2/3 3 Commain
+            // Peu importe le groupe sélectionné
+            zaitounPart = montant * (1/3);
+            commainPart = montant * (2/3);
+            description = 'Répartition fixe : Zaitoun 1/3 - 3 Commain 2/3';
+            
+            repartitionDetails.innerHTML = `
+                <div class="repartition-details">
+                    <div class="repartition-item zaitoun">
+                        <strong>🫒 Zaitoun (1/3)</strong><br>
+                        ${zaitounPart.toFixed(2)} DH<br>
+                        <small>${(zaitounPart/montant*100).toFixed(1)}%</small>
+                    </div>
+                    <div class="repartition-item commain">
+                        <strong>🔧 3 Commain (2/3)</strong><br>
+                        ${commainPart.toFixed(2)} DH<br>
+                        <small>${(commainPart/montant*100).toFixed(1)}%</small>
+                    </div>
+                    <div class="repartition-total">
+                        <strong>💰 Total</strong><br>
+                        ${montant.toFixed(2)} DH
+                    </div>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>ℹ️ Information :</strong> ${description}
+                </div>
+            `;
+            repartitionInfo.style.display = 'block';
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
+    }
+
     async handleNouvelleOperation(e) {
         e.preventDefault();
         console.log('➕ Nouvelle opération en cours...');
@@ -725,24 +771,81 @@ class GestionFermeApp {
             return;
         }
         
-        const operation = {
-            operateur: document.getElementById('operateur').value,
-            groupe: document.getElementById('groupe').value,
-            typeOperation: document.getElementById('typeOperation').value,
-            typeTransaction: document.getElementById('typeTransaction').value,
-            caisse: document.getElementById('caisse').value,
-            montant: parseFloat(document.getElementById('montant').value),
-            description: document.getElementById('description').value,
-            timestamp: new Date().toISOString(),
-            userId: this.currentUser.uid,
-            userEmail: this.currentUser.email
-        };
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const montantTotal = parseFloat(document.getElementById('montant').value);
+        const description = document.getElementById('description').value;
         
         try {
             if (window.firebaseSync) {
-                await window.firebaseSync.addDocument('operations', operation);
-                this.showMessage('✅ Opération enregistrée avec succès', 'success');
+                if (typeOperation === 'travailleur_global' && groupe && montantTotal > 0) {
+                    // CORRECTION : Créer DEUX opérations pour la répartition 1/3 - 2/3
+                    const zaitounPart = montantTotal * (1/3);
+                    const commainPart = montantTotal * (2/3);
+                    
+                    console.log('💰 Répartition automatique:', {
+                        total: montantTotal,
+                        zaitoun: zaitounPart,
+                        commain: commainPart,
+                        groupeSelectionne: groupe
+                    });
+                    
+                    // Opération pour Zaitoun (1/3)
+                    const operationZaitoun = {
+                        operateur: document.getElementById('operateur').value,
+                        groupe: 'zaitoun',
+                        typeOperation: typeOperation,
+                        typeTransaction: typeTransaction,
+                        caisse: 'zaitoun_caisse',
+                        montant: zaitounPart,
+                        description: `[PARTIE ZAITOUN - 1/3] ${description}`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+                    
+                    // Opération pour 3 Commain (2/3)
+                    const operationCommain = {
+                        operateur: document.getElementById('operateur').value,
+                        groupe: '3commain',
+                        typeOperation: typeOperation,
+                        typeTransaction: typeTransaction,
+                        caisse: '3commain_caisse',
+                        montant: commainPart,
+                        description: `[PARTIE 3 COMMAIN - 2/3] ${description}`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+                    
+                    // Enregistrer les deux opérations
+                    await window.firebaseSync.addDocument('operations', operationZaitoun);
+                    await window.firebaseSync.addDocument('operations', operationCommain);
+                    
+                    this.showMessage(`✅ Opération répartie automatiquement : Zaitoun ${zaitounPart.toFixed(2)} DH (1/3) + 3 Commain ${commainPart.toFixed(2)} DH (2/3)`, 'success');
+                    
+                } else {
+                    // Opération normale (pas de répartition)
+                    const operation = {
+                        operateur: document.getElementById('operateur').value,
+                        groupe: document.getElementById('groupe').value,
+                        typeOperation: typeOperation,
+                        typeTransaction: typeTransaction,
+                        caisse: document.getElementById('caisse').value,
+                        montant: montantTotal,
+                        description: description,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+                    
+                    await window.firebaseSync.addDocument('operations', operation);
+                    this.showMessage('✅ Opération enregistrée avec succès', 'success');
+                }
+                
                 e.target.reset();
+                document.getElementById('repartitionInfo').style.display = 'none';
                 this.loadInitialData();
             }
         } catch (error) {
@@ -848,44 +951,6 @@ class GestionFermeApp {
             this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
         } else {
             this.showMessage('✅ Mode édition désactivé', 'success');
-        }
-    }
-
-    updateRepartition() {
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const montant = parseFloat(document.getElementById('montant').value) || 0;
-        
-        const repartitionInfo = document.getElementById('repartitionInfo');
-        const repartitionDetails = document.getElementById('repartitionDetails');
-        
-        if (typeOperation === 'travailleur_global' && groupe && montant > 0) {
-            let zaitounPart = 0;
-            let commainPart = 0;
-            
-            if (groupe === 'zaitoun') {
-                zaitounPart = montant * (1/3);
-                commainPart = montant * (2/3);
-            } else if (groupe === '3commain') {
-                zaitounPart = montant * (1/3);
-                commainPart = montant * (2/3);
-            }
-            
-            repartitionDetails.innerHTML = `
-                <div class="repartition-details">
-                    <div class="repartition-item zaitoun">
-                        <strong>🫒 Zaitoun</strong><br>
-                        ${zaitounPart.toFixed(2)} DH
-                    </div>
-                    <div class="repartition-item commain">
-                        <strong>🔧 3 Commain</strong><br>
-                        ${commainPart.toFixed(2)} DH
-                    </div>
-                </div>
-            `;
-            repartitionInfo.style.display = 'block';
-        } else {
-            repartitionInfo.style.display = 'none';
         }
     }
 
