@@ -379,8 +379,8 @@ class GestionFermeApp {
                         ${isOperation ? (item.typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
                     </td>
                     <td>${item.caisse || `${item.caisseSource} → ${item.caisseDestination}`}</td>
-                    <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || isOperation) ? '#27ae60' : '#e74c3c'}">
-                        ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : 'N/A'}
+                    <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
+                        ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
                     </td>
                     <td>${item.description || item.descriptionTransfert || ''}</td>
                     ${!this.editMode ? `
@@ -408,8 +408,93 @@ class GestionFermeApp {
     }
 
     updateStats() {
-        console.log('📊 Mise à jour des statistiques...');
-        // Implémentez le calcul des soldes par caisse
+        console.log('📊 Calcul des soldes des caisses...');
+        
+        // Initialiser les soldes à 0 pour chaque caisse
+        const soldes = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+
+        // Calculer les soldes basés sur les opérations
+        this.operations.forEach(operation => {
+            const montant = parseFloat(operation.montant) || 0;
+            
+            if (operation.typeTransaction === 'revenu') {
+                // Revenu : ajouter au solde
+                soldes[operation.caisse] += montant;
+            } else if (operation.typeTransaction === 'frais') {
+                // Frais : soustraire du solde
+                soldes[operation.caisse] -= montant;
+            }
+        });
+
+        // Gérer les transferts
+        this.transferts.forEach(transfert => {
+            const montant = parseFloat(transfert.montantTransfert) || 0;
+            
+            // Soustraire de la caisse source
+            if (soldes[transfert.caisseSource] !== undefined) {
+                soldes[transfert.caisseSource] -= montant;
+            }
+            
+            // Ajouter à la caisse destination
+            if (soldes[transfert.caisseDestination] !== undefined) {
+                soldes[transfert.caisseDestination] += montant;
+            }
+        });
+
+        // Afficher les soldes
+        this.renderStats(soldes);
+    }
+
+    renderStats(soldes) {
+        const statsContainer = document.getElementById('statsContainer');
+        if (!statsContainer) return;
+
+        const nomsCaisses = {
+            'abdel_caisse': '👨‍💼 Caisse Abdel',
+            'omar_caisse': '👨‍💻 Caisse Omar', 
+            'hicham_caisse': '👨‍🔧 Caisse Hicham',
+            'zaitoun_caisse': '🫒 Caisse Zaitoun',
+            '3commain_caisse': '🔧 Caisse 3 Commain'
+        };
+
+        let html = '';
+        
+        Object.keys(soldes).forEach(caisse => {
+            const solde = soldes[caisse];
+            const classeSolde = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+            const icone = solde >= 0 ? '📈' : '📉';
+            
+            html += `
+                <div class="stat-card ${classeSolde}" onclick="gestionFermeApp.showDetailsCaisse('${caisse}')">
+                    <div class="stat-label">${nomsCaisses[caisse] || caisse}</div>
+                    <div class="stat-value">${solde.toFixed(2)} DH</div>
+                    <div class="stat-trend">${icone} ${solde >= 0 ? 'Positif' : 'Négatif'}</div>
+                </div>
+            `;
+        });
+
+        statsContainer.innerHTML = html;
+    }
+
+    showDetailsCaisse(caisse) {
+        // Afficher le détail des opérations pour cette caisse
+        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+        const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
+        const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
+        
+        let message = `Détails de ${caisse}:\n\n`;
+        message += `Opérations: ${operationsCaisse.length}\n`;
+        message += `Transferts sortants: ${transfertsSource.length}\n`;
+        message += `Transferts entrants: ${transfertsDestination.length}\n\n`;
+        message += `Total opérations: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
+        
+        alert(message);
     }
 
     async handleNouvelleOperation(e) {
@@ -451,7 +536,42 @@ class GestionFermeApp {
     async handleTransfert(e) {
         e.preventDefault();
         console.log('🔄 Transfert en cours...');
-        // Implémentez la logique de transfert
+        
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        const caisseSource = document.getElementById('caisseSource').value;
+        const caisseDestination = document.getElementById('caisseDestination').value;
+        
+        if (caisseSource === caisseDestination) {
+            this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
+            return;
+        }
+        
+        const transfert = {
+            caisseSource: caisseSource,
+            caisseDestination: caisseDestination,
+            montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
+            descriptionTransfert: document.getElementById('descriptionTransfert').value,
+            operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
+            timestamp: new Date().toISOString(),
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
+        };
+        
+        try {
+            if (window.firebaseSync) {
+                await window.firebaseSync.addDocument('transferts', transfert);
+                this.showMessage('✅ Transfert effectué avec succès', 'success');
+                e.target.reset();
+                this.loadInitialData(); // Recharger les données
+            }
+        } catch (error) {
+            console.error('❌ Erreur enregistrement transfert:', error);
+            this.showMessage('❌ Erreur lors du transfert', 'error');
+        }
     }
 
     switchView(view) {
@@ -489,7 +609,43 @@ class GestionFermeApp {
     }
 
     updateRepartition() {
-        // Implémentez la logique de répartition automatique 1/3 - 2/3
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
+        
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+        
+        if (typeOperation === 'travailleur_global' && groupe && montant > 0) {
+            let zaitounPart = 0;
+            let commainPart = 0;
+            
+            if (groupe === 'zaitoun') {
+                // Zaitoun: 1/3 pour Zaitoun, 2/3 pour 3 Commain
+                zaitounPart = montant * (1/3);
+                commainPart = montant * (2/3);
+            } else if (groupe === '3commain') {
+                // 3 Commain: 1/3 pour Zaitoun, 2/3 pour 3 Commain  
+                zaitounPart = montant * (1/3);
+                commainPart = montant * (2/3);
+            }
+            
+            repartitionDetails.innerHTML = `
+                <div class="repartition-details">
+                    <div class="repartition-item zaitoun">
+                        <strong>🫒 Zaitoun</strong><br>
+                        ${zaitounPart.toFixed(2)} DH
+                    </div>
+                    <div class="repartition-item commain">
+                        <strong>🔧 3 Commain</strong><br>
+                        ${commainPart.toFixed(2)} DH
+                    </div>
+                </div>
+            `;
+            repartitionInfo.style.display = 'block';
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
     }
 
     showMessage(message, type = 'info') {
@@ -547,8 +703,20 @@ class GestionFermeApp {
     }
 
     resetFirebaseData() {
-        console.log('🚨 Reset Firebase...');
-        this.showMessage('🚨 Réinitialisation Firebase en cours de développement', 'info');
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        if (!window.firebaseAuthFunctions.canResetFirebase(this.currentUser)) {
+            this.showMessage('❌ Seul l\'administrateur peut réinitialiser Firebase', 'error');
+            return;
+        }
+        
+        if (confirm('🚨 ATTENTION! Cette action supprimera TOUTES les données Firebase. Êtes-vous sûr?')) {
+            console.log('🚨 Reset Firebase...');
+            this.showMessage('🚨 Réinitialisation Firebase en cours de développement', 'warning');
+        }
     }
 
     editOperation(id) {
@@ -557,21 +725,92 @@ class GestionFermeApp {
     }
 
     deleteOperation(id) {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération?')) {
+            return;
+        }
+        
         console.log('🗑️ Suppression opération:', id);
-        this.showMessage('🗑️ Suppression en cours de développement', 'info');
+        
+        // Trouver si c'est une opération ou un transfert
+        const operation = this.operations.find(op => op.id === id);
+        const transfert = this.transferts.find(tr => tr.id === id);
+        
+        if (operation) {
+            window.firebaseSync.deleteDocument('operations', id)
+                .then(() => {
+                    this.showMessage('✅ Opération supprimée', 'success');
+                    this.loadInitialData();
+                })
+                .catch(error => {
+                    console.error('❌ Erreur suppression:', error);
+                    this.showMessage('❌ Erreur lors de la suppression', 'error');
+                });
+        } else if (transfert) {
+            window.firebaseSync.deleteDocument('transferts', id)
+                .then(() => {
+                    this.showMessage('✅ Transfert supprimé', 'success');
+                    this.loadInitialData();
+                })
+                .catch(error => {
+                    console.error('❌ Erreur suppression:', error);
+                    this.showMessage('❌ Erreur lors de la suppression', 'error');
+                });
+        }
     }
 
     toggleSelectAll(checked) {
-        console.log('☑️ Sélectionner tout:', checked);
+        const checkboxes = document.querySelectorAll('.operation-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checked;
+            if (checked) {
+                this.selectedOperations.add(checkbox.value);
+            } else {
+                this.selectedOperations.delete(checkbox.value);
+            }
+        });
+        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
     }
 
     deleteSelectedOperations() {
-        console.log('🗑️ Suppression sélection...');
-        this.showMessage('🗑️ Suppression multiple en cours de développement', 'info');
+        if (this.selectedOperations.size === 0) {
+            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+            return;
+        }
+        
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s)?`)) {
+            return;
+        }
+        
+        console.log('🗑️ Suppression de', this.selectedOperations.size, 'opérations...');
+        
+        const promises = [];
+        this.selectedOperations.forEach(id => {
+            const operation = this.operations.find(op => op.id === id);
+            const transfert = this.transferts.find(tr => tr.id === id);
+            
+            if (operation) {
+                promises.push(window.firebaseSync.deleteDocument('operations', id));
+            } else if (transfert) {
+                promises.push(window.firebaseSync.deleteDocument('transferts', id));
+            }
+        });
+        
+        Promise.all(promises)
+            .then(() => {
+                this.showMessage(`✅ ${this.selectedOperations.size} opération(s) supprimée(s)`, 'success');
+                this.selectedOperations.clear();
+                this.loadInitialData();
+                this.toggleEditMode(); // Quitter le mode édition
+            })
+            .catch(error => {
+                console.error('❌ Erreur suppression multiple:', error);
+                this.showMessage('❌ Erreur lors de la suppression', 'error');
+            });
     }
 
     cancelEditMode() {
         this.editMode = false;
+        this.selectedOperations.clear();
         this.toggleEditMode();
         this.showMessage('❌ Mode édition annulé', 'info');
     }
