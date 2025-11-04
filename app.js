@@ -1,4 +1,4 @@
-// app.js - Version complète avec Authentification, Export Excel et totaux par vue
+// app.js - Version complète avec Authentification
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -14,7 +14,6 @@ class GestionFerme {
         this.synchronisationEnCours = false;
         this.currentUser = null;
         
-        // Pour éviter les boucles de synchronisation
         this.suppressionsEnCours = new Set();
         this.ajoutsEnCours = new Set();
         
@@ -140,6 +139,33 @@ class GestionFerme {
             btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
         }
         
+        // Boutons d'export
+        const btnExportComplet = document.getElementById('btnExportComplet');
+        if (btnExportComplet) {
+            btnExportComplet.addEventListener('click', () => this.exporterVersExcel());
+        }
+        
+        const btnExportVue = document.getElementById('btnExportVue');
+        if (btnExportVue) {
+            btnExportVue.addEventListener('click', () => this.exporterVueVersExcel());
+        }
+        
+        const btnExportDetail = document.getElementById('btnExportDetail');
+        if (btnExportDetail) {
+            btnExportDetail.addEventListener('click', () => this.exporterDetailVersExcel());
+        }
+        
+        // Boutons de réinitialisation
+        const btnResetLocal = document.getElementById('btnResetLocal');
+        if (btnResetLocal) {
+            btnResetLocal.addEventListener('click', () => this.reinitialiserLocal());
+        }
+        
+        const btnResetFirebase = document.getElementById('btnResetFirebase');
+        if (btnResetFirebase) {
+            btnResetFirebase.addEventListener('click', () => this.reinitialiserFirebase());
+        }
+        
         // Gestion des onglets
         const tabButtons = document.querySelectorAll('.tab-btn');
         tabButtons.forEach(btn => {
@@ -201,29 +227,12 @@ class GestionFerme {
         console.log('✅ Écouteurs d\'événements configurés');
     }
 
-    // Nouveaux écouteurs pour l'authentification
+    // Écouteurs pour l'authentification
     setupAuthEventListeners() {
-        // Formulaire de connexion
+        // Formulaire de connexion seulement
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-        }
-
-        // Formulaire d'inscription
-        const registerForm = document.getElementById('registerForm');
-        if (registerForm) {
-            registerForm.addEventListener('submit', (e) => this.handleRegister(e));
-        }
-
-        // Boutons de bascule entre connexion/inscription
-        const btnShowRegister = document.getElementById('btnShowRegister');
-        if (btnShowRegister) {
-            btnShowRegister.addEventListener('click', () => this.showRegisterForm());
-        }
-
-        const btnShowLogin = document.getElementById('btnShowLogin');
-        if (btnShowLogin) {
-            btnShowLogin.addEventListener('click', () => this.showLoginForm());
         }
 
         // Bouton de déconnexion
@@ -264,43 +273,6 @@ class GestionFerme {
         }
     }
 
-    // Gestion de l'inscription
-    async handleRegister(e) {
-        e.preventDefault();
-        
-        const email = document.getElementById('registerEmail').value;
-        const password = document.getElementById('registerPassword').value;
-        const name = document.getElementById('registerName').value;
-        
-        if (!email || !password || !name) {
-            this.afficherMessageAuth('Veuillez remplir tous les champs', 'error');
-            return;
-        }
-
-        if (password.length < 6) {
-            this.afficherMessageAuth('Le mot de passe doit contenir au moins 6 caractères', 'error');
-            return;
-        }
-
-        this.afficherMessageAuth('Création du compte...', 'loading');
-        
-        const result = await window.firebaseAuthFunctions.createUserWithEmail(email, password, name);
-        
-        if (result.success) {
-            this.afficherMessageAuth('Compte créé avec succès !', 'success');
-        } else {
-            let message = 'Erreur lors de la création du compte';
-            if (result.code === 'auth/email-already-in-use') {
-                message = 'Cet email est déjà utilisé';
-            } else if (result.code === 'auth/weak-password') {
-                message = 'Le mot de passe est trop faible';
-            } else if (result.code === 'auth/invalid-email') {
-                message = 'Email invalide';
-            }
-            this.afficherMessageAuth(message, 'error');
-        }
-    }
-
     // Gestion de la déconnexion
     async handleLogout() {
         const result = await window.firebaseAuthFunctions.signOut();
@@ -309,18 +281,6 @@ class GestionFerme {
         } else {
             this.afficherMessageErreur('Erreur lors de la déconnexion');
         }
-    }
-
-    // Afficher le formulaire d'inscription
-    showRegisterForm() {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('registerForm').style.display = 'block';
-    }
-
-    // Afficher le formulaire de connexion
-    showLoginForm() {
-        document.getElementById('registerForm').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
     }
 
     // Messages pour l'authentification
@@ -824,11 +784,11 @@ class GestionFerme {
             return;
         }
 
-        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES vos données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
             return;
         }
 
-        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes vos opérations seront perdues !')) {
+        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues !')) {
             return;
         }
 
@@ -836,9 +796,9 @@ class GestionFerme {
         this.afficherMessageSucces('Réinitialisation en cours...');
 
         try {
-            // 1. Vider Firebase (seulement les données de l'utilisateur)
+            // 1. Vider Firebase
             if (window.firebaseSync) {
-                // Récupérer toutes les opérations de l'utilisateur
+                // Récupérer toutes les opérations
                 const operationsFirebase = await firebaseSync.getCollection('operations');
                 console.log(`🗑️ Suppression de ${operationsFirebase.length} opérations de Firebase...`);
                 
@@ -928,14 +888,7 @@ class GestionFerme {
         if (saved) {
             try {
                 const data = JSON.parse(saved);
-                // Filtrer les opérations par utilisateur si connecté
-                if (this.currentUser) {
-                    this.operations = (data.operations || []).filter(op => 
-                        op.userId === this.currentUser.uid || !op.userId
-                    );
-                } else {
-                    this.operations = data.operations || [];
-                }
+                this.operations = data.operations || [];
                 console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
             } catch (error) {
                 console.error('❌ Erreur chargement localStorage:', error);
@@ -1039,14 +992,8 @@ class GestionFerme {
     }
 
     ajouterOperationSynchro(data, operationId) {
-        // Vérifier que l'opération appartient à l'utilisateur courant
-        if (data.userId && data.userId !== this.currentUser.uid) {
-            console.log(`🚫 Opération ${operationId} ignorée (appartient à un autre utilisateur)`);
-            return;
-        }
-
         const operation = {
-            id: operationId, // Utiliser l'ID de Firebase
+            id: operationId,
             date: data.date,
             operateur: data.operateur,
             groupe: data.groupe,
@@ -1058,8 +1005,8 @@ class GestionFerme {
             repartition: data.repartition,
             transfert: data.transfert,
             timestamp: data.timestamp || new Date().toISOString(),
-            userId: data.userId || this.currentUser.uid,
-            userEmail: data.userEmail || this.currentUser.email
+            userId: data.userId,
+            userEmail: data.userEmail
         };
 
         const existeDeja = this.operations.some(op => op.id === operation.id);
@@ -1080,7 +1027,7 @@ class GestionFerme {
         const ancienNombre = this.operations.length;
         this.operations = this.operations.filter(op => op.id !== operationId);
         if (this.operations.length < ancienNombre) {
-            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation (autre appareil)`);
+            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation`);
         }
     }
 
@@ -1090,38 +1037,6 @@ class GestionFerme {
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
-    }
-
-    async sauvegarderSurFirebase() {
-        if (!window.firebaseSync || !this.currentUser) return;
-
-        try {
-            for (const operation of this.operations) {
-                try {
-                    // Vérifier si l'opération existe déjà sur Firebase
-                    const operationsFirebase = await firebaseSync.getCollection('operations');
-                    const existeSurFirebase = operationsFirebase.some(op => op.id === operation.id);
-                    
-                    if (!existeSurFirebase) {
-                        // Si elle n'existe pas, l'ajouter
-                        await firebaseSync.addDocument('operations', operation);
-                    } else {
-                        // Si elle existe, la mettre à jour
-                        await firebaseSync.updateDocument('operations', operation.id, operation);
-                    }
-                    
-                } catch (error) {
-                    console.error(`❌ Erreur synchro ${operation.id}:`, error);
-                }
-            }
-        } catch (error) {
-            console.error('❌ Erreur sauvegarde Firebase:', error);
-        }
-    }
-
-    async sauvegarderDonnees() {
-        this.sauvegarderLocalement();
-        await this.sauvegarderSurFirebase();
     }
 
     mettreAJourAffichage() {
@@ -1169,7 +1084,6 @@ class GestionFerme {
             
         } catch (error) {
             console.error(`❌ Erreur suppression:`, error);
-            // En cas d'erreur, retirer immédiatement
             this.suppressionsEnCours.delete(operationId);
             alert('Erreur lors de la suppression. Vérifiez votre connexion.');
         }
@@ -1223,7 +1137,6 @@ class GestionFerme {
             
         } catch (error) {
             console.error('❌ Erreur suppression multiple:', error);
-            // En cas d'erreur, retirer immédiatement
             this.selectedOperations.forEach(opId => {
                 this.suppressionsEnCours.delete(opId);
             });
@@ -1466,21 +1379,18 @@ class GestionFerme {
             // Sauvegarder d'abord sur Firebase pour obtenir les IDs
             for (const op of operationsACreer) {
                 if (window.firebaseSync) {
-                    // Firebase générera automatiquement l'ID
                     const result = await firebaseSync.addDocument('operations', op);
                     
-                    // Récupérer l'ID généré par Firebase
                     const operationAvecId = {
-                        id: result.id, // ID généré par Firebase
+                        id: result.id,
                         ...op
                     };
                     
                     this.operations.unshift(operationAvecId);
                     console.log(`➕ Nouvelle opération ${result.id} ajoutée avec ID Firebase`);
                 } else {
-                    // Fallback local si Firebase n'est pas disponible
                     const operationAvecId = {
-                        id: 'local_' + Date.now(), // ID local temporaire
+                        id: 'local_' + Date.now(),
                         ...op
                     };
                     this.operations.unshift(operationAvecId);
@@ -1509,21 +1419,16 @@ class GestionFerme {
         console.log('📊 Exportation vers Excel...');
         
         try {
-            // Créer un workbook et une feuille
             const wb = XLSX.utils.book_new();
             
-            // Données pour l'export
             const donneesExport = this.preparerDonneesPourExport();
             
-            // Créer la feuille principale
             const ws = XLSX.utils.json_to_sheet(donneesExport.operations);
             XLSX.utils.book_append_sheet(wb, ws, "Operations");
             
-            // Créer une feuille pour les soldes
             const wsSoldes = XLSX.utils.json_to_sheet(donneesExport.soldes);
             XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
             
-            // Générer le fichier Excel
             const date = new Date().toISOString().split('T')[0];
             const nomFichier = `Gestion_Ferme_Ben_Amara_${date}.xlsx`;
             XLSX.writeFile(wb, nomFichier);
@@ -1538,7 +1443,6 @@ class GestionFerme {
     }
 
     preparerDonneesPourExport() {
-        // Préparer les données des opérations
         const operationsExport = this.operations.map(op => ({
             'Date': this.formaterDate(op.date),
             'Opérateur': this.formaterOperateur(op.operateur),
@@ -1552,7 +1456,6 @@ class GestionFerme {
             'Timestamp': op.timestamp
         }));
 
-        // Calculer les soldes actuels
         this.calculerSoldes();
         const soldesExport = Object.keys(this.caisses).map(cle => ({
             'Caisse': this.formaterCaisse(cle),
@@ -1565,7 +1468,6 @@ class GestionFerme {
         };
     }
 
-    // Méthode pour exporter par vue
     exporterVueVersExcel() {
         if (!this.currentUser) {
             this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
@@ -1577,7 +1479,6 @@ class GestionFerme {
         try {
             let operationsFiltrees = [];
             
-            // Filtrer selon la vue actuelle
             switch(this.currentView) {
                 case 'global':
                     operationsFiltrees = this.operations;
@@ -1641,7 +1542,6 @@ class GestionFerme {
         }
     }
 
-    // Méthode d'export détaillé avec statistiques
     async exporterDetailVersExcel() {
         if (!this.currentUser) {
             this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
@@ -1654,7 +1554,6 @@ class GestionFerme {
             const wb = XLSX.utils.book_new();
             const date = new Date().toISOString().split('T')[0];
             
-            // 1. Feuille des opérations
             const operationsExport = this.operations.map(op => ({
                 'Date': this.formaterDate(op.date),
                 'Opérateur': this.formaterOperateur(op.operateur),
@@ -1670,7 +1569,6 @@ class GestionFerme {
             const wsOps = XLSX.utils.json_to_sheet(operationsExport);
             XLSX.utils.book_append_sheet(wb, wsOps, "Operations");
             
-            // 2. Feuille des soldes
             this.calculerSoldes();
             const soldesExport = Object.keys(this.caisses).map(cle => ({
                 'Caisse': this.formaterCaisse(cle),
@@ -1681,7 +1579,6 @@ class GestionFerme {
             const wsSoldes = XLSX.utils.json_to_sheet(soldesExport);
             XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
             
-            // 3. Feuille des statistiques
             const stats = this.calculerStatistiques();
             const statsExport = [
                 { 'Statistique': 'Total des opérations', 'Valeur': stats.totalOperations },
@@ -1695,7 +1592,6 @@ class GestionFerme {
             const wsStats = XLSX.utils.json_to_sheet(statsExport);
             XLSX.utils.book_append_sheet(wb, wsStats, "Statistiques");
             
-            // Générer le fichier
             const nomFichier = `Rapport_Complet_Ferme_${date}.xlsx`;
             XLSX.writeFile(wb, nomFichier);
             
@@ -1722,7 +1618,6 @@ class GestionFerme {
         
         const soldeGlobal = totalRevenus - totalFrais;
         
-        // Opérations du mois en cours
         const maintenant = new Date();
         const moisEnCours = maintenant.getMonth();
         const anneeEnCours = maintenant.getFullYear();
@@ -1762,14 +1657,6 @@ class GestionFerme {
     afficherMessageErreur(message) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'error-message';
-        messageDiv.style.cssText = `
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid #dc3545;
-        `;
         messageDiv.textContent = message;
         const header = document.querySelector('header');
         if (header) {
