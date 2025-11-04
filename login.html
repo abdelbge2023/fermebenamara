@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion - Ferme Benamara</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f6f6f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+      text-align: center;
+    }
+    input {
+      margin: 8px 0;
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Connexion</h2>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Mot de passe">
+    <button id="login">Se connecter</button>
+    <button id="register" style="background:#2196F3;">Créer un compte</button>
+    <p id="msg"></p>
+  </div>
+
+  <script>
+    // 🔧 Ton code Firebase ici
+    const firebaseConfig = {
+      apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
+      authDomain: "gestion-fermebenamara.firebaseapp.com",
+      projectId: "gestion-fermebenamara"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const msg = document.getElementById('msg');
+
+    document.getElementById('login').onclick = () => {
+      auth.signInWithEmailAndPassword(email.value, password.value)
+      .then(() => {
+        msg.innerText = "Connexion réussie ✅";
+        window.location.href = "index.html"; // redirige vers ton site principal
+      })
+      .catch(err => msg.innerText = err.message);
+    };
+
+    document.getElementById('register').onclick = () => {
+      auth.createUserWithEmailAndPassword(email.value, password.value)
+      .then(() => msg.innerText = "Compte créé ! Vous pouvez vous connecter.")
+      .catch(err => msg.innerText = err.message);
+    };
+  </script>
+</body>
+</html>
