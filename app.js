@@ -1538,4 +1538,5 @@ class GestionFerme {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
-});s
+});
+
