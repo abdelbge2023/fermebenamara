@@ -9,18 +9,81 @@
     <!-- Firebase CDN - Charger D'ABORD -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     
     <!-- SheetJS pour l'export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <div class="container">
+    <!-- Écran de Connexion -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>💰 Gestion Ferme Ben Amara</h1>
+                <p>Veuillez vous connecter</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email :</label>
+                    <input type="email" id="loginEmail" placeholder="votre@email.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Mot de passe :</label>
+                    <input type="password" id="loginPassword" placeholder="Votre mot de passe" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">🔐 Se connecter</button>
+                    <button type="button" id="btnShowRegister" class="btn-secondary">📝 Créer un compte</button>
+                </div>
+            </form>
+
+            <form id="registerForm" class="login-form" style="display: none;">
+                <div class="form-group">
+                    <label for="registerEmail">Email :</label>
+                    <input type="email" id="registerEmail" placeholder="votre@email.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="registerPassword">Mot de passe :</label>
+                    <input type="password" id="registerPassword" placeholder="Minimum 6 caractères" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="registerName">Nom complet :</label>
+                    <input type="text" id="registerName" placeholder="Votre nom complet" required>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">✅ Créer le compte</button>
+                    <button type="button" id="btnShowLogin" class="btn-secondary">↩️ Retour à la connexion</button>
+                </div>
+            </form>
+
+            <div class="login-info">
+                <p><strong>Comptes de test :</strong></p>
+                <p>Email: <code>admin@ferme.com</code> | Mot de passe: <code>admin123</code></p>
+                <p>Email: <code>user@ferme.com</code> | Mot de passe: <code>user123</code></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Principale (cachée au début) -->
+    <div id="appContent" class="container" style="display: none;">
         <header>
             <div class="header-top">
-                <h1>💰 Gestion Ferme Ben Amara</h1>
-                <button id="btnManual" class="btn-info" onclick="app.afficherManuel()">📖 Manuel d'Utilisation</button>
+                <div class="user-info">
+                    <h1>💰 Gestion Ferme Ben Amara</h1>
+                    <div class="user-menu">
+                        <span id="userEmail" class="user-email">Utilisateur</span>
+                        <button id="btnLogout" class="btn-secondary btn-small">🚪 Déconnexion</button>
+                    </div>
+                </div>
+                <button id="btnManual" class="btn-info">📖 Manuel d'Utilisation</button>
             </div>
-           <!-- <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p> -->
+            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
         </header>
 
         <div class="main-grid">
@@ -293,81 +356,7 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div class="manual-body">
-                <div class="manual-section">
-                    <h4>🎯 Fonctionnalités Principales</h4>
-                    <ul>
-                        <li><strong>Gestion des opérations</strong> : Revenus et dépenses</li>
-                        <li><strong>Répartition automatique</strong> : 1/3 Zaitoun - 2/3 3 Commain</li>
-                        <li><strong>Transferts entre caisses</strong> : Gestion des mouvements internes</li>
-                        <li><strong>Synchronisation cloud</strong> : Données sauvegardées sur Firebase</li>
-                        <li><strong>Export Excel</strong> : Rapports détaillés</li>
-                    </ul>
-                </div>
-
-                <div class="manual-section">
-                    <h4>📝 Ajouter une Opération</h4>
-                    <ol>
-                        <li>Choisir l'opérateur (Abdel, Omar, Hicham)</li>
-                        <li>Sélectionner le groupe (Zaitoun, 3 Commain)</li>
-                        <li>Choisir le type d'opération :
-                            <ul>
-                                <li><strong>Travailleur global</strong> : Répartition automatique 1/3-2/3</li>
-                                <li><strong>Zaitoun seul / 3 Commain seul</strong> : Opération spécifique</li>
-                            </ul>
-                        </li>
-                        <li>Sélectionner Revenu ou Frais</li>
-                        <li>Choisir la caisse concernée</li>
-                        <li>Saisir le montant et la description</li>
-                        <li>Cliquer sur "Enregistrer"</li>
-                    </ol>
-                </div>
-
-                <div class="manual-section">
-                    <h4>🔄 Transferts entre Caisses</h4>
-                    <ol>
-                        <li>Choisir la caisse source</li>
-                        <li>Choisir la caisse destination</li>
-                        <li>Saisir le montant du transfert</li>
-                        <li>Ajouter une description</li>
-                        <li>Cliquer sur "Effectuer le transfert"</li>
-                    </ol>
-                </div>
-
-                <div class="manual-section">
-                    <h4>📊 Consultation des Données</h4>
-                    <ul>
-                        <li><strong>Onglets</strong> : Filtrer par vue (Toutes, Zaitoun, 3 Commain, etc.)</li>
-                        <li><strong>Soldes</strong> : Voir les soldes en temps réel de chaque caisse</li>
-                        <li><strong>Mode édition</strong> : Modifier ou supprimer plusieurs opérations</li>
-                    </ul>
-                </div>
-
-                <div class="manual-section">
-                    <h4>📈 Export des Données</h4>
-                    <ul>
-                        <li><strong>Export Complet</strong> : Toutes les données</li>
-                        <li><strong>Export Vue Actuelle</strong> : Données filtrées</li>
-                        <li><strong>Rapport Complet</strong> : Avec statistiques détaillées</li>
-                    </ul>
-                </div>
-
-                <div class="manual-section">
-                    <h4>⚙️ Gestion Avancée</h4>
-                    <ul>
-                        <li><strong>Vider Local</strong> : Supprime seulement les données locales</li>
-                        <li><strong>Tout Réinitialiser</strong> : Supprime TOUTES les données (local + cloud)</li>
-                        <li><strong>Attention</strong> : La réinitialisation complète est irréversible</li>
-                    </ul>
-                </div>
-
-                <div class="manual-section">
-                    <h4>🔧 Synchronisation</h4>
-                    <ul>
-                        <li>Les données se synchronisent automatiquement avec le cloud</li>
-                        <li>Fonctionne hors ligne avec re-synchronisation automatique</li>
-                        <li>Les modifications sont visibles sur tous les appareils</li>
-                    </ul>
-                </div>
+                <!-- Contenu du manuel... -->
             </div>
             <div class="modal-actions">
                 <button class="btn-primary close-modal">Fermer</button>
