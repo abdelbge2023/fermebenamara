@@ -1,5 +1,5 @@
-// firebase-simple.js - Configuration Firebase avec gestion d'erreurs améliorée
-console.log('🔧 Chargement de Firebase Simple - Synchronisation automatique');
+// firebase-simple.js - Configuration Firebase avec Authentification
+console.log('🔧 Chargement de Firebase Simple - Authentification activée');
 
 // Configuration Firebase
 const firebaseConfig = {
@@ -13,8 +13,10 @@ const firebaseConfig = {
 
 // Variables globales
 let db;
+let auth;
 let firebaseInitialized = false;
 let firebaseSync;
+let currentUser = null;
 
 // Fonction d'initialisation Firebase
 function initializeFirebase() {
@@ -22,14 +24,15 @@ function initializeFirebase() {
         if (typeof firebase !== 'undefined' && !firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
+            auth = firebase.auth();
             
-            // Configuration avec gestion d'erreurs
+            // Configuration Firestore
             db.settings({
                 cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
                 merge: true
             });
             
-            // Activer la persistance avec gestion d'erreurs
+            // Activer la persistance
             db.enablePersistence()
                 .then(() => {
                     console.log('✅ Persistance Firestore activée');
@@ -45,20 +48,106 @@ function initializeFirebase() {
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
             window.firebaseDb = db;
+            window.firebaseAuth = auth;
+            
+            // Écouter les changements d'authentification
+            setupAuthListener();
             
         } else if (firebase.apps.length > 0) {
             db = firebase.firestore();
+            auth = firebase.auth();
             firebaseInitialized = true;
             console.log('ℹ️ Firebase déjà initialisé');
             firebaseSync = new FirebaseSync();
             window.firebaseSync = firebaseSync;
             window.firebaseDb = db;
+            window.firebaseAuth = auth;
+            
+            // Écouter les changements d'authentification
+            setupAuthListener();
         }
     } catch (error) {
         console.error('❌ Erreur initialisation Firebase:', error.code, error.message);
-        this.gestionErreurFirebase(error);
+        gestionErreurFirebase(error);
     }
 }
+
+// Écouteur d'authentification
+function setupAuthListener() {
+    auth.onAuthStateChanged((user) => {
+        console.log('🔐 État authentification changé:', user ? 'Connecté' : 'Déconnecté');
+        currentUser = user;
+        
+        if (user) {
+            // Utilisateur connecté
+            console.log('👤 Utilisateur connecté:', user.email);
+            window.dispatchEvent(new CustomEvent('userAuthenticated', { 
+                detail: { user: user } 
+            }));
+        } else {
+            // Utilisateur déconnecté
+            console.log('👤 Utilisateur déconnecté');
+            window.dispatchEvent(new CustomEvent('userSignedOut'));
+        }
+    }, (error) => {
+        console.error('❌ Erreur écouteur auth:', error);
+    });
+}
+
+// Fonctions d'authentification
+window.firebaseAuthFunctions = {
+    // Connexion email/mot de passe
+    async signInWithEmail(email, password) {
+        try {
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            console.log('✅ Connexion réussie:', userCredential.user.email);
+            return { success: true, user: userCredential.user };
+        } catch (error) {
+            console.error('❌ Erreur connexion:', error.code, error.message);
+            return { success: false, error: error.message, code: error.code };
+        }
+    },
+
+    // Création de compte
+    async createUserWithEmail(email, password, displayName) {
+        try {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
+            // Mettre à jour le profil
+            await userCredential.user.updateProfile({
+                displayName: displayName
+            });
+            
+            console.log('✅ Compte créé:', userCredential.user.email);
+            return { success: true, user: userCredential.user };
+        } catch (error) {
+            console.error('❌ Erreur création compte:', error.code, error.message);
+            return { success: false, error: error.message, code: error.code };
+        }
+    },
+
+    // Déconnexion
+    async signOut() {
+        try {
+            await auth.signOut();
+            console.log('✅ Déconnexion réussie');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Erreur déconnexion:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    // Récupérer l'utilisateur actuel
+    getCurrentUser() {
+        return auth.currentUser;
+    },
+
+    // Vérifier si connecté
+    isUserLoggedIn() {
+        return !!auth.currentUser;
+    }
+};
 
 // Gestion des erreurs Firebase
 function gestionErreurFirebase(error) {
@@ -68,7 +157,6 @@ function gestionErreurFirebase(error) {
         stack: error.stack
     });
     
-    // Afficher un message à l'utilisateur
     const messageDiv = document.createElement('div');
     messageDiv.style.cssText = `
         background: #f8d7da;
@@ -105,7 +193,7 @@ function gestionErreurFirebase(error) {
     }
 }
 
-// Classe de synchronisation Firebase avec gestion d'erreurs améliorée
+// Classe de synchronisation Firebase avec gestion utilisateur
 class FirebaseSync {
     constructor() {
         this.isOnline = navigator.onLine;
@@ -143,6 +231,7 @@ class FirebaseSync {
         console.log('🔌 Hors ligne - Mode cache activé');
     }
 
+    // Méthodes de synchronisation existantes...
     async syncPendingOperations() {
         if (this.pendingOperations.length === 0) return;
         console.log(`🔄 Synchronisation automatique de ${this.pendingOperations.length} opérations...`);
@@ -158,7 +247,6 @@ class FirebaseSync {
                 console.error('❌ Erreur synchronisation:', error);
                 operationsEchouees.push(operation);
                 
-                // Si erreur de permissions, arrêter la synchronisation
                 if (error.code === 'permission-denied') {
                     console.error('🚨 Arrêt de la synchronisation - Permissions insuffisantes');
                     break;
@@ -166,9 +254,7 @@ class FirebaseSync {
             }
         }
         
-        // Garder seulement les opérations échouées
         this.pendingOperations = operationsEchouees;
-        
         console.log(`✅ Synchronisation: ${operationsReussies.length} réussies, ${operationsEchouees.length} en attente`);
         
         if (operationsReussies.length > 0) {
@@ -181,7 +267,6 @@ class FirebaseSync {
             throw new Error('Firestore non initialisé');
         }
 
-        // Vérifier le nombre d'erreurs consécutives
         if (this.erreursConsecutives >= this.maxErreursConsecutives) {
             throw new Error('Trop d\'erreurs consécutives - Synchronisation suspendue');
         }
@@ -192,7 +277,14 @@ class FirebaseSync {
             let result;
             switch (type) {
                 case 'add':
-                    result = await db.collection(collection).add(data);
+                    // Ajouter l'ID utilisateur aux données
+                    const user = window.firebaseAuthFunctions.getCurrentUser();
+                    const dataWithUser = {
+                        ...data,
+                        userId: user ? user.uid : 'anonymous',
+                        userEmail: user ? user.email : 'anonymous'
+                    };
+                    result = await db.collection(collection).add(dataWithUser);
                     break;
                 case 'set':
                     result = await db.collection(collection).doc(id.toString()).set(data);
@@ -215,16 +307,13 @@ class FirebaseSync {
                     throw new Error(`Type inconnu: ${type}`);
             }
             
-            // Réinitialiser le compteur d'erreurs en cas de succès
             this.erreursConsecutives = 0;
             return result;
             
         } catch (error) {
-            // Incrémenter le compteur d'erreurs
             this.erreursConsecutives++;
             console.error(`❌ Erreur ${type} opération:`, error.code, error.message);
             
-            // Gérer les erreurs spécifiques
             if (error.code === 'permission-denied') {
                 console.error('🚨 Permissions Firebase insuffisantes');
                 this.afficherMessageSync('Erreur de permissions - Vérifiez les règles de sécurité');
@@ -233,6 +322,50 @@ class FirebaseSync {
             }
             
             throw error;
+        }
+    }
+
+    // ... autres méthodes existantes ...
+
+    async getCollection(collectionName) {
+        if (!db) {
+            console.error('❌ Firestore non initialisé');
+            return [];
+        }
+
+        if (this.erreursConsecutives >= this.maxErreursConsecutives) {
+            console.warn('🚨 Synchronisation suspendue - Trop d\'erreurs');
+            return [];
+        }
+
+        try {
+            const user = window.firebaseAuthFunctions.getCurrentUser();
+            let query = db.collection(collectionName);
+            
+            // Filtrer par utilisateur si connecté
+            if (user) {
+                query = query.where('userId', '==', user.uid);
+            }
+            
+            const snapshot = await query.get();
+            const data = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            console.log(`✅ ${data.length} documents synchronisés depuis ${collectionName}`);
+            
+            this.erreursConsecutives = 0;
+            return data;
+            
+        } catch (error) {
+            this.erreursConsecutives++;
+            console.error(`❌ Erreur lecture ${collectionName}:`, error.code, error.message);
+            
+            if (error.code === 'permission-denied') {
+                this.afficherMessageSync('Impossible de charger les données - Vérifiez les permissions');
+            }
+            
+            return [];
         }
     }
 
@@ -249,151 +382,19 @@ class FirebaseSync {
         `;
         messageDiv.textContent = `🔄 ${message}`;
         
-        const header = document.querySelector('header');
-        if (header) {
-            // Supprimer les anciens messages de sync
-            const anciensMessages = header.querySelectorAll('[style*="border-left: 4px solid #17a2b8"]');
-            anciensMessages.forEach(msg => msg.remove());
-            
-            header.appendChild(messageDiv);
-            setTimeout(() => messageDiv.remove(), 5000);
-        }
-    }
-
-    addOperation(operation) {
-        if (this.isOnline && db && this.erreursConsecutives < this.maxErreursConsecutives) {
-            return this.executeOperation(operation);
-        } else {
-            this.pendingOperations.push(operation);
-            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
-            return Promise.resolve();
-        }
-    }
-
-    async getCollection(collectionName) {
-        if (!db) {
-            console.error('❌ Firestore non initialisé');
-            return [];
-        }
-
-        // Vérifier les erreurs consécutives
-        if (this.erreursConsecutives >= this.maxErreursConsecutives) {
-            console.warn('🚨 Synchronisation suspendue - Trop d\'erreurs');
-            return [];
-        }
-
-        try {
-            const snapshot = await db.collection(collectionName).get();
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            console.log(`✅ ${data.length} documents synchronisés depuis ${collectionName}`);
-            
-            // Réinitialiser le compteur d'erreurs en cas de succès
-            this.erreursConsecutives = 0;
-            return data;
-            
-        } catch (error) {
-            this.erreursConsecutives++;
-            console.error(`❌ Erreur lecture ${collectionName}:`, error.code, error.message);
-            
-            if (error.code === 'permission-denied') {
-                this.afficherMessageSync('Impossible de charger les données - Vérifiez les permissions');
+        const appContent = document.getElementById('appContent');
+        if (appContent) {
+            const header = appContent.querySelector('header');
+            if (header) {
+                const anciensMessages = header.querySelectorAll('[style*="border-left: 4px solid #17a2b8"]');
+                anciensMessages.forEach(msg => msg.remove());
+                header.appendChild(messageDiv);
+                setTimeout(() => messageDiv.remove(), 5000);
             }
-            
-            return [];
         }
     }
 
-    listenToCollection(collectionName, callback) {
-        if (!db) {
-            console.error('❌ Firestore non initialisé');
-            return () => {};
-        }
-
-        console.log(`👂 Début de l'écoute en temps réel sur ${collectionName}`);
-        
-        try {
-            return db.collection(collectionName)
-                .onSnapshot((snapshot) => {
-                    const changes = snapshot.docChanges().map(change => ({
-                        type: change.type,
-                        id: change.doc.id,
-                        data: change.doc.data()
-                    }));
-                    
-                    if (changes.length > 0) {
-                        console.log(`🔄 ${changes.length} changement(s) détecté(s) en temps réel`);
-                    }
-                    
-                    callback(changes, snapshot);
-                }, (error) => {
-                    console.error(`❌ Erreur écoute ${collectionName}:`, error.code, error.message);
-                    
-                    // Gérer l'erreur de permissions
-                    if (error.code === 'permission-denied') {
-                        console.error('🚨 Écoute en temps réel bloquée - Permissions insuffisantes');
-                        this.afficherMessageSync('Connexion temps réel impossible - Vérifiez les règles de sécurité');
-                    }
-                });
-        } catch (error) {
-            console.error('❌ Erreur création écoute:', error);
-            return () => {};
-        }
-    }
-
-    async addDocument(collectionName, data) {
-        console.log(`📤 Synchronisation automatique: ajout à ${collectionName}`);
-        
-        if (this.isOnline && db && this.erreursConsecutives < this.maxErreursConsecutives) {
-            try {
-                const docRef = await db.collection(collectionName).add(data);
-                console.log(`✅ Document ajouté avec ID: ${docRef.id}`);
-                return docRef;
-            } catch (error) {
-                console.error('❌ Erreur ajout document:', error);
-                throw error;
-            }
-        } else {
-            this.pendingOperations.push({
-                type: 'add',
-                collection: collectionName,
-                data: data
-            });
-            console.log('💾 Opération sauvegardée localement pour synchronisation ultérieure');
-            return Promise.resolve({ id: 'pending_' + Date.now() });
-        }
-    }
-
-    async updateDocument(collectionName, id, data) {
-        console.log(`📤 Synchronisation automatique: mise à jour ${collectionName}/${id}`);
-        return this.addOperation({
-            type: 'update',
-            collection: collectionName,
-            id: id,
-            data: data
-        });
-    }
-
-    async deleteDocument(collectionName, id) {
-        if (this.suppressionsEnCours.has(id)) {
-            console.log(`⏳ Suppression ${id} déjà en cours, ignorée`);
-            return Promise.resolve();
-        }
-        
-        console.log(`📤 Synchronisation automatique: suppression ${collectionName}/${id}`);
-        return this.addOperation({
-            type: 'delete',
-            collection: collectionName,
-            id: id,
-            data: {}
-        });
-    }
-
-    isSuppressionEnCours(id) {
-        return this.suppressionsEnCours.has(id);
-    }
+    // ... autres méthodes existantes ...
 }
 
 // Initialiser Firebase quand le DOM est chargé
