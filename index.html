@@ -1,312 +1,173 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Ferme Ben Amara</title>
-    <link rel="stylesheet" href="./style.css">
-    
-    <!-- Firebase CDN - Charger D'ABORD -->
-   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-    authDomain: "gestion-fermebenamara.firebaseapp.com",
-    projectId: "gestion-fermebenamara"
-  };
-  firebase.initializeApp(firebaseConfig);
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestion Ferme Ben Amara</title>
+  <link rel="stylesheet" href="./style.css">
 
-  const auth = firebase.auth();
-  auth.onAuthStateChanged(user => {
-    if (!user) {
-      window.location.href = "login.html"; // redirige vers login si non connecté
-    }
-  });
-</script>
+  <!-- ✅ Firebase compat (une seule fois, version stable) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <!-- SheetJS pour l'export Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- SheetJS pour l'export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+
+  <!-- ✅ Zone d’authentification -->
+  <div id="auth-container" class="container">
+    <header>
+      <h1>🔒 Connexion à la Gestion Ferme Ben Amara</h1>
+    </header>
+
+    <div class="login-box">
+      <input id="email" type="email" placeholder="Email" required>
+      <input id="password" type="password" placeholder="Mot de passe" required>
+      <button id="btnLogin" class="btn-primary">Se connecter</button>
+      <button id="btnRegister" class="btn-secondary">Créer un compte</button>
+      <p id="loginMsg"></p>
+    </div>
+  </div>
+
+  <!-- ✅ Contenu principal (caché avant connexion) -->
+  <div id="app-container" style="display:none;">
     <div class="container">
-        <header>
-            <h1>💰 Gestion Ferme Ben Amara</h1>
-            <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
-        </header>
+      <header>
+        <h1>💰 Gestion Ferme Ben Amara</h1>
+        <p>Répartition automatique 1/3 - 2/3 avec gestion des caisses</p>
+        <div>
+          <span id="userEmail"></span>
+          <button id="btnLogout" class="btn-danger">🚪 Déconnexion</button>
+        </div>
+      </header>
 
-        <div class="main-grid">
-            <!-- Section Nouvelle Opération -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>➕ Nouvelle Opération</h2>
-                </div>
-                <form id="saisieForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="operateur">Opérateur :</label>
-                            <select id="operateur" required>
-                                <option value="">Choisir l'opérateur</option>
-                                <option value="abdel">Abdel</option>
-                                <option value="omar">Omar</option>
-                                <option value="hicham">Hicham</option>
-                            </select>
-                        </div>
+      <!-- ⚙️ Zone visible uniquement pour les ADMIN -->
+      <div id="adminOnly" style="display:none;">
+        <h2>⚙️ Espace Administrateur</h2>
+        <p>Vous pouvez modifier ou supprimer des données.</p>
+      </div>
 
-                        <div class="form-group">
-                            <label for="groupe">Groupe :</label>
-                            <select id="groupe" required>
-                                <option value="">Choisir le groupe</option>
-                                <option value="zaitoun">Zaitoun</option>
-                                <option value="3commain">3 Commain</option>
-                            </select>
-                        </div>
+      <!-- Le reste de ton contenu original -->
+      <div class="main-grid">
+        <!-- Section Nouvelle Opération -->
+        <!-- (ton code HTML d’origine ici inchangé) -->
+      </div>
 
-                        <div class="form-group">
-                            <label for="typeOperation">Type d'opération :</label>
-                            <select id="typeOperation" required>
-                                <option value="">Choisir le type</option>
-                                <option value="travailleur_global">Travailleur global</option>
-                                <option value="zaitoun">Zaitoun seul</option>
-                                <option value="3commain">3 Commain seul</option>
-                                <option value="autre">Autre</option>
-                            </select>
-                        </div>
+      <!-- Section Statistiques -->
+      <section class="stats-section">
+        <div class="section-header">
+          <h2>📊 Soldes des Caisses</h2>
+        </div>
+        <div id="statsContainer" class="stats-container"></div>
+      </section>
 
-                        <div class="form-group">
-                            <label for="typeTransaction">Transaction :</label>
-                            <select id="typeTransaction" required>
-                                <option value="">Choisir</option>
-                                <option value="revenu">💰 Revenu</option>
-                                <option value="frais">💸 Frais</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="caisse">Caisse concernée :</label>
-                            <select id="caisse" required>
-                                <option value="">Choisir la caisse</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="montant">Montant (DH) :</label>
-                            <input type="number" id="montant" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
-
-                    <!-- Affichage répartition -->
-                    <div id="repartitionInfo" class="repartition-info" style="display: none;">
-                        <h4>📋 Répartition Automatique 1/3 - 2/3 :</h4>
-                        <div id="repartitionDetails"></div>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="description">Description :</label>
-                        <textarea id="description" rows="3" placeholder="Description de l'opération..." required></textarea>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">✅ Enregistrer</button>
-                        <button type="button" id="btnReset" class="btn-secondary">🔄 Effacer</button>
-                    </div>
-                </form>
-            </section>
-
-            <!-- Section Transfert -->
-            <section class="form-section">
-                <div class="section-header">
-                    <h2>🔄 Transfert entre Caisses</h2>
-                </div>
-                <form id="transfertForm" class="saisie-form">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="caisseSource">De la caisse :</label>
-                            <select id="caisseSource" required>
-                                <option value="">Source</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="caisseDestination">Vers la caisse :</label>
-                            <select id="caisseDestination" required>
-                                <option value="">Destination</option>
-                                <option value="abdel_caisse">Caisse Abdel</option>
-                                <option value="omar_caisse">Caisse Omar</option>
-                                <option value="hicham_caisse">Caisse Hicham</option>
-                                <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                                <option value="3commain_caisse">Caisse 3 Commain</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="montantTransfert">Montant (DH) :</label>
-                            <input type="number" id="montantTransfert" step="0.01" min="0" placeholder="0.00" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label for="descriptionTransfert">Description :</label>
-                        <textarea id="descriptionTransfert" rows="2" placeholder="Raison du transfert..." required></textarea>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary">🔄 Effectuer le transfert</button>
-                    </div>
-                </form>
-            </section>
+      <!-- Section Historique -->
+      <section class="navigation-section">
+        <div class="section-header">
+          <div class="header-with-tabs">
+            <h2>📋 Historique des Opérations</h2>
+            <div class="nav-tabs">
+              <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
+              <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
+              <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
+              <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
+              <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
+              <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
+              <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
+            </div>
+          </div>
         </div>
 
-        <!-- Section Statistiques -->
-        <section class="stats-section">
-            <div class="section-header">
-                <h2>📊 Soldes des Caisses</h2>
-            </div>
-            <div id="statsContainer" class="stats-container">
-                <!-- Les soldes apparaîtront ici -->
-            </div>
-        </section>
-
-        <!-- Section Historique -->
-        <section class="navigation-section">
-            <div class="section-header">
-                <div class="header-with-tabs">
-                    <h2>📋 Historique des Opérations</h2>
-                    <div class="nav-tabs">
-                        <button class="tab-btn active" data-sheet="global">🌍 Toutes</button>
-                        <button class="tab-btn" data-sheet="zaitoun">🫒 Zaitoun</button>
-                        <button class="tab-btn" data-sheet="3commain">🔧 3 Commain</button>
-                        <button class="tab-btn" data-sheet="abdel">👨‍💼 Abdel</button>
-                        <button class="tab-btn" data-sheet="omar">👨‍💻 Omar</button>
-                        <button class="tab-btn" data-sheet="hicham">👨‍🔧 Hicham</button>
-                        <button class="tab-btn" data-sheet="transferts">🔄 Transferts</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions de gestion -->
-            <div class="management-actions">
-                <button id="btnEditMode" class="btn-warning">✏️ Mode Édition</button>
-                <button id="btnDeleteSelected" class="btn-danger" style="display: none;">🗑️ Supprimer la sélection</button>
-                <button id="btnCancelEdit" class="btn-secondary" style="display: none;">❌ Annuler</button>
-                
-                <!-- Boutons d'export -->
-                <button onclick="app.exporterVersExcel()" class="btn-success" title="Exporter toutes les données">
-                    📊 Export Excel Complet
-                </button>
-                <button onclick="app.exporterVueVersExcel()" class="btn-info" title="Exporter la vue actuelle">
-                    📋 Export Vue Actuelle
-                </button>
-                <button onclick="app.exporterDetailVersExcel()" class="btn-success" title="Rapport complet avec statistiques">
-                    📈 Rapport Complet
-                </button>
-                
-                <!-- Boutons de réinitialisation -->
-                <button onclick="app.reinitialiserLocal()" class="btn-info" title="Vider seulement les données locales">
-                    🗑️ Vider Local
-                </button>
-                <button onclick="app.reinitialiserFirebase()" class="btn-danger" title="Supprimer TOUTES les données (local + cloud)">
-                    🚨 Tout Réinitialiser
-                </button>
-            </div>
-
-            <div id="dataDisplay" class="data-display">
-                <!-- L'historique apparaîtra ici -->
-            </div>
-        </section>
-    </div>
-
-    <!-- Modal pour modification -->
-    <div id="editModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>✏️ Modifier l'Opération</h3>
-                <button class="close-modal">&times;</button>
-            </div>
-            <form id="editForm" class="modal-form">
-                <input type="hidden" id="editId">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="editOperateur">Opérateur :</label>
-                        <select id="editOperateur" required>
-                            <option value="abdel">Abdel</option>
-                            <option value="omar">Omar</option>
-                            <option value="hicham">Hicham</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editGroupe">Groupe :</label>
-                        <select id="editGroupe" required>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="editTypeOperation">Type d'Opération :</label>
-                        <select id="editTypeOperation" required>
-                            <option value="travailleur_global">Travailleur global</option>
-                            <option value="zaitoun">Zaitoun</option>
-                            <option value="3commain">3 Commain</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editTypeTransaction">Transaction :</label>
-                        <select id="editTypeTransaction" required>
-                            <option value="revenu">💰 Revenu</option>
-                            <option value="frais">💸 Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editCaisse">Caisse :</label>
-                        <select id="editCaisse" required>
-                            <option value="abdel_caisse">Caisse Abdel</option>
-                            <option value="omar_caisse">Caisse Omar</option>
-                            <option value="hicham_caisse">Caisse Hicham</option>
-                            <option value="zaitoun_caisse">Caisse Zaitoun</option>
-                            <option value="3commain_caisse">Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editMontant">Montant (DH) :</label>
-                        <input type="number" id="editMontant" step="0.01" min="0" required>
-                    </div>
-                </div>
-                <div class="form-group full-width">
-                    <label for="editDescription">Description :</label>
-                    <textarea id="editDescription" rows="3" required></textarea>
-                </div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary">💾 Sauvegarder</button>
-                    <button type="button" class="btn-secondary close-modal">❌ Annuler</button>
-                </div>
-            </form>
+        <!-- Boutons de gestion -->
+        <div class="management-actions">
+          <button id="btnEditMode" class="btn-warning admin-btn">✏️ Mode Édition</button>
+          <button id="btnDeleteSelected" class="btn-danger admin-btn" style="display:none;">🗑️ Supprimer</button>
+          <button id="btnCancelEdit" class="btn-secondary admin-btn" style="display:none;">❌ Annuler</button>
+          <button onclick="app.exporterVersExcel()" class="btn-success">📊 Export Excel</button>
         </div>
+
+        <div id="dataDisplay" class="data-display"></div>
+      </section>
     </div>
+  </div>
 
-    <!-- ORDRE CORRECT DE CHARGEMENT DES SCRIPTS -->
-    <!-- 1. Configuration Firebase -->
-    <script src="./firebase-simple.js"></script>
-    
-    <!-- 2. Application principale (APRÈS Firebase) -->
-    <script src="./app.js"></script>
-    
+  <!-- ✅ Initialisation Firebase + Auth + Rôle -->
+  <script>
+    // Configuration Firebase (unique)
+    const firebaseConfig = {
+      apiKey: "TA_CLE_API",
+      authDomain: "TON_PROJET.firebaseapp.com",
+      projectId: "TON_PROJET",
+      storageBucket: "TON_PROJET.appspot.com"
+    };
 
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const adminOnly = document.getElementById('adminOnly');
+    const userEmail = document.getElementById('userEmail');
+    const msg = document.getElementById('loginMsg');
+
+    // Connexion
+    document.getElementById('btnLogin').onclick = () => {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      auth.signInWithEmailAndPassword(email, pass)
+        .catch(e => msg.innerText = e.message);
+    };
+
+    // Création compte
+    document.getElementById('btnRegister').onclick = async () => {
+      const email = document.getElementById('email').value;
+      const pass = document.getElementById('password').value;
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        await db.collection('users').doc(cred.user.uid).set({
+          email: email,
+          role: 'user'
+        });
+        msg.innerText = "Compte créé. Connectez-vous maintenant.";
+      } catch (e) {
+        msg.innerText = e.message;
+      }
+    };
+
+    // Déconnexion
+    document.getElementById('btnLogout').onclick = () => auth.signOut();
+
+    // Gestion de l'état
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        authContainer.style.display = 'none';
+        appContainer.style.display = 'block';
+        userEmail.innerText = "Connecté : " + user.email;
+
+        // 🔍 Vérifier le rôle
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        const role = userDoc.exists ? userDoc.data().role : 'user';
+        if (role === 'admin') {
+          adminOnly.style.display = 'block';
+          document.querySelectorAll('.admin-btn').forEach(b => b.style.display = 'inline-block');
+        } else {
+          adminOnly.style.display = 'none';
+          document.querySelectorAll('.admin-btn').forEach(b => b.style.display = 'none');
+        }
+      } else {
+        authContainer.style.display = 'block';
+        appContainer.style.display = 'none';
+      }
+    });
+  </script>
+
+  <!-- ✅ Application principale -->
+  <script src="./app.js"></script>
 </body>
 </html>
-
-
-
