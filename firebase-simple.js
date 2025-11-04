@@ -1,4 +1,4 @@
-// firebase-simple.js - Configuration Firebase avec Authentification
+// firebase-simple.js - Configuration Firebase avec Authentification CORRIGÉE
 console.log('🔧 Chargement de Firebase Simple - Authentification + Synchronisation');
 
 // Configuration Firebase
@@ -265,10 +265,15 @@ class AuthManager {
 
     init() {
         // Écouter les changements d'état d'authentification
-        auth.onAuthStateChanged((user) => {
-            this.currentUser = user;
-            this.handleAuthStateChange(user);
-        });
+        if (auth) {
+            auth.onAuthStateChanged((user) => {
+                this.currentUser = user;
+                this.handleAuthStateChange(user);
+            });
+        } else {
+            console.warn('⚠️ Auth non disponible, réessai dans 2s...');
+            setTimeout(() => this.init(), 2000);
+        }
     }
 
     handleAuthStateChange(user) {
@@ -285,9 +290,11 @@ class AuthManager {
             if (appSection) appSection.style.display = 'block';
             if (userEmail) userEmail.textContent = user.email;
             
-            // Initialiser l'application
-            if (window.app) {
+            // Initialiser l'application si elle existe
+            if (window.app && typeof window.app.init === 'function') {
                 window.app.init();
+            } else {
+                console.log('⏳ Application pas encore chargée, elle s\'initialisera automatiquement');
             }
         } else {
             // Utilisateur déconnecté
@@ -296,6 +303,32 @@ class AuthManager {
             
             if (authSection) authSection.style.display = 'block';
             if (appSection) appSection.style.display = 'none';
+            
+            // Créer des utilisateurs de test si nécessaire
+            this.createTestUsers();
+        }
+    }
+
+    async createTestUsers() {
+        // Cette fonction crée les utilisateurs de test s'ils n'existent pas
+        const testUsers = [
+            { email: 'admin@ferme.com', password: '123456' },
+            { email: 'user@ferme.com', password: '123456' }
+        ];
+
+        for (const testUser of testUsers) {
+            try {
+                await auth.createUserWithEmailAndPassword(testUser.email, testUser.password);
+                console.log(`✅ Utilisateur de test créé: ${testUser.email}`);
+                // Se déconnecter immédiatement après la création
+                await auth.signOut();
+            } catch (error) {
+                if (error.code === 'auth/email-already-in-use') {
+                    console.log(`ℹ️ Utilisateur ${testUser.email} existe déjà`);
+                } else {
+                    console.log(`ℹ️ Utilisateur ${testUser.email}: ${error.message}`);
+                }
+            }
         }
     }
 
@@ -306,7 +339,20 @@ class AuthManager {
             return { success: true, user: userCredential.user };
         } catch (error) {
             console.error('❌ Erreur connexion:', error);
-            return { success: false, error: error.message };
+            
+            // Messages d'erreur plus explicites
+            let errorMessage = 'Erreur de connexion';
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = 'Utilisateur non trouvé';
+            } else if (error.code === 'auth/wrong-password') {
+                errorMessage = 'Mot de passe incorrect';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Email invalide';
+            } else {
+                errorMessage = error.message;
+            }
+            
+            return { success: false, error: errorMessage };
         }
     }
 
@@ -335,6 +381,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
     
-    // Initialiser le gestionnaire d'authentification
-    window.authManager = new AuthManager();
+    // Initialiser le gestionnaire d'authentification après un court délai
+    setTimeout(() => {
+        window.authManager = new AuthManager();
+        console.log('🔐 Gestionnaire d\'authentification initialisé');
+    }, 1000);
 });
