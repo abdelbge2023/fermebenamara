@@ -146,7 +146,7 @@ window.firebaseAuthFunctions = {
     // Obtenir le profil opérateur basé sur l'email
     getOperateurFromEmail(email) {
         const operateurs = {
-            'abdelbge2022@gmal': 'abdel',
+            'abdelbge2022@gmal.com': 'abdel',
             'elazharamra@homail.com': 'omar', 
             'xx12@hotmail.fr': 'hicham',
           //  'test@test.com': 'abdel' // Compte de test
@@ -764,5 +764,6 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
 
 
