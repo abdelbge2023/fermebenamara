@@ -137,9 +137,31 @@ gestionErreurSynchronisation(error) {
         console.log('✅ Écouteurs d\'événements configurés');
     }
 
-    afficherManuel() {
-        document.getElementById('manualModal').style.display = 'flex';
+   // Dans la classe GestionFerme - Remplacer/Ajouter cette méthode
+afficherManuel() {
+    console.log('📖 Ouverture du manuel d\'utilisation');
+    const manualModal = document.getElementById('manualModal');
+    if (manualModal) {
+        manualModal.style.display = 'flex';
+        
+        // Ajouter l'écouteur pour le bouton fermer du manuel
+        const closeButtons = manualModal.querySelectorAll('.close-modal');
+        closeButtons.forEach(btn => {
+            btn.onclick = () => {
+                manualModal.style.display = 'none';
+            };
+        });
+        
+        // Fermer en cliquant à l'extérieur
+        manualModal.onclick = (e) => {
+            if (e.target === manualModal) {
+                manualModal.style.display = 'none';
+            }
+        };
+    } else {
+        console.error('❌ Modal manuel non trouvé');
     }
+}
 
     gestionAffichageRepartition(typeOperation) {
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -1506,4 +1528,5 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
 });
+
 
