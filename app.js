@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -64,7 +64,7 @@ class GestionFermeApp {
             btnCancelEdit.addEventListener('click', () => this.cancelEditMode());
         }
 
-        // Export
+        // Export - CORRIGÉ
         const btnExportComplet = document.getElementById('btnExportComplet');
         if (btnExportComplet) {
             btnExportComplet.addEventListener('click', () => this.exportExcelComplet());
@@ -80,7 +80,7 @@ class GestionFermeApp {
             btnExportDetail.addEventListener('click', () => this.exportRapportComplet());
         }
 
-        // Réinitialisation
+        // Réinitialisation - CORRIGÉ
         const btnResetLocal = document.getElementById('btnResetLocal');
         if (btnResetLocal) {
             btnResetLocal.addEventListener('click', () => this.resetLocalData());
@@ -400,6 +400,17 @@ class GestionFermeApp {
             if (selectAll) {
                 selectAll.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
             }
+            
+            // Ajouter les écouteurs pour les cases à cocher individuelles
+            document.querySelectorAll('.operation-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.selectedOperations.add(e.target.value);
+                    } else {
+                        this.selectedOperations.delete(e.target.value);
+                    }
+                });
+            });
         }
     }
 
@@ -672,30 +683,354 @@ class GestionFermeApp {
     }
 
     closeModal(modal) {
-        modal.style.display = 'none';
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 
+    // FONCTIONS D'EXPORT CORRIGÉES
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
-        this.showMessage('📊 Export Excel en cours de développement', 'info');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            // Créer un classeur
+            const wb = XLSX.utils.book_new();
+            
+            // Préparer les données pour les opérations
+            const operationsData = this.operations.map(op => ({
+                'Date': new Date(op.timestamp).toLocaleDateString(),
+                'Opérateur': op.operateur,
+                'Type Opération': op.typeOperation,
+                'Groupe': op.groupe,
+                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': op.caisse,
+                'Montant (DH)': parseFloat(op.montant),
+                'Description': op.description,
+                'Email Utilisateur': op.userEmail
+            }));
+            
+            // Préparer les données pour les transferts
+            const transfertsData = this.transferts.map(tr => ({
+                'Date': new Date(tr.timestamp).toLocaleDateString(),
+                'Opérateur': tr.operateur,
+                'Type': 'Transfert',
+                'Caisse Source': tr.caisseSource,
+                'Caisse Destination': tr.caisseDestination,
+                'Montant (DH)': parseFloat(tr.montantTransfert),
+                'Description': tr.descriptionTransfert,
+                'Email Utilisateur': tr.userEmail
+            }));
+            
+            // Créer les feuilles
+            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
+            const wsTransferts = XLSX.utils.json_to_sheet(transfertsData);
+            
+            // Ajouter les feuilles au classeur
+            XLSX.utils.book_append_sheet(wb, wsOperations, 'Opérations');
+            XLSX.utils.book_append_sheet(wb, wsTransferts, 'Transferts');
+            
+            // Générer le fichier et le télécharger
+            const fileName = `gestion_ferme_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage('✅ Export Excel réussi!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur export Excel:', error);
+            this.showMessage('❌ Erreur lors de l\'export Excel', 'error');
+        }
     }
 
     exportVueActuelle() {
         console.log('📋 Export vue actuelle...');
-        this.showMessage('📋 Export en cours de développement', 'info');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            // Obtenir les données de la vue actuelle
+            let dataToExport = [];
+            let sheetName = '';
+            
+            switch (this.currentView) {
+                case 'global':
+                    dataToExport = [...this.operations, ...this.transferts];
+                    sheetName = 'Toutes_les_donnees';
+                    break;
+                case 'zaitoun':
+                    dataToExport = this.operations.filter(op => 
+                        op.groupe === 'zaitoun' || op.caisse === 'zaitoun_caisse'
+                    );
+                    sheetName = 'Zaitoun';
+                    break;
+                case '3commain':
+                    dataToExport = this.operations.filter(op => 
+                        op.groupe === '3commain' || op.caisse === '3commain_caisse'
+                    );
+                    sheetName = '3_Commain';
+                    break;
+                case 'abdel':
+                    dataToExport = this.operations.filter(op => 
+                        op.operateur === 'abdel' || op.caisse === 'abdel_caisse'
+                    );
+                    sheetName = 'Abdel';
+                    break;
+                case 'omar':
+                    dataToExport = this.operations.filter(op => 
+                        op.operateur === 'omar' || op.caisse === 'omar_caisse'
+                    );
+                    sheetName = 'Omar';
+                    break;
+                case 'hicham':
+                    dataToExport = this.operations.filter(op => 
+                        op.operateur === 'hicham' || op.caisse === 'hicham_caisse'
+                    );
+                    sheetName = 'Hicham';
+                    break;
+                case 'transferts':
+                    dataToExport = this.transferts;
+                    sheetName = 'Transferts';
+                    break;
+            }
+            
+            // Préparer les données
+            const exportData = dataToExport.map(item => {
+                if (item.hasOwnProperty('typeOperation')) {
+                    // C'est une opération
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString(),
+                        'Opérateur': item.operateur,
+                        'Type': item.typeOperation,
+                        'Groupe': item.groupe,
+                        'Transaction': item.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                        'Caisse': item.caisse,
+                        'Montant (DH)': parseFloat(item.montant),
+                        'Description': item.description
+                    };
+                } else {
+                    // C'est un transfert
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString(),
+                        'Opérateur': item.operateur,
+                        'Type': 'Transfert',
+                        'Caisse Source': item.caisseSource,
+                        'Caisse Destination': item.caisseDestination,
+                        'Montant (DH)': parseFloat(item.montantTransfert),
+                        'Description': item.descriptionTransfert
+                    };
+                }
+            });
+            
+            if (exportData.length === 0) {
+                this.showMessage('❌ Aucune donnée à exporter pour cette vue', 'warning');
+                return;
+            }
+            
+            // Créer et télécharger le fichier
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            
+            const fileName = `gestion_ferme_${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage(`✅ Export ${sheetName} réussi!`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur export vue:', error);
+            this.showMessage('❌ Erreur lors de l\'export', 'error');
+        }
     }
 
     exportRapportComplet() {
         console.log('📈 Rapport complet...');
-        this.showMessage('📈 Rapport en cours de développement', 'info');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            // 1. Feuille de synthèse
+            const soldes = this.calculerSoldes();
+            const syntheseData = Object.keys(soldes).map(caisse => ({
+                'Caisse': this.getNomCaisse(caisse),
+                'Solde (DH)': soldes[caisse],
+                'Statut': soldes[caisse] >= 0 ? 'Positif' : 'Négatif'
+            }));
+            
+            const wsSynthese = XLSX.utils.json_to_sheet(syntheseData);
+            XLSX.utils.book_append_sheet(wb, wsSynthese, 'Synthèse');
+            
+            // 2. Statistiques détaillées
+            const statsData = this.calculerStatistiquesDetaillees();
+            const wsStats = XLSX.utils.json_to_sheet(statsData);
+            XLSX.utils.book_append_sheet(wb, wsStats, 'Statistiques');
+            
+            // 3. Toutes les opérations
+            const allOperations = [...this.operations, ...this.transferts]
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+            const operationsData = allOperations.map(item => {
+                const base = {
+                    'Date': new Date(item.timestamp).toLocaleDateString(),
+                    'Heure': new Date(item.timestamp).toLocaleTimeString(),
+                    'Opérateur': item.operateur
+                };
+                
+                if (item.hasOwnProperty('typeOperation')) {
+                    return {
+                        ...base,
+                        'Type': 'Opération',
+                        'Sous-type': item.typeOperation,
+                        'Groupe': item.groupe,
+                        'Transaction': item.typeTransaction,
+                        'Caisse': item.caisse,
+                        'Montant (DH)': parseFloat(item.montant),
+                        'Description': item.description
+                    };
+                } else {
+                    return {
+                        ...base,
+                        'Type': 'Transfert',
+                        'Caisse Source': item.caisseSource,
+                        'Caisse Destination': item.caisseDestination,
+                        'Montant (DH)': parseFloat(item.montantTransfert),
+                        'Description': item.descriptionTransfert
+                    };
+                }
+            });
+            
+            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
+            XLSX.utils.book_append_sheet(wb, wsOperations, 'Toutes_Operations');
+            
+            // Télécharger le fichier
+            const fileName = `rapport_complet_ferme_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage('✅ Rapport complet généré avec succès!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur rapport complet:', error);
+            this.showMessage('❌ Erreur lors de la génération du rapport', 'error');
+        }
     }
 
+    calculerSoldes() {
+        const soldes = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+
+        // Opérations
+        this.operations.forEach(op => {
+            const montant = parseFloat(op.montant) || 0;
+            if (op.caisse && soldes[op.caisse] !== undefined) {
+                if (op.typeTransaction === 'revenu') {
+                    soldes[op.caisse] += montant;
+                } else {
+                    soldes[op.caisse] -= montant;
+                }
+            }
+        });
+
+        // Transferts
+        this.transferts.forEach(tr => {
+            const montant = parseFloat(tr.montantTransfert) || 0;
+            if (tr.caisseSource && soldes[tr.caisseSource] !== undefined) {
+                soldes[tr.caisseSource] -= montant;
+            }
+            if (tr.caisseDestination && soldes[tr.caisseDestination] !== undefined) {
+                soldes[tr.caisseDestination] += montant;
+            }
+        });
+
+        return soldes;
+    }
+
+    calculerStatistiquesDetaillees() {
+        const stats = [];
+        
+        // Par caisse
+        const caisses = ['abdel_caisse', 'omar_caisse', 'hicham_caisse', 'zaitoun_caisse', '3commain_caisse'];
+        
+        caisses.forEach(caisse => {
+            const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+            const revenus = operationsCaisse.filter(op => op.typeTransaction === 'revenu')
+                .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+            const depenses = operationsCaisse.filter(op => op.typeTransaction === 'frais')
+                .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+                
+            stats.push({
+                'Catégorie': 'Par Caisse',
+                'Détail': this.getNomCaisse(caisse),
+                'Nombre Opérations': operationsCaisse.length,
+                'Total Revenus (DH)': revenus,
+                'Total Dépenses (DH)': depenses,
+                'Solde (DH)': revenus - depenses
+            });
+        });
+        
+        // Par opérateur
+        const operateurs = ['abdel', 'omar', 'hicham'];
+        operateurs.forEach(operateur => {
+            const operationsOperateur = this.operations.filter(op => op.operateur === operateur);
+            const count = operationsOperateur.length;
+            const total = operationsOperateur.reduce((sum, op) => {
+                const montant = parseFloat(op.montant) || 0;
+                return op.typeTransaction === 'revenu' ? sum + montant : sum - montant;
+            }, 0);
+            
+            stats.push({
+                'Catégorie': 'Par Opérateur',
+                'Détail': operateur.charAt(0).toUpperCase() + operateur.slice(1),
+                'Nombre Opérations': count,
+                'Impact Total (DH)': total
+            });
+        });
+        
+        return stats;
+    }
+
+    getNomCaisse(caisse) {
+        const noms = {
+            'abdel_caisse': 'Caisse Abdel',
+            'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham',
+            'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return noms[caisse] || caisse;
+    }
+
+    // FONCTIONS DE RÉINITIALISATION CORRIGÉES
     resetLocalData() {
-        console.log('🗑️ Reset données locales...');
-        this.showMessage('🗑️ Réinitialisation locale en cours de développement', 'info');
+        if (confirm('Êtes-vous sûr de vouloir vider les données locales? Les données Firebase ne seront pas affectées.')) {
+            console.log('🗑️ Reset données locales...');
+            
+            // Vider les données locales
+            this.operations = [];
+            this.transferts = [];
+            this.selectedOperations.clear();
+            
+            // Mettre à jour l'affichage
+            this.updateAffichage();
+            this.updateStats();
+            
+            this.showMessage('✅ Données locales vidées avec succès', 'success');
+        }
     }
 
-    resetFirebaseData() {
+    async resetFirebaseData() {
         if (!this.currentUser) {
             this.showMessage('❌ Vous devez être connecté', 'error');
             return;
@@ -706,15 +1041,120 @@ class GestionFermeApp {
             return;
         }
         
-        if (confirm('🚨 ATTENTION! Cette action supprimera TOUTES les données Firebase. Êtes-vous sûr?')) {
-            console.log('🚨 Reset Firebase...');
-            this.showMessage('🚨 Réinitialisation Firebase en cours de développement', 'warning');
+        if (confirm('🚨 ATTENTION! Cette action supprimera TOUTES les données Firebase. Cette action est irréversible. Êtes-vous ABSOLUMENT sûr?')) {
+            try {
+                console.log('🚨 Reset Firebase en cours...');
+                this.showMessage('🔄 Suppression des données Firebase...', 'info');
+                
+                // Supprimer toutes les opérations
+                const operationsSnapshot = await window.firebaseDb.collection('operations').get();
+                const deleteOperations = operationsSnapshot.docs.map(doc => 
+                    window.firebaseSync.deleteDocument('operations', doc.id)
+                );
+                
+                // Supprimer tous les transferts
+                const transfertsSnapshot = await window.firebaseDb.collection('transferts').get();
+                const deleteTransferts = transfertsSnapshot.docs.map(doc => 
+                    window.firebaseSync.deleteDocument('transferts', doc.id)
+                );
+                
+                // Attendre que toutes les suppressions soient terminées
+                await Promise.all([...deleteOperations, ...deleteTransferts]);
+                
+                // Vider aussi les données locales
+                this.operations = [];
+                this.transferts = [];
+                this.selectedOperations.clear();
+                
+                // Mettre à jour l'affichage
+                this.updateAffichage();
+                this.updateStats();
+                
+                this.showMessage('✅ Toutes les données ont été réinitialisées avec succès', 'success');
+                
+            } catch (error) {
+                console.error('❌ Erreur réinitialisation Firebase:', error);
+                this.showMessage('❌ Erreur lors de la réinitialisation', 'error');
+            }
         }
     }
 
+    // FONCTIONS D'ÉDITION CORRIGÉES
     editOperation(id) {
         console.log('✏️ Édition opération:', id);
-        this.showMessage('✏️ Édition en cours de développement', 'info');
+        
+        // Trouver l'opération
+        const operation = this.operations.find(op => op.id === id);
+        const transfert = this.transferts.find(tr => tr.id === id);
+        
+        if (!operation && !transfert) {
+            this.showMessage('❌ Opération non trouvée', 'error');
+            return;
+        }
+        
+        if (operation) {
+            this.showEditOperationModal(operation);
+        } else if (transfert) {
+            this.showEditTransfertModal(transfert);
+        }
+    }
+
+    showEditOperationModal(operation) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+        
+        if (!modal || !form) {
+            this.showMessage('❌ Modal d\'édition non trouvé', 'error');
+            return;
+        }
+        
+        // Remplir le formulaire avec les données de l'opération
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = operation.montant;
+        document.getElementById('editDescription').value = operation.description;
+        
+        // Afficher le modal
+        modal.style.display = 'flex';
+        
+        // Gérer la soumission du formulaire
+        form.onsubmit = (e) => this.handleEditOperation(e, operation.id);
+    }
+
+    async handleEditOperation(e, id) {
+        e.preventDefault();
+        
+        const updatedOperation = {
+            operateur: document.getElementById('editOperateur').value,
+            groupe: document.getElementById('editGroupe').value,
+            typeOperation: document.getElementById('editTypeOperation').value,
+            typeTransaction: document.getElementById('editTypeTransaction').value,
+            caisse: document.getElementById('editCaisse').value,
+            montant: parseFloat(document.getElementById('editMontant').value),
+            description: document.getElementById('editDescription').value,
+            timestamp: new Date().toISOString(), // Mettre à jour le timestamp
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
+        };
+        
+        try {
+            await window.firebaseSync.updateDocument('operations', id, updatedOperation);
+            this.showMessage('✅ Opération modifiée avec succès', 'success');
+            this.closeModal(document.getElementById('editModal'));
+            this.loadInitialData();
+        } catch (error) {
+            console.error('❌ Erreur modification opération:', error);
+            this.showMessage('❌ Erreur lors de la modification', 'error');
+        }
+    }
+
+    showEditTransfertModal(transfert) {
+        // Pour l'instant, on utilise une alerte simple
+        alert(`Édition des transferts sera implémentée dans une prochaine version.\n\nTransfert: ${transfert.montantTransfert} DH de ${transfert.caisseSource} vers ${transfert.caisseDestination}`);
     }
 
     deleteOperation(id) {
