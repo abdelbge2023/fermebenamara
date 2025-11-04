@@ -14,7 +14,12 @@
     <!-- SheetJS pour l'export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body>
+    <body>
+        <div class="user-menu">
+        <span id="userEmail" class="user-email">Utilisateur</span>
+        <span id="userOperateur" class="user-operateur"></span>
+        <button id="btnLogout" class="btn-secondary btn-small">🚪 Déconnexion</button>
+    </div>
     <!-- Écran de Connexion -->
     <div id="loginScreen" class="login-screen">
         <div class="login-container">
@@ -477,3 +482,4 @@
     <script src="./app.js"></script>
 </body>
 </html>
+
