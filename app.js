@@ -1,15 +1,3 @@
-// firebase-simple.js - Configuration Firebase avec Authentification et Permissions
-console.log('🔧 Chargement de Firebase Simple - Authentification et Permissions activées');
-
-// Configuration Firebase
-const firebaseConfig = {
-    apiKey: "AIzaSyDkqudvQPUv_Lh2V2d2PUSEcxcHDExw6PE",
-    authDomain: "gestion-fermebenamara.firebaseapp.com",
-    projectId: "gestion-fermebenamara",
-    storageBucket: "gestion-fermebenamara.firebasestorage.app",
-    messagingSenderId: "668129137491",
-    appId: "1:668129137491:web:b56522302ea789044507a6"
-};
 
 // Variables globales
 let db;
@@ -506,3 +494,4 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
 });
+
