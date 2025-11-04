@@ -188,6 +188,15 @@ header p {
     color: white;
 }
 
+.user-operateur {
+    background: #27ae60;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
 /* Grille principale */
 .main-grid {
     display: grid;
@@ -400,6 +409,16 @@ button:hover {
 
 .data-table td {
     color: #495057;
+}
+
+/* Opérations en lecture seule */
+.operation-readonly {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.operation-readonly .operation-actions {
+    display: none;
 }
 
 /* Statistiques */
@@ -849,21 +868,4 @@ tr:hover .operation-actions {
 
 .fade-in {
     animation: fadeIn 0.5s ease-in-out;
-}
-
-.user-operateur {
-    background: #27ae60;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.operation-readonly {
-    opacity: 0.6;
-}
-
-.operation-actions:disabled {
-    display: none;
 }
