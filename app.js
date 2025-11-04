@@ -798,7 +798,7 @@ class GestionFermeApp {
     const typeOperation = document.getElementById('typeOperation').value;
     const groupe = document.getElementById('groupe').value;
     const typeTransaction = document.getElementById('typeTransaction').value;
-    const caisse = document.getElementById('caisse').value;
+    const caisse = document.getElementById('caisse').value; // CAISSE QUI PAIE
     const montantTotal = parseFloat(document.getElementById('montant').value);
     const description = document.getElementById('description').value.trim();
     
@@ -823,11 +823,12 @@ class GestionFermeApp {
                 
                 console.log('💰 RÉPARTITION 1/3 - 2/3:', {
                     total: montantTotal,
+                    caisse_payante: caisse,
                     zaitoun: montantZaitoun,
                     commain: montantCommain
                 });
 
-                // CRÉATION DE DEUX OPÉRATIONS DISTINCTES
+                // CRÉATION DE DEUX OPÉRATIONS DISTINCTES AVEC LA MÊME CAISSE
 
                 // 1. OPÉRATION POUR ZAITOUN (1/3)
                 const operationZaitoun = {
@@ -835,7 +836,7 @@ class GestionFermeApp {
                     groupe: 'zaitoun',
                     typeOperation: 'zaitoun',
                     typeTransaction: typeTransaction,
-                    caisse: 'zaitoun_caisse', // CAISSE SPÉCIFIQUE ZAITOUN
+                    caisse: caisse, // MÊME CAISSE POUR LES DEUX
                     montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
                     description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                     timestamp: new Date().toISOString(),
@@ -855,7 +856,7 @@ class GestionFermeApp {
                     groupe: '3commain',
                     typeOperation: '3commain',
                     typeTransaction: typeTransaction,
-                    caisse: '3commain_caisse', // CAISSE SPÉCIFIQUE 3 COMMAIN
+                    caisse: caisse, // MÊME CAISSE POUR LES DEUX
                     montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
                     description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
                     timestamp: new Date().toISOString(),
@@ -878,7 +879,7 @@ class GestionFermeApp {
                 await window.firebaseSync.addDocument('operations', operationZaitoun);
                 await window.firebaseSync.addDocument('operations', operationCommain);
                 
-                this.showMessage(`✅ RÉPARTITION EFFECTUÉE! Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+                this.showMessage(`✅ RÉPARTITION EFFECTUÉE! ${caisse} a payé: Zaitoun ${montantZaitoun} DH (1/3) + 3 Commain ${montantCommain} DH (2/3)`, 'success');
 
             } 
             // CAS OPÉRATION NORMALE (UN SEUL GROUPE)
@@ -1606,6 +1607,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
