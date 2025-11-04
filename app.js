@@ -1,4 +1,4 @@
-// app.js - Version corrigée avec authentification
+// app.js - Version avec authentification persistante
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -10,34 +10,49 @@ class GestionFerme {
         this.selectedOperations = new Set();
         this.currentView = 'global';
         this.caisseSelectionnee = null;
+        this.initialized = false;
         
         console.log('🚀 Application Gestion Ferme créée');
         
-        // Attendre que l'authentification soit prête
-        this.waitForAuth();
+        // Vérifier l'état d'authentification
+        this.checkAuthState();
     }
 
-    async waitForAuth() {
+    async checkAuthState() {
+        console.log('🔍 Vérification de l\'état d\'authentification...');
+        
         if (!window.authManager) {
-            console.log('⏳ En attente du gestionnaire d\'authentification...');
-            setTimeout(() => this.waitForAuth(), 1000);
+            console.log('⏳ AuthManager pas encore disponible...');
+            setTimeout(() => this.checkAuthState(), 1000);
+            return;
+        }
+        
+        // Attendre que l'état d'authentification soit vérifié
+        if (!window.authManager.isAuthChecked()) {
+            console.log('⏳ En attente de la vérification d\'authentification...');
+            setTimeout(() => this.checkAuthState(), 500);
             return;
         }
         
         if (window.authManager.isAuthenticated()) {
-            console.log('✅ Utilisateur déjà authentifié, initialisation...');
-            this.init();
+            console.log('✅ Utilisateur authentifié, initialisation...');
+            this.onUserAuthenticated();
         } else {
-            console.log('⏳ En attente de l\'authentification...');
-            // Vérifier périodiquement si l'utilisateur se connecte
-            setTimeout(() => this.waitForAuth(), 2000);
+            console.log('🔐 En attente de la connexion utilisateur...');
+            // L'application s'initialisera automatiquement quand l'utilisateur se connectera
         }
     }
 
-    async init() {
+    onUserAuthenticated() {
+        if (this.initialized) {
+            console.log('ℹ️ Application déjà initialisée');
+            return;
+        }
+        
         console.log('🎯 Initialisation de l\'application...');
+        this.initialized = true;
         this.setupEventListeners();
-        await this.chargerDonnees();
+        this.chargerDonnees();
         this.updateStats();
         this.afficherHistorique('global');
         console.log('✅ Application Gestion Ferme initialisée et prête');
@@ -82,6 +97,18 @@ class GestionFerme {
             btnEditMode.addEventListener('click', () => this.toggleEditMode(true));
         }
         
+        // Suppression sélectionnée
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected) {
+            btnDeleteSelected.addEventListener('click', () => this.supprimerOperationsSelectionnees());
+        }
+        
+        // Annuler édition
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        if (btnCancelEdit) {
+            btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
+        }
+        
         // Gestion des onglets
         const tabButtons = document.querySelectorAll('.tab-btn');
         tabButtons.forEach(btn => {
@@ -92,6 +119,38 @@ class GestionFerme {
                 e.target.classList.add('active');
             });
         });
+        
+        // Modal de modification
+        const editModal = document.getElementById('editModal');
+        const closeModalButtons = document.querySelectorAll('.close-modal');
+        
+        closeModalButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (editModal) editModal.style.display = 'none';
+            });
+        });
+        
+        // Formulaire de modification
+        const editForm = document.getElementById('editForm');
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => this.modifierOperation(e));
+        }
+        
+        // Fermer modal en cliquant à l'extérieur
+        window.addEventListener('click', (e) => {
+            const editModal = document.getElementById('editModal');
+            if (e.target === editModal) {
+                editModal.style.display = 'none';
+            }
+        });
+        
+        // Gestion du type d'opération pour afficher la répartition
+        const typeOperationSelect = document.getElementById('typeOperation');
+        if (typeOperationSelect) {
+            typeOperationSelect.addEventListener('change', (e) => {
+                this.gestionAffichageRepartition(e.target.value);
+            });
+        }
         
         console.log('✅ Écouteurs d\'événements configurés');
     }
@@ -113,7 +172,7 @@ class GestionFerme {
             const result = await authManager.login(email, password);
             
             if (result.success) {
-                this.showAuthMessage('✅ Connexion réussie ! Redirection...', 'success');
+                this.showAuthMessage('✅ Connexion réussie !', 'success');
                 // L'application s'initialisera automatiquement via l'écouteur d'auth
             } else {
                 this.showAuthMessage(`❌ ${result.error}`, 'error');
@@ -174,49 +233,119 @@ class GestionFerme {
         }
     }
 
-    // ... (toutes les autres méthodes restent identiques)
-    // ajouterOperation, ajouterTransfert, afficherHistorique, etc.
+    // ... (toutes les autres méthodes restent identiques à la version précédente)
+    // ajouterOperation, ajouterTransfert, afficherHistorique, updateStats, etc.
 
-    // Méthodes d'authentification
+    gestionAffichageRepartition(typeOperation) {
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
+        const montantInput = document.getElementById('montant');
+        
+        if (!repartitionInfo || !repartitionDetails) return;
+        
+        if (typeOperation === 'travailleur_global') {
+            repartitionInfo.style.display = 'block';
+            
+            const updateRepartition = () => {
+                const montant = parseFloat(montantInput.value) || 0;
+                if (montant > 0) {
+                    const partZaitoun = (montant / 3).toFixed(2);
+                    const part3Commain = ((montant * 2) / 3).toFixed(2);
+                    
+                    repartitionDetails.innerHTML = `
+                        <div class="repartition-details">
+                            <div class="repartition-item zaitoun">
+                                <span class="repartition-label">🫒 Zaitoun (1/3):</span>
+                                <span class="repartition-value">${partZaitoun} DH</span>
+                            </div>
+                            <div class="repartition-item commain">
+                                <span class="repartition-label">🔧 3 Commain (2/3):</span>
+                                <span class="repartition-value">${part3Commain} DH</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    repartitionDetails.innerHTML = '<p>Saisissez un montant pour voir la répartition</p>';
+                }
+            };
+            
+            montantInput.removeEventListener('input', updateRepartition);
+            montantInput.addEventListener('input', updateRepartition);
+            updateRepartition();
+            
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
+    }
+
+    async ajouterOperation(e) {
+        e.preventDefault();
+
+        if (!this.isUserAuthenticated()) {
+            alert('Vous devez être connecté pour ajouter une opération');
+            return;
+        }
+
+        const operateur = document.getElementById('operateur').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisse = document.getElementById('caisse').value;
+        const montantSaisi = parseFloat(document.getElementById('montant').value);
+        const descriptionValue = document.getElementById('description').value.trim();
+
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        const nouvelleOperation = {
+            date: new Date().toISOString().split('T')[0],
+            operateur: operateur,
+            groupe: groupe,
+            typeOperation: typeOperation,
+            typeTransaction: typeTransaction,
+            caisse: caisse,
+            description: descriptionValue,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            timestamp: new Date().toISOString(),
+            createdBy: this.getCurrentUserEmail()
+        };
+
+        try {
+            if (window.firebaseSync) {
+                const result = await firebaseSync.addDocument('operations', nouvelleOperation);
+                nouvelleOperation.id = result.id;
+                console.log('✅ Opération sauvegardée sur Firebase');
+            } else {
+                nouvelleOperation.id = 'local_' + Date.now();
+                console.log('✅ Opération sauvegardée localement');
+            }
+            
+            this.operations.unshift(nouvelleOperation);
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Opération enregistrée !');
+            this.resetForm();
+            this.mettreAJourAffichage();
+            
+        } catch (error) {
+            console.error('❌ Erreur ajout opération:', error);
+            alert('Erreur lors de l\'enregistrement');
+        }
+    }
+
+    isUserAuthenticated() {
+        return window.authManager && window.authManager.isAuthenticated();
+    }
+
     getCurrentUserEmail() {
-        return window.authManager ? window.authManager.getCurrentUser().email : 'Utilisateur';
-    }
-
-    // Méthodes de formatage (identiques à avant)
-    formaterDate(dateStr) {
-        return new Date(dateStr).toLocaleDateString('fr-FR');
-    }
-
-    formaterOperateur(operateur) {
-        const noms = { 'abdel': 'Abdel', 'omar': 'Omar', 'hicham': 'Hicham', 'system': 'Système' };
-        return noms[operateur] || operateur;
-    }
-
-    formaterGroupe(groupe) {
-        const noms = { 'zaitoun': 'Zaitoun', '3commain': '3 Commain', 'system': 'Système' };
-        return noms[groupe] || groupe;
-    }
-
-    formaterTypeOperation(type) {
-        const types = {
-            'travailleur_global': 'Travailleur Global',
-            'zaitoun': 'Zaitoun', '3commain': '3 Commain',
-            'autre': 'Autre', 'transfert': 'Transfert'
-        };
-        return types[type] || type;
-    }
-
-    formaterTypeTransaction(type) {
-        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
-    }
-
-    formaterCaisse(caisse) {
-        const caisses = {
-            'abdel_caisse': 'Caisse Abdel', 'omar_caisse': 'Caisse Omar',
-            'hicham_caisse': 'Caisse Hicham', 'zaitoun_caisse': 'Caisse Zaitoun',
-            '3commain_caisse': 'Caisse 3 Commain'
-        };
-        return caisses[caisse] || caisse;
+        return window.authManager && window.authManager.getCurrentUser() ? 
+               window.authManager.getCurrentUser().email : 'Utilisateur inconnu';
     }
 
     sauvegarderLocalement() {
@@ -266,214 +395,79 @@ class GestionFerme {
         </div>`;
     }
 
-    afficherDetailsCaisse(caisse) {
-        this.caisseSelectionnee = caisse;
-        this.updateStats();
-        
-        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-        const nomCaisse = this.formaterCaisse(caisse);
-        
-        const container = document.getElementById('dataDisplay');
-        if (!container) return;
-        
-        if (operationsCaisse.length === 0) {
-            container.innerHTML = '<div class="empty-message"><p>Aucune opération pour cette caisse</p></div>';
-            return;
-        }
-        
-        // Afficher le tableau des opérations de la caisse
-        let tableHTML = `
-            <div class="fade-in">
-                <h3>📊 Détails de la ${nomCaisse}</h3>
-                <button class="btn-secondary" onclick="app.afficherHistorique('global')" style="margin-bottom: 20px;">
-                    ↩️ Retour à l'historique
-                </button>
-                <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Opérateur</th>
-                                <th>Description</th>
-                                <th>Montant (DH)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-        
-        operationsCaisse.forEach(op => {
-            const montantAbsolu = Math.abs(op.montant);
-            const estNegatif = op.montant < 0;
-            
-            tableHTML += `
-                <tr>
-                    <td>${this.formaterDate(op.date)}</td>
-                    <td>${this.formaterOperateur(op.operateur)}</td>
-                    <td>${op.description}</td>
-                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
-                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
-                    </td>
-                </tr>
-            `;
-        });
-        
-        tableHTML += '</tbody></table></div></div>';
-        container.innerHTML = tableHTML;
-    }
-
-    afficherHistorique(vue) {
-        this.currentView = vue;
-        this.caisseSelectionnee = null;
-        
-        let operationsFiltrees = [];
-        
-        switch(vue) {
-            case 'global':
-                operationsFiltrees = this.operations;
-                break;
-            case 'zaitoun':
-                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
-                break;
-            case '3commain':
-                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
-                break;
-            case 'abdel':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
-                break;
-            case 'omar':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
-                break;
-            case 'hicham':
-                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
-                break;
-            case 'transferts':
-                operationsFiltrees = this.operations.filter(op => op.transfert === true);
-                break;
-        }
-
-        const container = document.getElementById('dataDisplay');
-        if (!container) return;
-        
-        if (operationsFiltrees.length === 0) {
-            container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
-            return;
-        }
-
-        let tableHTML = `
-            <div class="fade-in">
-                <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Opérateur</th>
-                                <th>Groupe</th>
-                                <th>Type</th>
-                                <th>Caisse</th>
-                                <th>Description</th>
-                                <th>Montant (DH)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
-
-        operationsFiltrees.forEach(op => {
-            const montantAbsolu = Math.abs(op.montant);
-            const estNegatif = op.montant < 0;
-            
-            tableHTML += `
-                <tr>
-                    <td>${this.formaterDate(op.date)}</td>
-                    <td>${this.formaterOperateur(op.operateur)}</td>
-                    <td>${this.formaterGroupe(op.groupe)}</td>
-                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
-                    <td>${this.formaterCaisse(op.caisse)}</td>
-                    <td>${op.description}</td>
-                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
-                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
-                    </td>
-                </tr>
-            `;
-        });
-
-        tableHTML += '</tbody></table></div></div>';
-        container.innerHTML = tableHTML;
-    }
-
-    async ajouterOperation(e) {
-        e.preventDefault();
-
-        const operateur = document.getElementById('operateur').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantSaisi = parseFloat(document.getElementById('montant').value);
-        const descriptionValue = document.getElementById('description').value.trim();
-
-        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
-            alert('Le montant doit être supérieur à 0');
-            return;
-        }
-
-        if (!descriptionValue) {
-            alert('Veuillez saisir une description');
-            return;
-        }
-
-        const nouvelleOperation = {
-            date: new Date().toISOString().split('T')[0],
-            operateur: operateur,
-            groupe: groupe,
-            typeOperation: typeOperation,
-            typeTransaction: typeTransaction,
-            caisse: caisse,
-            description: descriptionValue,
-            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
-            timestamp: new Date().toISOString(),
-            createdBy: this.getCurrentUserEmail()
-        };
-
-        try {
-            if (window.firebaseSync) {
-                const result = await firebaseSync.addDocument('operations', nouvelleOperation);
-                nouvelleOperation.id = result.id;
-            } else {
-                nouvelleOperation.id = 'local_' + Date.now();
-            }
-            
-            this.operations.unshift(nouvelleOperation);
-            this.sauvegarderLocalement();
-            this.afficherMessageSucces('Opération enregistrée !');
-            this.resetForm();
-            this.mettreAJourAffichage();
-            
-        } catch (error) {
-            console.error('❌ Erreur ajout opération:', error);
-            alert('Erreur lors de l\'enregistrement');
-        }
-    }
-
     afficherMessageSucces(message) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'success-message';
-        messageDiv.textContent = message;
-        const header = document.querySelector('header');
-        if (header) {
-            header.appendChild(messageDiv);
-            setTimeout(() => messageDiv.remove(), 4000);
-        }
+        // Créer un toast de notification
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 3000);
     }
 
     resetForm() {
         const saisieForm = document.getElementById('saisieForm');
+        const repartitionInfo = document.getElementById('repartitionInfo');
         if (saisieForm) saisieForm.reset();
+        if (repartitionInfo) repartitionInfo.style.display = 'none';
     }
 
     mettreAJourAffichage() {
         this.updateStats();
         this.afficherHistorique(this.currentView);
     }
+
+    // Méthodes de formatage
+    formaterDate(dateStr) {
+        return new Date(dateStr).toLocaleDateString('fr-FR');
+    }
+
+    formaterOperateur(operateur) {
+        const noms = { 'abdel': 'Abdel', 'omar': 'Omar', 'hicham': 'Hicham', 'system': 'Système' };
+        return noms[operateur] || operateur;
+    }
+
+    formaterGroupe(groupe) {
+        const noms = { 'zaitoun': 'Zaitoun', '3commain': '3 Commain', 'system': 'Système' };
+        return noms[groupe] || groupe;
+    }
+
+    formaterTypeOperation(type) {
+        const types = {
+            'travailleur_global': 'Travailleur Global',
+            'zaitoun': 'Zaitoun', '3commain': '3 Commain',
+            'autre': 'Autre', 'transfert': 'Transfert'
+        };
+        return types[type] || type;
+    }
+
+    formaterTypeTransaction(type) {
+        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
+    }
+
+    formaterCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': 'Caisse Abdel', 'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham', 'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return caisses[caisse] || caisse;
+    }
+
+    // Les autres méthodes (afficherHistorique, afficherDetailsCaisse, etc.) restent identiques
+    // ... (copiez-les depuis votre version précédente)
 }
 
 // Initialisation
@@ -481,5 +475,5 @@ let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
     window.app = app;
-    console.log('🎉 Application chargée et prête pour l\'authentification');
+    console.log('🎉 Application chargée et prête');
 });
