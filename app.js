@@ -308,64 +308,69 @@ class GestionFermeApp {
     }
 
     updateAffichage() {
-        console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
-        
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay) return;
-        
-        // Filtrer les données selon la vue actuelle
-        let dataToShow = [];
-        
-        switch (this.currentView) {
-            case 'global':
-                dataToShow = [...this.operations, ...this.transferts];
-                break;
-            case 'zaitoun':
-                // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
-                );
-                break;
-            case '3commain':
-                // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === '3commain_caisse' || op.groupe === '3commain'
-                );
-                break;
-            case 'abdel':
-                // Toutes les opérations de la caisse abdel + opérations de l'opérateur abdel
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
-                );
-                break;
-            case 'omar':
-                // Toutes les opérations de la caisse omar + opérations de l'opérateur omar
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'omar_caisse' || op.operateur === 'omar'
-                );
-                break;
-            case 'hicham':
-                // Toutes les opérations de la caisse hicham + opérations de l'opérateur hicham
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
-                );
-                break;
-            case 'transferts':
-                dataToShow = this.transferts;
-                break;
-        }
-        
-        console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
-        
-        // Trier par date (plus récent en premier)
-        dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        // Afficher les données
-        this.renderDataTable(dataToShow, dataDisplay);
-        
-        // Afficher aussi les totaux pour cette vue
-        this.afficherTotauxVue(dataToShow);
+    console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
+    
+    const dataDisplay = document.getElementById('dataDisplay');
+    if (!dataDisplay) return;
+    
+    // Filtrer les données selon la vue actuelle
+    let dataToShow = [];
+    
+    switch (this.currentView) {
+        case 'global':
+            dataToShow = [...this.operations, ...this.transferts];
+            break;
+        case 'zaitoun':
+            // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun + opérations des deux groupes
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'zaitoun_caisse' || 
+                op.groupe === 'zaitoun' || 
+                op.groupe === 'les_deux_groupes'
+            );
+            break;
+        case '3commain':
+            // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain + opérations des deux groupes
+            dataToShow = this.operations.filter(op => 
+                op.caisse === '3commain_caisse' || 
+                op.groupe === '3commain' || 
+                op.groupe === 'les_deux_groupes'
+            );
+            break;
+        case 'abdel':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
+            );
+            break;
+        case 'omar':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'omar_caisse' || op.operateur === 'omar'
+            );
+            break;
+        case 'hicham':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
+            );
+            break;
+        case 'transferts':
+            dataToShow = this.transferts;
+            break;
+        case 'les_deux_groupes':
+            // Vue spéciale pour les opérations des deux groupes
+            dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
+            break;
     }
+    
+    console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
+    
+    // Trier par date (plus récent en premier)
+    dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Afficher les données
+    this.renderDataTable(dataToShow, dataDisplay);
+    
+    // Afficher aussi les totaux pour cette vue
+    this.afficherTotauxVue(dataToShow);
+}
 
     renderDataTable(data, container) {
         if (data.length === 0) {
@@ -734,51 +739,51 @@ class GestionFermeApp {
         return noms[caisse] || caisse;
     }
 
-    updateRepartition() {
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const montant = parseFloat(document.getElementById('montant').value) || 0;
+   updateRepartition() {
+    const typeOperation = document.getElementById('typeOperation').value;
+    const groupe = document.getElementById('groupe').value;
+    const montant = parseFloat(document.getElementById('montant').value) || 0;
+    
+    const repartitionInfo = document.getElementById('repartitionInfo');
+    const repartitionDetails = document.getElementById('repartitionDetails');
+    
+    // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
+    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
+        let zaitounPart = 0;
+        let commainPart = 0;
         
-        const repartitionInfo = document.getElementById('repartitionInfo');
-        const repartitionDetails = document.getElementById('repartitionDetails');
+        // Calcul des parts
+        zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
+        commainPart = parseFloat((montant * (2/3)).toFixed(2));
         
-        if (typeOperation === 'travailleur_global' && groupe && montant > 0) {
-            let zaitounPart = 0;
-            let commainPart = 0;
-            let description = '';
-            
-            // CORRECTION : Répartition fixe 1/3 Zaitoun - 2/3 3 Commain
-            // Peu importe le groupe sélectionné
-            zaitounPart = montant * (1/3);
-            commainPart = montant * (2/3);
-            description = 'Répartition fixe : Zaitoun 1/3 - 3 Commain 2/3';
-            
-            repartitionDetails.innerHTML = `
-                <div class="repartition-details">
-                    <div class="repartition-item zaitoun">
-                        <strong>🫒 Zaitoun (1/3)</strong><br>
-                        ${zaitounPart.toFixed(2)} DH<br>
-                        <small>${(zaitounPart/montant*100).toFixed(1)}%</small>
-                    </div>
-                    <div class="repartition-item commain">
-                        <strong>🔧 3 Commain (2/3)</strong><br>
-                        ${commainPart.toFixed(2)} DH<br>
-                        <small>${(commainPart/montant*100).toFixed(1)}%</small>
-                    </div>
-                    <div class="repartition-total">
-                        <strong>💰 Total</strong><br>
-                        ${montant.toFixed(2)} DH
-                    </div>
+        repartitionDetails.innerHTML = `
+            <div class="repartition-details">
+                <div class="repartition-item zaitoun">
+                    <strong>🫒 Zaitoun</strong><br>
+                    Part: 1/3<br>
+                    ${zaitounPart.toFixed(2)} DH<br>
+                    <small>33.3%</small>
                 </div>
-                <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                    <strong>ℹ️ Information :</strong> ${description}
+                <div class="repartition-item commain">
+                    <strong>🔧 3 Commain</strong><br>
+                    Part: 2/3<br>
+                    ${commainPart.toFixed(2)} DH<br>
+                    <small>66.7%</small>
                 </div>
-            `;
-            repartitionInfo.style.display = 'block';
-        } else {
-            repartitionInfo.style.display = 'none';
-        }
+                <div class="repartition-total">
+                    <strong>💰 Total payé</strong><br>
+                    ${montant.toFixed(2)} DH
+                </div>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                <strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes
+            </div>
+        `;
+        repartitionInfo.style.display = 'block';
+    } else {
+        repartitionInfo.style.display = 'none';
     }
+}
 
     async handleNouvelleOperation(e) {
     e.preventDefault();
@@ -804,50 +809,51 @@ class GestionFermeApp {
     
     try {
         if (window.firebaseSync) {
-            if (typeOperation === 'travailleur_global' && groupe && montantTotal > 0) {
-                // CORRECTION : Une seule opération avec le montant total sur la caisse sélectionnée
-                // Mais on ajoute l'information de répartition dans la description
+            if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montantTotal > 0) {
+                // CORRECTION : Une seule opération avec groupe "les_deux_groupes"
+                // Le montant total est enregistré sur la caisse qui paie
+                // L'information de répartition est stockée pour les calculs
                 
                 const zaitounPart = parseFloat((montantTotal * (1/3)).toFixed(2));
                 const commainPart = parseFloat((montantTotal * (2/3)).toFixed(2));
                 
-                console.log('💰 Répartition comptable:', {
+                console.log('💰 Répartition pour les deux groupes:', {
                     total: montantTotal,
                     caisse_payante: caisse,
                     zaitoun_part: zaitounPart,
                     commain_part: commainPart
                 });
                 
-                // Une seule opération avec le montant total
+                // Une seule opération avec toutes les informations
                 const operation = {
                     operateur: document.getElementById('operateur').value,
-                    groupe: groupe,
+                    groupe: 'les_deux_groupes', // Groupe spécial pour cette opération
                     typeOperation: typeOperation,
                     typeTransaction: typeTransaction,
-                    caisse: caisse, // La caisse qui paie le montant total
-                    montant: montantTotal, // Montant total sur cette caisse
-                    description: `[TRAVAILLEUR GLOBAL - RÉPARTITION 1/3-2/3] ${description} | Zaitoun: ${zaitounPart} DH (1/3) - 3 Commain: ${commainPart} DH (2/3)`,
+                    caisse: caisse, // La caisse qui paie réellement
+                    montant: montantTotal, // Montant total payé
+                    description: `${description} | Répartition: Zaitoun ${zaitounPart} DH (1/3) + 3 Commain ${commainPart} DH (2/3)`,
                     timestamp: new Date().toISOString(),
                     userId: this.currentUser.uid,
                     userEmail: this.currentUser.email,
-                    // Ajouter les informations de répartition pour les calculs
+                    // Stocker la répartition pour les calculs
                     repartition: {
                         zaitoun: zaitounPart,
                         commain: commainPart,
-                        type: 'travailleur_global'
+                        total: montantTotal
                     }
                 };
                 
                 console.log('📝 Opération à enregistrer:', operation);
                 
                 await window.firebaseSync.addDocument('operations', operation);
-                this.showMessage(`✅ Opération enregistrée! Montant total: ${montantTotal} DH sur ${this.getNomCaisse(caisse)} | Répartition: Zaitoun ${zaitounPart} DH (1/3) + 3 Commain ${commainPart} DH (2/3)`, 'success');
+                this.showMessage(`✅ Opération enregistrée! Montant total: ${montantTotal} DH sur ${this.getNomCaisse(caisse)} pour les deux groupes`, 'success');
                 
             } else {
-                // Opération normale (pas de répartition)
+                // Opération normale (pour un seul groupe)
                 const operation = {
                     operateur: document.getElementById('operateur').value,
-                    groupe: document.getElementById('groupe').value,
+                    groupe: groupe,
                     typeOperation: typeOperation,
                     typeTransaction: typeTransaction,
                     caisse: caisse,
@@ -873,7 +879,6 @@ class GestionFermeApp {
         this.showMessage('❌ Erreur lors de l\'enregistrement', 'error');
     }
 }
-
     async handleTransfert(e) {
         e.preventDefault();
         console.log('🔄 Transfert en cours...');
@@ -1563,5 +1568,6 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
