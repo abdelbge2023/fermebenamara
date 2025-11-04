@@ -261,11 +261,3 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 DOM chargé - Initialisation Firebase...');
     initializeFirebase();
 });
-
-// firebase-config.js
-const firebaseConfig = {
-  // Votre config complète ici
-};
-
-// Initialiser Firebase
-firebase.initializeApp(firebaseConfig);
