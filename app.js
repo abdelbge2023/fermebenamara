@@ -1,4 +1,4 @@
-// app.js - Version complète avec authentification Firebase
+// app.js - Version corrigée avec authentification Firebase
 class GestionFerme {
     constructor() {
         this.operations = [];
@@ -106,7 +106,7 @@ class GestionFerme {
         
         closeModalButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                editModal.style.display = 'none';
+                if (editModal) editModal.style.display = 'none';
             });
         });
         
@@ -118,6 +118,7 @@ class GestionFerme {
         
         // Fermer modal en cliquant à l'extérieur
         window.addEventListener('click', (e) => {
+            const editModal = document.getElementById('editModal');
             if (e.target === editModal) {
                 editModal.style.display = 'none';
             }
@@ -139,7 +140,6 @@ class GestionFerme {
         
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        const authMessage = document.getElementById('authMessage');
         
         if (!email || !password) {
             this.showAuthMessage('Veuillez remplir tous les champs', 'error');
@@ -320,14 +320,14 @@ class GestionFerme {
         const btnCancelEdit = document.getElementById('btnCancelEdit');
         
         if (activer) {
-            btnEditMode.style.display = 'none';
-            btnDeleteSelected.style.display = 'inline-block';
-            btnCancelEdit.style.display = 'inline-block';
+            if (btnEditMode) btnEditMode.style.display = 'none';
+            if (btnDeleteSelected) btnDeleteSelected.style.display = 'inline-block';
+            if (btnCancelEdit) btnCancelEdit.style.display = 'inline-block';
             this.selectedOperations.clear();
         } else {
-            btnEditMode.style.display = 'inline-block';
-            btnDeleteSelected.style.display = 'none';
-            btnCancelEdit.style.display = 'none';
+            if (btnEditMode) btnEditMode.style.display = 'inline-block';
+            if (btnDeleteSelected) btnDeleteSelected.style.display = 'none';
+            if (btnCancelEdit) btnCancelEdit.style.display = 'none';
             this.selectedOperations.clear();
         }
         
@@ -356,7 +356,8 @@ class GestionFerme {
         document.getElementById('editMontant').value = Math.abs(operation.montant);
         document.getElementById('editDescription').value = operation.description;
 
-        document.getElementById('editModal').style.display = 'block';
+        const editModal = document.getElementById('editModal');
+        if (editModal) editModal.style.display = 'block';
     }
 
     async modifierOperation(e) {
@@ -408,7 +409,8 @@ class GestionFerme {
             this.sauvegarderLocalement();
             
             this.afficherMessageSucces('Opération modifiée !');
-            document.getElementById('editModal').style.display = 'none';
+            const editModal = document.getElementById('editModal');
+            if (editModal) editModal.style.display = 'none';
             this.mettreAJourAffichage();
             
         } catch (error) {
@@ -483,6 +485,7 @@ class GestionFerme {
         }
 
         const container = document.getElementById('dataDisplay');
+        if (!container) return;
         
         if (operationsFiltrees.length === 0) {
             container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
@@ -1050,6 +1053,7 @@ class GestionFerme {
         });
 
         const container = document.getElementById('dataDisplay');
+        if (!container) return;
         
         const detailsHTML = `
             <div class="fade-in">
@@ -1538,4 +1542,5 @@ class GestionFerme {
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new GestionFerme();
+    window.app = app; // Rendre l'application accessible globalement
 });
