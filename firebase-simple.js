@@ -208,6 +208,13 @@ window.firebaseAuthFunctions = {
             return canModify;
         }
 
+         if (operateur === 'omar') {
+            const canModify = operation.operateur === 'omar';
+            console.log('🔐 omar - Peut modifier seulement ses opérations:', canModify);
+            return canModify;
+        }
+
+
         // Omar ne peut modifier que ses propres opérations
         const canModify = operation.operateur === operateur;
         
@@ -800,3 +807,4 @@ if (typeof module !== 'undefined' && module.exports) {
         initializeFirebase
     };
 }
+
