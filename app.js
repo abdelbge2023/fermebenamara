@@ -1,1784 +1,1710 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
-console.log('🚀 Chargement de l\'application principale...');
-
-class GestionFermeApp {
+// app.js - Version complète avec Authentification
+class GestionFerme {
     constructor() {
         this.operations = [];
-        this.transferts = [];
-        this.currentView = 'global';
+        this.caisses = {
+            'abdel_caisse': 0, 'omar_caisse': 0, 'hicham_caisse': 0, 
+            'zaitoun_caisse': 0, '3commain_caisse': 0
+        };
         this.editMode = false;
         this.selectedOperations = new Set();
+        this.currentView = 'global';
+        this.caisseSelectionnee = null;
+        this.firebaseInitialized = false;
+        this.synchronisationEnCours = false;
         this.currentUser = null;
-        this.userPermissions = {};
-        this.currentEditModal = null;
         
-        this.initEventListeners();
-        this.setupAuthHandlers();
+        this.suppressionsEnCours = new Set();
+        this.ajoutsEnCours = new Set();
+        
+        this.init();
     }
 
-    initEventListeners() {
-        // Écouteurs d'authentification
-        window.addEventListener('userAuthenticated', (e) => this.handleUserAuthenticated(e.detail.user));
-        window.addEventListener('userSignedOut', () => this.handleUserSignedOut());
+    async init() {
+        this.setupAuthListeners();
+        this.setupEventListeners();
+        
+        // Attendre que Firebase soit initialisé
+        await this.waitForFirebase();
+        
+        // Vérifier si l'utilisateur est déjà connecté
+        if (window.firebaseAuthFunctions && window.firebaseAuthFunctions.isUserLoggedIn()) {
+            this.currentUser = window.firebaseAuthFunctions.getCurrentUser();
+            this.showApp();
+            await this.chargerDonneesAvecSynchro();
+            this.setupFirebaseRealtimeListeners();
+        } else {
+            this.showLogin();
+        }
+        
+        console.log('✅ Application Gestion Ferme initialisée');
+    }
 
-        // Formulaire de connexion
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+    // Attendre que Firebase soit initialisé
+    waitForFirebase() {
+        return new Promise((resolve) => {
+            const checkFirebase = () => {
+                if (window.firebaseSync && window.firebaseAuthFunctions) {
+                    resolve();
+                } else {
+                    setTimeout(checkFirebase, 100);
+                }
+            };
+            checkFirebase();
+        });
+    }
+
+    // Écouteurs d'authentification
+    setupAuthListeners() {
+        window.addEventListener('userAuthenticated', (e) => {
+            this.currentUser = e.detail.user;
+            this.showApp();
+            this.chargerDonneesAvecSynchro();
+            this.setupFirebaseRealtimeListeners();
+        });
+
+        window.addEventListener('userSignedOut', () => {
+            this.currentUser = null;
+            this.showLogin();
+            this.operations = [];
+            this.updateStats();
+            this.afficherHistorique('global');
+        });
+    }
+
+    // Afficher l'écran de connexion
+    showLogin() {
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        if (loginScreen) loginScreen.style.display = 'block';
+        if (appContent) appContent.style.display = 'none';
+    }
+
+    // Afficher l'application
+    showApp() {
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        
+        // Mettre à jour l'email utilisateur
+        const userEmailElement = document.getElementById('userEmail');
+        if (userEmailElement && this.currentUser) {
+            userEmailElement.textContent = this.currentUser.email;
         }
         
-        // Déconnexion
-        const btnLogout = document.getElementById('btnLogout');
-        if (btnLogout) {
-            btnLogout.addEventListener('click', () => this.handleLogout());
-        }
+        this.updateStats();
+        this.afficherHistorique('global');
+    }
+
+    setupEventListeners() {
+        console.log('🔧 Configuration des écouteurs d\'événements...');
         
-        // Formulaire principal
+        // Écouteurs pour l'authentification
+        this.setupAuthEventListeners();
+        
+        // Formulaire de saisie
         const saisieForm = document.getElementById('saisieForm');
         if (saisieForm) {
-            saisieForm.addEventListener('submit', (e) => this.handleNouvelleOperation(e));
+            saisieForm.addEventListener('submit', (e) => this.ajouterOperation(e));
         }
         
+        // Formulaire de transfert
         const transfertForm = document.getElementById('transfertForm');
         if (transfertForm) {
-            transfertForm.addEventListener('submit', (e) => this.handleTransfert(e));
+            transfertForm.addEventListener('submit', (e) => this.ajouterTransfert(e));
         }
         
-        // Navigation par onglets
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.switchView(e.target.dataset.sheet));
-        });
-
-        // Gestion édition
-        const btnEditMode = document.getElementById('btnEditMode');
-        if (btnEditMode) {
-            btnEditMode.addEventListener('click', () => this.toggleEditMode());
-        }
-
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        if (btnDeleteSelected) {
-            btnDeleteSelected.addEventListener('click', () => this.deleteSelectedOperations());
-        }
-
-        const btnCancelEdit = document.getElementById('btnCancelEdit');
-        if (btnCancelEdit) {
-            btnCancelEdit.addEventListener('click', () => this.cancelEditMode());
-        }
-
-        // Export - CORRIGÉ
-        const btnExportComplet = document.getElementById('btnExportComplet');
-        if (btnExportComplet) {
-            btnExportComplet.addEventListener('click', () => this.exportExcelComplet());
-        }
-
-        const btnExportVue = document.getElementById('btnExportVue');
-        if (btnExportVue) {
-            btnExportVue.addEventListener('click', () => this.exportVueActuelle());
-        }
-
-        const btnExportDetail = document.getElementById('btnExportDetail');
-        if (btnExportDetail) {
-            btnExportDetail.addEventListener('click', () => this.exportRapportComplet());
-        }
-
-        // Réinitialisation - CORRIGÉ
-        const btnResetLocal = document.getElementById('btnResetLocal');
-        if (btnResetLocal) {
-            btnResetLocal.addEventListener('click', () => this.resetLocalData());
-        }
-
-        const btnResetFirebase = document.getElementById('btnResetFirebase');
-        if (btnResetFirebase) {
-            btnResetFirebase.addEventListener('click', () => this.resetFirebaseData());
-        }
-
-        // Manuel - CORRIGÉ
-        const btnManual = document.getElementById('btnManual');
-        if (btnManual) {
-            btnManual.addEventListener('click', () => this.showManual());
-        }
-
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', (e) => this.closeModal(e.target.closest('.modal')));
-        });
-
-        // Reset formulaire
+        // Bouton reset
         const btnReset = document.getElementById('btnReset');
         if (btnReset) {
             btnReset.addEventListener('click', () => this.resetForm());
         }
+        
+        // Mode édition
+        const btnEditMode = document.getElementById('btnEditMode');
+        if (btnEditMode) {
+            btnEditMode.addEventListener('click', () => this.toggleEditMode(true));
+        }
+        
+        // Suppression sélectionnée
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        if (btnDeleteSelected) {
+            btnDeleteSelected.addEventListener('click', () => this.supprimerOperationsSelectionnees());
+        }
+        
+        // Annuler édition
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        if (btnCancelEdit) {
+            btnCancelEdit.addEventListener('click', () => this.toggleEditMode(false));
+        }
+        
+        // Boutons d'export
+        const btnExportComplet = document.getElementById('btnExportComplet');
+        if (btnExportComplet) {
+            btnExportComplet.addEventListener('click', () => this.exporterVersExcel());
+        }
+        
+        const btnExportVue = document.getElementById('btnExportVue');
+        if (btnExportVue) {
+            btnExportVue.addEventListener('click', () => this.exporterVueVersExcel());
+        }
+        
+        const btnExportDetail = document.getElementById('btnExportDetail');
+        if (btnExportDetail) {
+            btnExportDetail.addEventListener('click', () => this.exporterDetailVersExcel());
+        }
+        
+        // Boutons de réinitialisation
+        const btnResetLocal = document.getElementById('btnResetLocal');
+        if (btnResetLocal) {
+            btnResetLocal.addEventListener('click', () => this.reinitialiserLocal());
+        }
+        
+        const btnResetFirebase = document.getElementById('btnResetFirebase');
+        if (btnResetFirebase) {
+            btnResetFirebase.addEventListener('click', () => this.reinitialiserFirebase());
+        }
+        
+        // Gestion des onglets
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const sheet = e.target.getAttribute('data-sheet');
+                this.afficherHistorique(sheet);
+                
+                // Mettre à jour l'onglet actif
+                tabButtons.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+        
+        // Modal de modification
+        const editModal = document.getElementById('editModal');
+        const closeModalButtons = document.querySelectorAll('.close-modal');
+        
+        closeModalButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (editModal) editModal.style.display = 'none';
+                const manualModal = document.getElementById('manualModal');
+                if (manualModal) manualModal.style.display = 'none';
+            });
+        });
+        
+        // Formulaire de modification
+        const editForm = document.getElementById('editForm');
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => this.modifierOperation(e));
+        }
+        
+        // Bouton Manuel d'Utilisation
+        const btnManual = document.getElementById('btnManual');
+        if (btnManual) {
+            btnManual.addEventListener('click', () => this.afficherManuel());
+        }
+        
+        // Fermer modal en cliquant à l'extérieur
+        window.addEventListener('click', (e) => {
+            const editModal = document.getElementById('editModal');
+            const manualModal = document.getElementById('manualModal');
+            
+            if (e.target === editModal) {
+                editModal.style.display = 'none';
+            }
+            if (e.target === manualModal) {
+                manualModal.style.display = 'none';
+            }
+        });
+        
+        // Gestion du type d'opération pour afficher la répartition
+        const typeOperationSelect = document.getElementById('typeOperation');
+        if (typeOperationSelect) {
+            typeOperationSelect.addEventListener('change', (e) => {
+                this.gestionAffichageRepartition(e.target.value);
+            });
+        }
+        
+        console.log('✅ Écouteurs d\'événements configurés');
+    }
 
-        // Gestion répartition
-        const typeOperation = document.getElementById('typeOperation');
-        if (typeOperation) {
-            typeOperation.addEventListener('change', () => this.updateRepartition());
+    // Écouteurs pour l'authentification
+    setupAuthEventListeners() {
+        // Formulaire de connexion seulement
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
         }
 
-        const groupe = document.getElementById('groupe');
-        if (groupe) {
-            groupe.addEventListener('change', () => this.updateRepartition());
-        }
-
-        const montant = document.getElementById('montant');
-        if (montant) {
-            montant.addEventListener('input', () => this.updateRepartition());
+        // Bouton de déconnexion
+        const btnLogout = document.getElementById('btnLogout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => this.handleLogout());
         }
     }
 
-    setupAuthHandlers() {
-        console.log('🔐 Configuration des gestionnaires d\'authentification...');
-    }
-
+    // Gestion de la connexion
     async handleLogin(e) {
         e.preventDefault();
         
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
         
-        // Afficher message de chargement
-        const authMessage = document.createElement('div');
-        authMessage.className = 'auth-message auth-loading';
-        authMessage.textContent = '🔐 Connexion en cours...';
-        
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm.nextSibling) {
-            loginForm.parentNode.insertBefore(authMessage, loginForm.nextSibling);
-        } else {
-            loginForm.parentNode.appendChild(authMessage);
-        }
-
-        try {
-            console.log('📧 Tentative de connexion avec:', email);
-            const result = await window.firebaseAuthFunctions.signInWithEmail(email, password);
-            
-            if (result.success) {
-                authMessage.className = 'auth-message auth-info';
-                authMessage.textContent = '✅ Connexion réussie! Redirection...';
-                console.log('✅ Utilisateur connecté:', result.user.email);
-            } else {
-                authMessage.className = 'auth-message auth-error';
-                authMessage.textContent = `❌ Erreur: ${result.error}`;
-                console.error('❌ Erreur connexion:', result.error);
-                
-                if (result.code === 'auth/user-not-found') {
-                    authMessage.textContent = '❌ Utilisateur non trouvé';
-                } else if (result.code === 'auth/wrong-password') {
-                    authMessage.textContent = '❌ Mot de passe incorrect';
-                } else if (result.code === 'auth/invalid-email') {
-                    authMessage.textContent = '❌ Email invalide';
-                }
-            }
-        } catch (error) {
-            authMessage.className = 'auth-message auth-error';
-            authMessage.textContent = '❌ Erreur de connexion inattendue';
-            console.error('❌ Erreur connexion:', error);
-        }
-
-        setTimeout(() => {
-            if (authMessage.parentNode) {
-                authMessage.remove();
-            }
-        }, 5000);
-    }
-
-    handleUserAuthenticated(user) {
-        console.log('👤 Utilisateur authentifié dans l\'app:', user);
-        console.log('📧 Email:', user.email);
-        console.log('🔑 UID:', user.uid);
-        
-        this.currentUser = user;
-        this.userPermissions = window.firebaseAuthFunctions.getViewPermissions(user);
-        
-        console.log('🔐 Permissions calculées:', this.userPermissions);
-        
-        // Masquer écran connexion, afficher application
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContent').style.display = 'block';
-        
-        // Mettre à jour l'interface utilisateur
-        this.updateUserInterface();
-        
-        // Configurer l'opérateur automatiquement
-        this.setupOperateurAuto();
-        
-        // Charger les données
-        this.loadInitialData();
-    }
-
-    handleUserSignedOut() {
-        console.log('👤 Utilisateur déconnecté de l\'app');
-        this.currentUser = null;
-        this.userPermissions = {};
-        
-        // Masquer application, afficher écran connexion
-        document.getElementById('appContent').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
-        
-        // Réinitialiser formulaire connexion
-        document.getElementById('loginForm').reset();
-    }
-
-    async handleLogout() {
-        try {
-            console.log('🚪 Déconnexion en cours...');
-            await window.firebaseAuthFunctions.signOut();
-        } catch (error) {
-            console.error('❌ Erreur déconnexion:', error);
-        }
-    }
-
-    updateUserInterface() {
-        if (this.currentUser) {
-            const userEmailElement = document.getElementById('userEmail');
-            const userOperateurElement = document.getElementById('userOperateur');
-            
-            if (userEmailElement) {
-                userEmailElement.textContent = this.currentUser.email;
-            }
-            
-            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-            if (operateur && userOperateurElement) {
-                userOperateurElement.textContent = operateur.toUpperCase();
-            }
-            
-            console.log('👤 Interface utilisateur mise à jour pour:', this.currentUser.email);
-        }
-    }
-
-    setupOperateurAuto() {
-        if (this.currentUser) {
-            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-            const selectOperateur = document.getElementById('operateur');
-            
-            if (operateur && selectOperateur) {
-                selectOperateur.value = operateur;
-                selectOperateur.disabled = true;
-                console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
-            } else {
-                console.warn('⚠️ Impossible de définir l\'opérateur:', {
-                    operateur: operateur,
-                    selectOperateur: !!selectOperateur,
-                    currentUser: !!this.currentUser
-                });
-            }
-        }
-    }
-
-    async loadInitialData() {
-        console.log('📥 Chargement des données initiales...');
-        
-        try {
-            if (window.firebaseSync && window.firebaseSync.getCollection) {
-                // Charger les opérations
-                const operations = await window.firebaseSync.getCollection('operations');
-                this.operations = operations || [];
-                console.log(`✅ ${this.operations.length} opérations chargées`);
-                
-                // Charger les transferts
-                const transferts = await window.firebaseSync.getCollection('transferts');
-                this.transferts = transferts || [];
-                console.log(`✅ ${this.transferts.length} transferts chargés`);
-                
-                // Debug des données
-                this.debugData();
-                
-                // Mettre à jour l'affichage
-                this.updateAffichage();
-                this.updateStats();
-                
-            } else {
-                console.error('❌ FirebaseSync non disponible');
-                this.showMessage('⚠️ Synchronisation temporairement indisponible', 'warning');
-            }
-        } catch (error) {
-            console.error('❌ Erreur chargement données:', error);
-            this.showMessage('❌ Erreur de chargement des données', 'error');
-        }
-    }
-
-    debugData() {
-        console.log('🐛 Données de débogage:');
-        console.log('- Opérations:', this.operations.length);
-        console.log('- Transferts:', this.transferts.length);
-        console.log('- Mode édition:', this.editMode);
-        console.log('- Permissions:', this.userPermissions);
-        
-        // Afficher les IDs des premières opérations
-        if (this.operations.length > 0) {
-            console.log('- Exemple ID opération:', this.operations[0].id);
-            console.log('- Données opération:', this.operations[0]);
-        }
-        if (this.transferts.length > 0) {
-            console.log('- Exemple ID transfert:', this.transferts[0].id);
-            console.log('- Données transfert:', this.transferts[0]);
-        }
-    }
-
-    updateAffichage() {
-        console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
-        
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay) return;
-        
-        // Filtrer les données selon la vue actuelle
-        let dataToShow = [];
-        
-        switch (this.currentView) {
-            case 'global':
-                dataToShow = [...this.operations, ...this.transferts];
-                break;
-            case 'zaitoun':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'zaitoun_caisse' || 
-                    op.groupe === 'zaitoun'
-                );
-                break;
-            case '3commain':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === '3commain_caisse' || 
-                    op.groupe === '3commain'
-                );
-                break;
-            case 'abdel':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
-                );
-                break;
-            case 'omar':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'omar_caisse' || op.operateur === 'omar'
-                );
-                break;
-            case 'hicham':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
-                );
-                break;
-            case 'transferts':
-                dataToShow = this.transferts;
-                break;
-            case 'les_deux_groupes':
-                dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
-                break;
-        }
-        
-        console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
-        
-        // Trier par date (plus récent en premier)
-        dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        // Afficher les données
-        this.renderDataTable(dataToShow, dataDisplay);
-        
-        // Afficher aussi les totaux pour cette vue
-        this.afficherTotauxVue(dataToShow);
-    }
-
-    renderDataTable(data, container) {
-        if (data.length === 0) {
-            container.innerHTML = '<div class="empty-message">Aucune donnée à afficher</div>';
+        if (!email || !password) {
+            this.afficherMessageAuth('Veuillez remplir tous les champs', 'error');
             return;
         }
+
+        this.afficherMessageAuth('Connexion en cours...', 'loading');
         
-        let html = `
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        ${this.editMode ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
-                        <th>Date</th>
-                        <th>Opérateur</th>
-                        <th>Type</th>
-                        <th>Groupe</th>
-                        <th>Transaction</th>
-                        <th>Caisse</th>
-                        <th>Montant</th>
-                        <th>Description</th>
-                        ${!this.editMode ? '<th>Actions</th>' : ''}
-                    </tr>
-                </thead>
-                <tbody>
-        `;
+        const result = await window.firebaseAuthFunctions.signInWithEmail(email, password);
         
-        data.forEach(item => {
-            const isOperation = item.hasOwnProperty('typeOperation');
-            const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
+        if (result.success) {
+            this.afficherMessageAuth('Connexion réussie !', 'success');
+        } else {
+            let message = 'Erreur de connexion';
+            if (result.code === 'auth/user-not-found') {
+                message = 'Utilisateur non trouvé';
+            } else if (result.code === 'auth/wrong-password') {
+                message = 'Mot de passe incorrect';
+            } else if (result.code === 'auth/invalid-email') {
+                message = 'Email invalide';
+            }
+            this.afficherMessageAuth(message, 'error');
+        }
+    }
+
+    // Gestion de la déconnexion
+    async handleLogout() {
+        const result = await window.firebaseAuthFunctions.signOut();
+        if (result.success) {
+            this.afficherMessageSucces('Déconnexion réussie');
+        } else {
+            this.afficherMessageErreur('Erreur lors de la déconnexion');
+        }
+    }
+
+    // Messages pour l'authentification
+    afficherMessageAuth(message, type = 'info') {
+        const loginContainer = document.querySelector('.login-container');
+        if (!loginContainer) return;
+
+        // Supprimer les anciens messages
+        const oldMessages = loginContainer.querySelectorAll('.auth-message');
+        oldMessages.forEach(msg => msg.remove());
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `auth-message auth-${type}`;
+        messageDiv.textContent = message;
+
+        const forms = loginContainer.querySelectorAll('form');
+        if (forms.length > 0) {
+            forms[0].parentNode.insertBefore(messageDiv, forms[0]);
+        }
+
+        if (type !== 'loading') {
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+    }
+
+    // Méthode pour afficher le manuel
+    afficherManuel() {
+        console.log('📖 Ouverture du manuel d\'utilisation');
+        const manualModal = document.getElementById('manualModal');
+        if (manualModal) {
+            manualModal.style.display = 'flex';
             
-            // Utiliser l'ID Firebase comme identifiant
-            const itemId = item.id;
-            
-            console.log('🔐 Permission pour item:', {
-                id: itemId,
-                operateur: item.operateur,
-                canEdit: canEdit,
-                currentUser: this.currentUser ? this.currentUser.email : 'null',
-                operateurConnecte: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser?.email)
+            const closeButtons = manualModal.querySelectorAll('.close-modal');
+            closeButtons.forEach(btn => {
+                btn.onclick = () => {
+                    manualModal.style.display = 'none';
+                };
             });
             
-            // CORRECTION CRITIQUE : Utiliser des guillemets échappés pour les onclick
-            html += `
-                <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
-                    ${this.editMode ? `
-                        <td style="text-align: center; vertical-align: middle;">
-                            ${canEdit ? 
-                                `<input type="checkbox" class="operation-checkbox" value="${itemId}" title="Sélectionner cette opération">` : 
-                                '<span style="color: #999; font-size: 12px;">🔒</span>'
-                            }
-                        </td>
-                    ` : ''}
-                    <td>${new Date(item.timestamp).toLocaleDateString('fr-FR')}</td>
-                    <td>${item.operateur || 'N/A'}</td>
-                    <td>${item.typeOperation || 'Transfert'}</td>
-                    <td>${item.groupe || 'N/A'}</td>
-                    <td class="type-${item.typeTransaction || 'transfert'}">
-                        ${isOperation ? (item.typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
-                    </td>
-                    <td>${item.caisse || `${item.caisseSource} → ${item.caisseDestination}`}</td>
-                    <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
-                        ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
-                    </td>
-                    <td>${item.description || item.descriptionTransfert || ''}</td>
-                    ${!this.editMode ? `
-                        <td class="operation-actions">
-                            ${canEdit ? `
-                                <button class="btn-small btn-warning edit-btn" data-id="${itemId}" title="Modifier">✏️</button>
-                                <button class="btn-small btn-danger delete-btn" data-id="${itemId}" title="Supprimer">🗑️</button>
-                            ` : '<span style="color: #999; font-size: 11px; font-style: italic;">Lecture seule</span>'}
-                        </td>
-                    ` : ''}
-                </tr>
-            `;
-        });
-        
-        html += '</tbody></table>';
-        container.innerHTML = html;
-        
-        // Ajouter les écouteurs d'événements pour les cases à cocher
-        if (this.editMode) {
-            this.setupCheckboxListeners();
-        }
-        
-        // CORRECTION : Configurer les boutons d'action
-        this.setupActionButtons();
-    }
-
-    // NOUVELLE MÉTHODE POUR CORRIGER LES BOUTONS
-    setupActionButtons() {
-        // Boutons Modifier
-        document.querySelectorAll('.edit-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const operationId = e.target.getAttribute('data-id');
-                console.log('✏️ Bouton Modifier cliqué:', operationId);
-                this.editOperation(operationId);
-            });
-        });
-        
-        // Boutons Supprimer
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const operationId = e.target.getAttribute('data-id');
-                console.log('🗑️ Bouton Supprimer cliqué:', operationId);
-                this.deleteOperation(operationId);
-            });
-        });
-        
-        console.log('✅ Boutons d\'action configurés');
-    }
-
-    afficherTotauxVue(data) {
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay || data.length === 0) return;
-        
-        // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
-        let totalRevenus = 0;
-        let totalDepenses = 0;
-        let totalTransferts = 0;
-        
-        data.forEach(item => {
-            if (item.hasOwnProperty('typeOperation')) {
-                const montant = parseFloat(item.montant) || 0;
-                const description = item.description || '';
-                
-                // Identifier les opérations de répartition secondaires
-                const isRepartitionSecondaire = item.repartition === true || 
-                                              (description && description.includes('Part ')) ||
-                                              (description && description.includes('part '));
-                
-                // Ignorer les répartitions secondaires pour éviter la double comptabilisation
-                if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
-                    console.log('🔀 Opération de répartition ignorée:', description);
-                    return;
+            manualModal.onclick = (e) => {
+                if (e.target === manualModal) {
+                    manualModal.style.display = 'none';
                 }
-                
-                if (item.typeTransaction === 'revenu') {
-                    totalRevenus += Math.abs(montant);
-                } else if (item.typeTransaction === 'frais') {
-                    totalDepenses += Math.abs(montant);
-                }
-            } else {
-                totalTransferts += parseFloat(item.montantTransfert) || 0;
-            }
-        });
-        
-        const soldeNet = totalRevenus - totalDepenses;
-        
-        const htmlTotaux = `
-            <div class="vue-header">
-                <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
-                <div class="totals-container">
-                    <div class="total-item">
-                        <span class="total-label">💰 Revenus</span>
-                        <span class="total-value positive">${totalRevenus.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">💸 Dépenses</span>
-                        <span class="total-value negative">${totalDepenses.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">🔄 Transferts</span>
-                        <span class="total-value">${totalTransferts.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">⚖️ Solde Net</span>
-                        <span class="total-value ${soldeNet >= 0 ? 'positive' : 'negative'}">${soldeNet.toFixed(2)} DH</span>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
-        
-        console.log('📊 Totaux calculés:', {
-            revenus: totalRevenus,
-            depenses: totalDepenses,
-            transferts: totalTransferts,
-            solde: soldeNet
-        });
-    }
-
-    getNomVue(vue) {
-        const noms = {
-            'global': 'Toutes les opérations',
-            'zaitoun': 'Zaitoun',
-            '3commain': '3 Commain', 
-            'abdel': 'Abdel',
-            'omar': 'Omar',
-            'hicham': 'Hicham',
-            'transferts': 'Transferts',
-            'les_deux_groupes': 'Les Deux Groupes'
-        };
-        return noms[vue] || vue;
-    }
-
-    setupCheckboxListeners() {
-        const selectAll = document.getElementById('selectAll');
-        if (selectAll) {
-            selectAll.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
-        }
-        
-        // Ajouter les écouteurs pour les cases à cocher individuelles
-        document.querySelectorAll('.operation-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const operationId = e.target.value;
-                if (e.target.checked) {
-                    this.selectedOperations.add(operationId);
-                } else {
-                    this.selectedOperations.delete(operationId);
-                }
-                console.log('📋 Opérations sélectionnées:', this.selectedOperations.size);
-                this.updateSelectedCount();
-                
-                // Désélectionner "Tout sélectionner" si une case est décochée
-                if (selectAll && !e.target.checked) {
-                    selectAll.checked = false;
-                }
-            });
-        });
-    }
-
-    toggleSelectAll(checked) {
-        const checkboxes = document.querySelectorAll('.operation-checkbox');
-        let selectedCount = 0;
-        
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = checked;
-            if (checked) {
-                this.selectedOperations.add(checkbox.value);
-                selectedCount++;
-            } else {
-                this.selectedOperations.delete(checkbox.value);
-            }
-        });
-        
-        // Mettre à jour le bouton de suppression
-        this.updateSelectedCount();
-        
-        console.log('☑️ Opérations sélectionnées:', this.selectedOperations.size);
-    }
-
-    updateSelectedCount() {
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        if (btnDeleteSelected && this.editMode) {
-            btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+            };
         }
     }
 
-    updateStats() {
-        console.log('📊 Calcul des soldes des caisses...');
-        
-        // Réinitialiser les soldes à 0 pour chaque caisse
-        const soldes = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0, 
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-
-        console.log('💰 Calcul basé sur:', {
-            operations: this.operations.length,
-            transferts: this.transferts.length
-        });
-
-        // 1. Calculer les soldes basés sur les opérations - CORRECTION
-        this.operations.forEach(operation => {
-            const montant = parseFloat(operation.montant) || 0;
-            const caisse = operation.caisse;
-            
-            // CORRECTION : Ignorer les opérations de répartition secondaires
-            const isRepartitionSecondaire = operation.repartition === true || 
-                                          (operation.description && operation.description.includes('Part ')) ||
-                                          (operation.description && operation.description.includes('part '));
-            
-            if (isRepartitionSecondaire) {
-                console.log('🔀 Opération de répartition ignorée dans les soldes:', {
-                    caisse: caisse,
-                    description: operation.description,
-                    montant: montant
-                });
-                return; // Ignorer cette opération
-            }
-            
-            if (caisse && soldes[caisse] !== undefined) {
-                if (operation.typeTransaction === 'revenu') {
-                    // Revenu : ajouter au solde
-                    soldes[caisse] += Math.abs(montant);
-                    console.log(`➕ ${caisse} (REVENU): +${Math.abs(montant)} = ${soldes[caisse]}`);
-                } else if (operation.typeTransaction === 'frais') {
-                    // Frais : soustraire du solde
-                    soldes[caisse] -= Math.abs(montant);
-                    console.log(`➖ ${caisse} (FRAIS): -${Math.abs(montant)} = ${soldes[caisse]}`);
-                }
-            }
-        });
-
-        // 2. Gérer les transferts entre caisses
-        this.transferts.forEach(transfert => {
-            const montant = parseFloat(transfert.montantTransfert) || 0;
-            
-            // Soustraire de la caisse source
-            if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
-                soldes[transfert.caisseSource] -= montant;
-                console.log(`➖ ${transfert.caisseSource} (TRANSFERT): -${montant} = ${soldes[transfert.caisseSource]}`);
-            }
-            
-            // Ajouter à la caisse destination
-            if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
-                soldes[transfert.caisseDestination] += montant;
-                console.log(`➕ ${transfert.caisseDestination} (TRANSFERT): +${montant} = ${soldes[transfert.caisseDestination]}`);
-            }
-        });
-
-        console.log('📊 Soldes finaux:', soldes);
-        
-        // Afficher les soldes
-        this.renderStats(soldes);
-    }
-
-    renderStats(soldes) {
-        const statsContainer = document.getElementById('statsContainer');
-        if (!statsContainer) return;
-
-        const nomsCaisses = {
-            'abdel_caisse': '👨‍💼 Caisse Abdel',
-            'omar_caisse': '👨‍💻 Caisse Omar', 
-            'hicham_caisse': '👨‍🔧 Caisse Hicham',
-            'zaitoun_caisse': '🫒 Caisse Zaitoun',
-            '3commain_caisse': '🔧 Caisse 3 Commain'
-        };
-
-        let html = '';
-        
-        Object.keys(soldes).forEach(caisse => {
-            const solde = soldes[caisse];
-            const classeSolde = solde >= 0 ? 'solde-positif' : 'solde-negatif';
-            const icone = solde >= 0 ? '📈' : '📉';
-            
-            html += `
-                <div class="stat-card ${classeSolde}" onclick="gestionFermeApp.showDetailsCaisse('${caisse}')">
-                    <div class="stat-label">${nomsCaisses[caisse] || caisse}</div>
-                    <div class="stat-value">${solde.toFixed(2)} DH</div>
-                    <div class="stat-trend">${icone} ${solde >= 0 ? 'Positif' : 'Négatif'}</div>
-                </div>
-            `;
-        });
-
-        statsContainer.innerHTML = html;
-    }
-
-    showDetailsCaisse(caisse) {
-        console.log('📊 Détails de la caisse:', caisse);
-        
-        // Filtrer les opérations pour cette caisse
-        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-        const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
-        const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
-        
-        let totalRevenus = operationsCaisse
-            .filter(op => op.typeTransaction === 'revenu')
-            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
-            
-        let totalDepenses = operationsCaisse
-            .filter(op => op.typeTransaction === 'frais')
-            .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
-        
-        let totalSortants = transfertsSource
-            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
-            
-        let totalEntrants = transfertsDestination
-            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
-        
-        const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
-        
-        // Afficher dans une modal au lieu d'une alerte
-        this.showCaisseDetailsModal(caisse, {
-            operations: operationsCaisse.length,
-            revenus: totalRevenus,
-            depenses: totalDepenses,
-            transfertsSortants: totalSortants,
-            transfertsEntrants: totalEntrants,
-            solde: solde,
-            totalMouvements: operationsCaisse.length + transfertsSource.length + transfertsDestination.length
-        });
-    }
-
-    showCaisseDetailsModal(caisse, details) {
-        // Vérifier si une modale existe déjà et la supprimer
-        const existingModal = document.querySelector('.caisse-details-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        const modal = document.createElement('div');
-        modal.className = 'caisse-details-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h3 style="margin-top: 0; color: #2c3e50;">📊 Détails de ${this.getNomCaisse(caisse)}</h3>
-                <div style="margin: 15px 0;">
-                    <div style="margin-bottom: 8px;"><strong>📝 Opérations:</strong> ${details.operations}</div>
-                    <div style="margin-bottom: 8px;"><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
-                </div>
-                <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                    <div style="margin-bottom: 8px;"><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
-                    <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
-                </div>
-                <button onclick="gestionFermeApp.closeCaisseDetailsModal()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                    Fermer
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Empêcher le clic sur la modale de fermer le contenu
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.closeCaisseDetailsModal();
-            }
-        });
-    }
-
-    closeCaisseDetailsModal() {
-        const modal = document.querySelector('.caisse-details-modal');
-        if (modal) {
-            modal.remove();
-        }
-        console.log('✅ Modale des détails de caisse fermée');
-    }
-
-    getNomCaisse(caisse) {
-        const noms = {
-            'abdel_caisse': 'Caisse Abdel',
-            'omar_caisse': 'Caisse Omar',
-            'hicham_caisse': 'Caisse Hicham',
-            'zaitoun_caisse': 'Caisse Zaitoun',
-            '3commain_caisse': 'Caisse 3 Commain'
-        };
-        return noms[caisse] || caisse;
-    }
-
-    updateRepartition() {
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const montant = parseFloat(document.getElementById('montant').value) || 0;
-        
+    gestionAffichageRepartition(typeOperation) {
         const repartitionInfo = document.getElementById('repartitionInfo');
         const repartitionDetails = document.getElementById('repartitionDetails');
+        const montantInput = document.getElementById('montant');
         
-        // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
-        if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
-            let zaitounPart = 0;
-            let commainPart = 0;
-            
-            // Calcul des parts
-            zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
-            commainPart = parseFloat((montant * (2/3)).toFixed(2));
-            
-            repartitionDetails.innerHTML = `
-                <div class="repartition-details">
-                    <div class="repartition-item zaitoun">
-                        <strong>🫒 Zaitoun</strong><br>
-                        Part: 1/3<br>
-                        ${zaitounPart.toFixed(2)} DH<br>
-                        <small>33.3%</small>
-                    </div>
-                    <div class="repartition-item commain">
-                        <strong>🔧 3 Commain</strong><br>
-                        Part: 2/3<br>
-                        ${commainPart.toFixed(2)} DH<br>
-                        <small>66.7%</small>
-                    </div>
-                    <div class="repartition-total">
-                        <strong>💰 Total payé</strong><br>
-                        ${montant.toFixed(2)} DH
-                    </div>
-                </div>
-                <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                    <strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes
-                </div>
-            `;
+        if (!repartitionInfo || !repartitionDetails) return;
+        
+        if (typeOperation === 'travailleur_global') {
             repartitionInfo.style.display = 'block';
+            
+            // Mettre à jour en temps réel quand le montant change
+            const updateRepartition = () => {
+                const montant = parseFloat(montantInput.value) || 0;
+                if (montant > 0) {
+                    const partZaitoun = (montant / 3).toFixed(2);
+                    const part3Commain = ((montant * 2) / 3).toFixed(2);
+                    
+                    repartitionDetails.innerHTML = `
+                        <div class="repartition-details">
+                            <div class="repartition-item zaitoun">
+                                <span class="repartition-label">🫒 Zaitoun (1/3):</span>
+                                <span class="repartition-value">${partZaitoun} DH</span>
+                            </div>
+                            <div class="repartition-item commain">
+                                <span class="repartition-label">🔧 3 Commain (2/3):</span>
+                                <span class="repartition-value">${part3Commain} DH</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    repartitionDetails.innerHTML = '<p>Saisissez un montant pour voir la répartition</p>';
+                }
+            };
+            
+            // Écouter les changements de montant
+            montantInput.removeEventListener('input', updateRepartition);
+            montantInput.addEventListener('input', updateRepartition);
+            updateRepartition();
+            
         } else {
             repartitionInfo.style.display = 'none';
         }
     }
 
-    async handleNouvelleOperation(e) {
+    async ajouterTransfert(e) {
         e.preventDefault();
-        console.log('➕ Nouvelle opération en cours...');
-        
+
+        // Vérifier authentification
         if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+            this.afficherMessageErreur('Veuillez vous connecter pour effectuer un transfert');
             return;
         }
-        
-        const operateur = document.getElementById('operateur').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantTotal = parseFloat(document.getElementById('montant').value);
-        const description = document.getElementById('description').value.trim();
-        
-        // Validation
-        if (!montantTotal || montantTotal <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
-            return;
-        }
-        
-        if (!description) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
-            return;
-        }
-        
-        try {
-            if (window.firebaseSync) {
-                // CAS FRAIS (pour TOUS les types d'opérations)
-                if (typeTransaction === 'frais') {
-                    
-                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                        // Calcul des parts 1/3 et 2/3
-                        const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
-                        const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
-                        
-                        console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
-                            total: montantTotal,
-                            caisse_principale: caisse,
-                            zaitoun: montantZaitoun,
-                            commain: montantCommain
-                        });
 
-                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                        const operationCaissePrincipale = {
-                            operateur: operateur,
-                            groupe: 'les_deux_groupes',
-                            typeOperation: 'travailleur_global',
-                            typeTransaction: 'frais',
-                            caisse: caisse,
-                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
-                        const operationZaitoun = {
-                            operateur: operateur,
-                            groupe: 'zaitoun',
-                            typeOperation: 'zaitoun',
-                            typeTransaction: 'frais',
-                            caisse: 'zaitoun_caisse',
-                            montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email,
-                            repartition: true
-                        };
-
-                        // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
-                        const operationCommain = {
-                            operateur: operateur,
-                            groupe: '3commain',
-                            typeOperation: '3commain',
-                            typeTransaction: 'frais',
-                            caisse: '3commain_caisse',
-                            montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email,
-                            repartition: true
-                        };
-
-                        console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
-                            principale: operationCaissePrincipale,
-                            zaitoun: operationZaitoun,
-                            commain: operationCommain
-                        });
-
-                        // ENREGISTREMENT DES 3 OPÉRATIONS
-                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                        await window.firebaseSync.addDocument('operations', operationZaitoun);
-                        await window.firebaseSync.addDocument('operations', operationCommain);
-                        
-                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
-
-                    } 
-                    // CAS FRAIS NORMAL (pour un seul groupe)
-                    else {
-                        console.log('💰 FRAIS NORMAL:', {
-                            total: montantTotal,
-                            caisse_principale: caisse,
-                            groupe: groupe
-                        });
-
-                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                        const operationCaissePrincipale = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
-                            typeTransaction: 'frais',
-                            caisse: caisse,
-                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais payé par ${caisse}`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
-                        let operationGroupe = null;
-                        
-                        if (groupe === 'zaitoun') {
-                            operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
-                                typeTransaction: 'frais',
-                                caisse: 'zaitoun_caisse',
-                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour Zaitoun`,
-                                timestamp: new Date().toISOString(),
-                                userId: this.currentUser.uid,
-                                userEmail: this.currentUser.email
-                            };
-                        } else if (groupe === '3commain') {
-                            operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
-                                typeTransaction: 'frais',
-                                caisse: '3commain_caisse',
-                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour 3 Commain`,
-                                timestamp: new Date().toISOString(),
-                                userId: this.currentUser.uid,
-                                userEmail: this.currentUser.email
-                            };
-                        }
-
-                        console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
-                            principale: operationCaissePrincipale,
-                            groupe: operationGroupe
-                        });
-
-                        // ENREGISTREMENT DES 2 OPÉRATIONS
-                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                        if (operationGroupe) {
-                            await window.firebaseSync.addDocument('operations', operationGroupe);
-                        }
-                        
-                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
-                    }
-
-                } 
-                // CAS REVENU (pour TOUS les types d'opérations)
-                else if (typeTransaction === 'revenu') {
-                    
-                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                        const operation = {
-                            operateur: operateur,
-                            groupe: 'les_deux_groupes',
-                            typeOperation: 'travailleur_global',
-                            typeTransaction: 'revenu',
-                            caisse: caisse,
-                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
-                        
-                        await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
-
-                    } 
-                    // CAS REVENU NORMAL (pour un seul groupe)
-                    else {
-                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                        const operation = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
-                            typeTransaction: 'revenu',
-                            caisse: caisse,
-                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: description,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
-                        
-                        await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
-                    }
-                }
-                
-                // Réinitialisation du formulaire
-                this.resetForm();
-                
-                // Rechargement des données
-                this.loadInitialData();
-                
-            } else {
-                this.showMessage('❌ Erreur de synchronisation', 'error');
-            }
-        } catch (error) {
-            console.error('❌ Erreur enregistrement opération:', error);
-            this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
-        }
-    }
-
-    async handleTransfert(e) {
-        e.preventDefault();
-        console.log('🔄 Transfert en cours...');
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
         const caisseSource = document.getElementById('caisseSource').value;
         const caisseDestination = document.getElementById('caisseDestination').value;
-        
+        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
+        const descriptionTransfert = document.getElementById('descriptionTransfert').value.trim();
+
         if (caisseSource === caisseDestination) {
-            this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
+            alert('Les caisses source et destination doivent être différentes');
             return;
         }
-        
-        const transfert = {
-            caisseSource: caisseSource,
-            caisseDestination: caisseDestination,
-            montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
-            descriptionTransfert: document.getElementById('descriptionTransfert').value,
-            operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
-            timestamp: new Date().toISOString(),
-            userId: this.currentUser.uid,
-            userEmail: this.currentUser.email
-        };
-        
+
+        if (montantTransfert <= 0 || isNaN(montantTransfert)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionTransfert) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        // Vérifier si la caisse source a suffisamment de fonds
+        const soldeSource = this.caisses[caisseSource];
+        if (soldeSource < montantTransfert) {
+            alert(`Fonds insuffisants dans ${this.formaterCaisse(caisseSource)}. Solde disponible: ${soldeSource.toFixed(2)} DH`);
+            return;
+        }
+
         try {
-            if (window.firebaseSync) {
-                await window.firebaseSync.addDocument('transferts', transfert);
-                this.showMessage('✅ Transfert effectué avec succès', 'success');
-                e.target.reset();
-                this.loadInitialData();
+            // Créer les deux opérations de transfert
+            const operationsTransfert = [
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: 'system',
+                    groupe: 'system',
+                    typeOperation: 'transfert',
+                    typeTransaction: 'frais',
+                    caisse: caisseSource,
+                    description: `Transfert vers ${this.formaterCaisse(caisseDestination)}: ${descriptionTransfert}`,
+                    montant: -montantTransfert,
+                    repartition: false,
+                    transfert: true,
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
+                },
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: 'system',
+                    groupe: 'system',
+                    typeOperation: 'transfert',
+                    typeTransaction: 'revenu',
+                    caisse: caisseDestination,
+                    description: `Transfert de ${this.formaterCaisse(caisseSource)}: ${descriptionTransfert}`,
+                    montant: montantTransfert,
+                    repartition: false,
+                    transfert: true,
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
+                }
+            ];
+
+            // Sauvegarder sur Firebase pour obtenir les IDs
+            for (const op of operationsTransfert) {
+                if (window.firebaseSync) {
+                    const result = await firebaseSync.addDocument('operations', op);
+                    const operationAvecId = {
+                        id: result.id,
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Transfert ${result.id} ajouté avec ID Firebase`);
+                } else {
+                    const operationAvecId = {
+                        id: 'local_' + Date.now(),
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Transfert ${operationAvecId.id} ajouté en local`);
+                }
             }
+
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Transfert effectué !');
+            
+            // Réinitialiser le formulaire
+            document.getElementById('transfertForm').reset();
+            this.mettreAJourAffichage();
+            
         } catch (error) {
-            console.error('❌ Erreur enregistrement transfert:', error);
-            this.showMessage('❌ Erreur lors du transfert', 'error');
+            console.error('❌ Erreur transfert:', error);
+            alert('Erreur lors du transfert. Vérifiez votre connexion.');
         }
     }
 
-    switchView(view) {
-        console.log('🔀 Changement de vue:', view);
-        this.currentView = view;
+    toggleEditMode(activer) {
+        this.editMode = activer;
         
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.sheet === view);
-        });
-        
-        this.updateAffichage();
-    }
-
-    toggleEditMode() {
-        this.editMode = !this.editMode;
         const btnEditMode = document.getElementById('btnEditMode');
         const btnDeleteSelected = document.getElementById('btnDeleteSelected');
         const btnCancelEdit = document.getElementById('btnCancelEdit');
-        const appContent = document.getElementById('appContent');
         
-        if (btnEditMode) {
-            if (this.editMode) {
-                btnEditMode.textContent = '💾 Quitter Édition';
-                btnEditMode.className = 'btn-success';
-                // Ajouter un indicateur visuel
-                if (appContent) {
-                    appContent.classList.add('edit-mode-active');
-                }
-            } else {
-                btnEditMode.textContent = '✏️ Mode Édition';
-                btnEditMode.className = 'btn-warning';
-                // Retirer l'indicateur visuel
-                if (appContent) {
-                    appContent.classList.remove('edit-mode-active');
-                }
-                this.selectedOperations.clear();
-            }
-        }
-        
-        if (btnDeleteSelected) {
-            btnDeleteSelected.style.display = this.editMode ? 'inline-block' : 'none';
-            if (this.editMode) {
-                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
-            }
-        }
-        
-        if (btnCancelEdit) {
-            btnCancelEdit.style.display = this.editMode ? 'inline-block' : 'none';
-        }
-        
-        // Mettre à jour l'affichage
-        this.updateAffichage();
-        
-        // Afficher un message
-        if (this.editMode) {
-            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
+        if (activer) {
+            btnEditMode.style.display = 'none';
+            btnDeleteSelected.style.display = 'inline-block';
+            btnCancelEdit.style.display = 'inline-block';
+            this.selectedOperations.clear();
         } else {
-            this.showMessage('✅ Mode édition désactivé', 'success');
+            btnEditMode.style.display = 'inline-block';
+            btnDeleteSelected.style.display = 'none';
+            btnCancelEdit.style.display = 'none';
+            this.selectedOperations.clear();
         }
+        
+        this.mettreAJourAffichage();
     }
 
-    // MÉTHODES DE SUPPRESSION ET MODIFICATION AJOUTÉES
-    async deleteOperation(operationId) {
-        console.log('🗑️ Suppression opération:', operationId);
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
+    toggleOperationSelection(operationId) {
+        if (this.selectedOperations.has(operationId)) {
+            this.selectedOperations.delete(operationId);
+        } else {
+            this.selectedOperations.add(operationId);
         }
-        
-        // Trouver l'opération
+        this.mettreAJourAffichage();
+    }
+
+    ouvrirModalModification(operationId) {
         const operation = this.operations.find(op => op.id === operationId);
-        if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
-            return;
-        }
-        
-        // Vérifier les permissions
-        const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-        if (!canDelete) {
-            this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
-            return;
-        }
-        
-        // Confirmation
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            return;
-        }
-        
-        try {
-            await window.firebaseSync.deleteDocument('operations', operationId);
-            this.showMessage('✅ Opération supprimée avec succès', 'success');
-            this.loadInitialData();
-        } catch (error) {
-            console.error('❌ Erreur suppression:', error);
-            this.showMessage('❌ Erreur lors de la suppression', 'error');
-        }
+        if (!operation) return;
+
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = Math.abs(operation.montant);
+        document.getElementById('editDescription').value = operation.description;
+
+        document.getElementById('editModal').style.display = 'block';
     }
 
-    async editOperation(operationId) {
-        console.log('✏️ Modification opération:', operationId);
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Trouver l'opération
-        const operation = this.operations.find(op => op.id === operationId);
-        if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
-            return;
-        }
-        
-        // Vérifier les permissions
-        const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-        if (!canEdit) {
-            this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
-            return;
-        }
-        
-        // Afficher le formulaire de modification
-        this.showEditForm(operation);
-    }
-
-    showEditForm(operation) {
-        // Créer une modale de modification
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
-                <form id="editForm">
-                    <input type="hidden" id="editId" value="${operation.id}">
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Opérateur:</label>
-                        <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Type d'opération:</label>
-                        <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
-                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Groupe:</label>
-                        <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
-                            <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Type de transaction:</label>
-                        <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
-                            <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Caisse:</label>
-                        <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
-                            <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
-                            <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>Caisse Hicham</option>
-                            <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>Caisse Zaitoun</option>
-                            <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Montant (DH):</label>
-                        <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
-                    </div>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <label>Description:</label>
-                        <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            💾 Enregistrer
-                        </button>
-                        <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            ❌ Annuler
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Gérer la soumission du formulaire
-        const editForm = document.getElementById('editForm');
-        editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
-        
-        this.currentEditModal = modal;
-    }
-
-    async handleEditSubmit(e) {
+    async modifierOperation(e) {
         e.preventDefault();
-        
+
+        // Vérifier authentification
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour modifier une opération');
+            return;
+        }
+
         const operationId = document.getElementById('editId').value;
-        const typeOperation = document.getElementById('editTypeOperation').value;
+        const operateur = document.getElementById('editOperateur').value;
         const groupe = document.getElementById('editGroupe').value;
+        const typeOperation = document.getElementById('editTypeOperation').value;
         const typeTransaction = document.getElementById('editTypeTransaction').value;
         const caisse = document.getElementById('editCaisse').value;
-        const montant = parseFloat(document.getElementById('editMontant').value);
-        const description = document.getElementById('editDescription').value.trim();
-        
-        if (!montant || montant <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+        const montantSaisi = parseFloat(document.getElementById('editMontant').value);
+        const descriptionValue = document.getElementById('editDescription').value.trim();
+
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
             return;
         }
-        
-        if (!description) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
             return;
         }
-        
+
+        const index = this.operations.findIndex(op => op.id === operationId);
+        if (index === -1) return;
+
+        const operationModifiee = {
+            ...this.operations[index],
+            operateur: operateur,
+            groupe: groupe,
+            typeOperation: typeOperation,
+            typeTransaction: typeTransaction,
+            caisse: caisse,
+            description: descriptionValue,
+            montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
+        };
+
         try {
-            const updatedOperation = {
-                typeOperation: typeOperation,
-                groupe: groupe,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                montant: typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant),
-                description: description,
-                timestamp: new Date().toISOString(),
-                userId: this.currentUser.uid,
-                userEmail: this.currentUser.email
-            };
+            // Mettre à jour dans Firebase
+            if (window.firebaseSync) {
+                await firebaseSync.updateDocument('operations', operationId, operationModifiee);
+            }
             
-            await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-            this.showMessage('✅ Opération modifiée avec succès', 'success');
-            this.closeEditModal();
-            this.loadInitialData();
+            // Mettre à jour localement
+            this.operations[index] = operationModifiee;
+            this.sauvegarderLocalement();
+            
+            this.afficherMessageSucces('Opération modifiée !');
+            document.getElementById('editModal').style.display = 'none';
+            this.mettreAJourAffichage();
             
         } catch (error) {
             console.error('❌ Erreur modification:', error);
-            this.showMessage('❌ Erreur lors de la modification', 'error');
+            alert('Erreur lors de la modification. Vérifiez votre connexion.');
         }
     }
 
-    closeEditModal() {
-        if (this.currentEditModal) {
-            this.currentEditModal.remove();
-            this.currentEditModal = null;
-        }
+    // Calculer les totaux pour une vue
+    calculerTotauxVue(operations) {
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let solde = 0;
+
+        operations.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+            solde += op.montant;
+        });
+
+        return {
+            totalRevenus,
+            totalFrais,
+            solde,
+            nombreOperations: operations.length
+        };
     }
 
-    async deleteSelectedOperations() {
-        console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
+    // Obtenir le nom de la vue
+    getNomVue(vue) {
+        const nomsVues = {
+            'global': '🌍 Toutes les Opérations',
+            'zaitoun': '🫒 Zaitoun',
+            '3commain': '🔧 3 Commain',
+            'abdel': '👨‍💼 Abdel',
+            'omar': '👨‍💻 Omar',
+            'hicham': '👨‍🔧 Hicham',
+            'transferts': '🔄 Transferts'
+        };
+        return nomsVues[vue] || vue;
+    }
+
+    afficherHistorique(vue) {
+        this.currentView = vue;
+        this.caisseSelectionnee = null;
         
-        if (this.selectedOperations.size === 0) {
-            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+        let operationsFiltrees = [];
+        
+        switch(vue) {
+            case 'global':
+                operationsFiltrees = this.operations;
+                break;
+            case 'zaitoun':
+                operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                break;
+            case '3commain':
+                operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                break;
+            case 'abdel':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                break;
+            case 'omar':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                break;
+            case 'hicham':
+                operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                break;
+            case 'transferts':
+                operationsFiltrees = this.operations.filter(op => op.transfert === true);
+                break;
+        }
+
+        const container = document.getElementById('dataDisplay');
+        
+        if (operationsFiltrees.length === 0) {
+            container.innerHTML = '<div class="empty-message"><p>Aucune opération trouvée</p></div>';
             return;
         }
-        
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-            return;
-        }
-        
-        try {
-            let successCount = 0;
-            let errorCount = 0;
+
+        // CALCUL DES TOTAUX POUR LA VUE
+        const totaux = this.calculerTotauxVue(operationsFiltrees);
+        const nomVue = this.getNomVue(vue);
+
+        let tableHTML = `
+            <div class="fade-in">
+                <div class="vue-header">
+                    <h3>📊 ${nomVue}</h3>
+                    <div class="totals-container">
+                        <div class="total-item">
+                            <span class="total-label">💰 Total Revenus:</span>
+                            <span class="total-value positive">+${totaux.totalRevenus.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">💸 Total Frais:</span>
+                            <span class="total-value negative">-${totaux.totalFrais.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">⚖️ Solde Net:</span>
+                            <span class="total-value ${totaux.solde >= 0 ? 'positive' : 'negative'}">
+                                ${totaux.solde >= 0 ? '+' : ''}${totaux.solde.toFixed(2)} DH
+                            </span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">📊 Nombre d'opérations:</span>
+                            <span class="total-value">${totaux.nombreOperations}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h4>📋 Détail des opérations</h4>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                ${this.editMode ? '<th><input type="checkbox" id="selectAll"></th>' : ''}
+                                <th>Date</th>
+                                <th>Opérateur</th>
+                                <th>Groupe</th>
+                                <th>Type Opération</th>
+                                <th>Transaction</th>
+                                <th>Caisse</th>
+                                <th>Description</th>
+                                <th>Montant (DH)</th>
+                                ${!this.editMode ? '<th>Actions</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        operationsFiltrees.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            const estSelectionnee = this.selectedOperations.has(op.id);
             
-            for (const operationId of this.selectedOperations) {
-                try {
-                    const operation = this.operations.find(op => op.id === operationId);
-                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
-                        await window.firebaseSync.deleteDocument('operations', operationId);
-                        successCount++;
-                    } else {
-                        errorCount++;
+            tableHTML += `
+                <tr class="${estSelectionnee ? 'selected' : ''}">
+                    ${this.editMode ? 
+                        `<td><input type="checkbox" ${estSelectionnee ? 'checked' : ''} onchange="app.toggleOperationSelection('${op.id}')"></td>` 
+                        : ''}
+                    <td>${this.formaterDate(op.date)}</td>
+                    <td>${this.formaterOperateur(op.operateur)}</td>
+                    <td>${this.formaterGroupe(op.groupe)}</td>
+                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                    <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
+                    <td>${this.formaterCaisse(op.caisse)}</td>
+                    <td>${op.description}</td>
+                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
+                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
+                    </td>
+                    ${!this.editMode ? `
+                    <td>
+                        <div class="operation-actions">
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">✏️</button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">🗑️</button>
+                        </div>
+                    </td>
+                    ` : ''}
+                </tr>
+            `;
+        });
+
+        tableHTML += '</tbody></table></div></div>';
+        
+        container.innerHTML = tableHTML;
+        
+        // Gestion du selectAll en JavaScript pur après l'insertion du HTML
+        if (this.editMode) {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', (e) => {
+                    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = e.target.checked;
+                        const opId = checkbox.getAttribute('onchange').match(/'([^']+)'/)[1];
+                        if (e.target.checked) {
+                            this.selectedOperations.add(opId);
+                        } else {
+                            this.selectedOperations.delete(opId);
+                        }
+                    });
+                });
+            }
+        }
+        
+        this.updateStats();
+    }
+
+    mettreAJourOngletsCaisse(caisse) {
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+    }
+
+    // RÉINITIALISER COMPLÈTEMENT FIREBASE
+    async reinitialiserFirebase() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour réinitialiser les données');
+            return;
+        }
+
+        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+            return;
+        }
+
+        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues !')) {
+            return;
+        }
+
+        console.log('🗑️ Début de la réinitialisation Firebase...');
+        this.afficherMessageSucces('Réinitialisation en cours...');
+
+        try {
+            // 1. Vider Firebase
+            if (window.firebaseSync) {
+                // Récupérer toutes les opérations
+                const operationsFirebase = await firebaseSync.getCollection('operations');
+                console.log(`🗑️ Suppression de ${operationsFirebase.length} opérations de Firebase...`);
+                
+                // Supprimer chaque opération
+                for (const op of operationsFirebase) {
+                    try {
+                        await firebaseSync.deleteDocument('operations', op.id);
+                        console.log(`✅ Supprimé: ${op.id}`);
+                    } catch (error) {
+                        console.error(`❌ Erreur suppression ${op.id}:`, error);
                     }
-                } catch (error) {
-                    console.error(`❌ Erreur suppression ${operationId}:`, error);
-                    errorCount++;
+                }
+            }
+
+            // 2. Vider le localStorage
+            localStorage.removeItem('gestion_ferme_data');
+            console.log('✅ LocalStorage vidé');
+
+            // 3. Réinitialiser les données locales
+            this.operations = [];
+            this.suppressionsEnCours.clear();
+            this.ajoutsEnCours.clear();
+            this.selectedOperations.clear();
+            this.caisseSelectionnee = null;
+            this.currentView = 'global';
+
+            // 4. Recréer une sauvegarde vide
+            this.sauvegarderLocalement();
+
+            // 5. Mettre à jour l'affichage
+            this.updateStats();
+            this.afficherHistorique('global');
+
+            console.log('✅ Réinitialisation complète terminée');
+            this.afficherMessageSucces('✅ Données Firebase réinitialisées avec succès !');
+
+        } catch (error) {
+            console.error('❌ Erreur réinitialisation:', error);
+            this.afficherMessageSucces('❌ Erreur lors de la réinitialisation');
+        }
+    }
+
+    // RÉINITIALISER UNIQUEMENT LES DONNÉES LOCALES
+    reinitialiserLocal() {
+        if (!confirm('Vider les données locales ? Les données Firebase resteront intactes.')) {
+            return;
+        }
+
+        console.log('🗑️ Réinitialisation des données locales...');
+        
+        // Vider le localStorage
+        localStorage.removeItem('gestion_ferme_data');
+        
+        // Réinitialiser les variables
+        this.operations = [];
+        this.suppressionsEnCours.clear();
+        this.ajoutsEnCours.clear();
+        this.selectedOperations.clear();
+        this.caisseSelectionnee = null;
+        
+        // Sauvegarder l'état vide
+        this.sauvegarderLocalement();
+        
+        // Mettre à jour l'affichage
+        this.updateStats();
+        this.afficherHistorique('global');
+        
+        this.afficherMessageSucces('✅ Données locales réinitialisées');
+        
+        // Resynchroniser avec Firebase
+        setTimeout(() => {
+            this.synchroniserAvecFirebase();
+        }, 1000);
+    }
+
+    async chargerDonneesAvecSynchro() {
+        console.log('📥 Chargement automatique des données...');
+        
+        this.chargerDepuisLocalStorage();
+        await this.synchroniserAvecFirebase();
+        
+        console.log(`📁 ${this.operations.length} opérations chargées`);
+    }
+
+    chargerDepuisLocalStorage() {
+        const saved = localStorage.getItem('gestion_ferme_data');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                this.operations = data.operations || [];
+                console.log(`💾 ${this.operations.length} opérations chargées du stockage local`);
+            } catch (error) {
+                console.error('❌ Erreur chargement localStorage:', error);
+                this.operations = [];
+            }
+        }
+    }
+
+    async synchroniserAvecFirebase() {
+        if (!window.firebaseSync || !this.currentUser) {
+            console.log('⏳ Attente de FirebaseSync ou authentification...');
+            return;
+        }
+
+        if (this.synchronisationEnCours) return;
+        this.synchronisationEnCours = true;
+
+        try {
+            const operationsFirebase = await firebaseSync.getCollection('operations');
+            
+            if (operationsFirebase && operationsFirebase.length > 0) {
+                console.log(`📡 ${operationsFirebase.length} opérations sur Firebase`);
+                
+                let nouvellesOperations = 0;
+
+                // Réinitialiser les opérations avec celles de Firebase
+                this.operations = [];
+
+                operationsFirebase.forEach(opFirebase => {
+                    // Utiliser directement les opérations de Firebase avec leurs IDs
+                    this.operations.unshift(opFirebase);
+                    nouvellesOperations++;
+                    console.log(`➕ Opération ${opFirebase.id} synchronisée depuis Firebase`);
+                });
+
+                this.operations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                this.sauvegarderLocalement();
+
+                console.log(`✅ Synchronisation: ${nouvellesOperations} opérations chargées depuis Firebase`);
+                
+                if (nouvellesOperations > 0) {
+                    this.afficherMessageSucces(`Synchronisée: ${nouvellesOperations} opérations`);
+                    this.mettreAJourAffichage();
                 }
             }
             
-            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
-            this.selectedOperations.clear();
-            this.cancelEditMode();
-            this.loadInitialData();
+            this.firebaseInitialized = true;
             
         } catch (error) {
-            console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
+            console.error('❌ Erreur synchronisation:', error);
+        } finally {
+            this.synchronisationEnCours = false;
         }
     }
 
-    showMessage(message, type = 'info') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `auth-message auth-${type}`;
-        messageDiv.textContent = message;
-        
-        const appContent = document.getElementById('appContent');
-        if (appContent) {
-            const header = appContent.querySelector('header');
-            if (header) {
-                header.appendChild(messageDiv);
-                setTimeout(() => {
-                    if (messageDiv.parentNode) {
-                        messageDiv.remove();
-                    }
-                }, 5000);
-            }
+    setupFirebaseRealtimeListeners() {
+        if (!window.firebaseSync || !this.currentUser) {
+            setTimeout(() => this.setupFirebaseRealtimeListeners(), 2000);
+            return;
         }
+
+        console.log('👂 Activation écoute temps réel avec anti-boucle');
+        
+        this.unsubscribeFirebase = firebaseSync.listenToCollection('operations', (changes, snapshot) => {
+            if (changes.length > 0) {
+                console.log(`🔄 Synchronisation temps réel: ${changes.length} changement(s)`);
+                
+                let modifications = 0;
+                let modificationsIgnorees = 0;
+                
+                changes.forEach(change => {
+                    const operationId = change.id;
+                    
+                    // Vérifier si c'est une opération que NOUS avons initiée
+                    if (this.suppressionsEnCours.has(operationId)) {
+                        console.log(`🚫 Suppression ${operationId} ignorée (initiée localement)`);
+                        modificationsIgnorees++;
+                        return;
+                    }
+
+                    if (change.type === 'added') {
+                        this.ajouterOperationSynchro(change.data, operationId);
+                        modifications++;
+                    } else if (change.type === 'modified') {
+                        this.mettreAJourOperationSynchro(operationId, change.data);
+                        modifications++;
+                    } else if (change.type === 'removed') {
+                        // Accepter les suppressions venant d'autres appareils
+                        this.supprimerOperationSynchro(operationId);
+                        modifications++;
+                    }
+                });
+                
+                if (modifications > 0) {
+                    this.sauvegarderLocalement();
+                    this.mettreAJourAffichage();
+                    console.log(`✅ ${modifications} opération(s) synchronisée(s) en temps réel, ${modificationsIgnorees} ignorées (initiées localement)`);
+                }
+            }
+        });
+    }
+
+    ajouterOperationSynchro(data, operationId) {
+        const operation = {
+            id: operationId,
+            date: data.date,
+            operateur: data.operateur,
+            groupe: data.groupe,
+            typeOperation: data.typeOperation,
+            typeTransaction: data.typeTransaction,
+            caisse: data.caisse,
+            description: data.description,
+            montant: data.montant,
+            repartition: data.repartition,
+            transfert: data.transfert,
+            timestamp: data.timestamp || new Date().toISOString(),
+            userId: data.userId,
+            userEmail: data.userEmail
+        };
+
+        const existeDeja = this.operations.some(op => op.id === operation.id);
+        if (!existeDeja) {
+            this.operations.unshift(operation);
+            console.log(`➕ Opération ${operation.id} ajoutée par synchronisation`);
+        }
+    }
+
+    mettreAJourOperationSynchro(operationId, newData) {
+        const index = this.operations.findIndex(op => op.id === operationId);
+        if (index !== -1) {
+            this.operations[index] = { ...this.operations[index], ...newData };
+        }
+    }
+
+    supprimerOperationSynchro(operationId) {
+        const ancienNombre = this.operations.length;
+        this.operations = this.operations.filter(op => op.id !== operationId);
+        if (this.operations.length < ancienNombre) {
+            console.log(`🗑️ Opération ${operationId} supprimée par synchronisation`);
+        }
+    }
+
+    sauvegarderLocalement() {
+        const data = {
+            operations: this.operations,
+            lastUpdate: new Date().toISOString()
+        };
+        localStorage.setItem('gestion_ferme_data', JSON.stringify(data));
+    }
+
+    mettreAJourAffichage() {
+        this.updateStats();
+        if (this.caisseSelectionnee) {
+            this.afficherDetailsCaisse(this.caisseSelectionnee);
+        } else {
+            this.afficherHistorique(this.currentView);
+        }
+    }
+
+    async supprimerOperation(operationId) {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour supprimer une opération');
+            return;
+        }
+
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) return;
+
+        const operationASupprimer = this.operations.find(op => op.id === operationId);
+        if (!operationASupprimer) return;
+        
+        try {
+            // Marquer cette suppression comme initiée localement
+            this.suppressionsEnCours.add(operationId);
+            
+            // 1. D'ABORD supprimer de Firebase
+            if (window.firebaseSync) {
+                await firebaseSync.deleteDocument('operations', operationId);
+                console.log(`✅ Opération ${operationId} supprimée de Firebase`);
+            }
+            
+            // 2. PUIS supprimer localement
+            this.operations = this.operations.filter(op => op.id !== operationId);
+            
+            this.sauvegarderLocalement();
+            this.mettreAJourAffichage();
+            this.afficherMessageSucces('Opération supprimée');
+            
+            // Retirer du set après un délai pour laisser la synchro se faire
+            setTimeout(() => {
+                this.suppressionsEnCours.delete(operationId);
+                console.log(`🧹 Suppression ${operationId} retirée de la liste des suppressions en cours`);
+            }, 5000);
+            
+        } catch (error) {
+            console.error(`❌ Erreur suppression:`, error);
+            this.suppressionsEnCours.delete(operationId);
+            alert('Erreur lors de la suppression. Vérifiez votre connexion.');
+        }
+    }
+
+    async supprimerOperationsSelectionnees() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour supprimer des opérations');
+            return;
+        }
+
+        if (this.selectedOperations.size === 0) return;
+
+        if (!confirm(`Supprimer ${this.selectedOperations.size} opération(s) ?`)) return;
+        
+        try {
+            // Marquer toutes les suppressions comme initiées localement
+            this.selectedOperations.forEach(opId => {
+                this.suppressionsEnCours.add(opId);
+            });
+            
+            // Supprimer de Firebase d'abord
+            if (window.firebaseSync) {
+                for (const opId of this.selectedOperations) {
+                    try {
+                        await firebaseSync.deleteDocument('operations', opId);
+                        console.log(`✅ Opération ${opId} supprimée de Firebase`);
+                    } catch (error) {
+                        console.error(`❌ Erreur suppression ${opId}:`, error);
+                    }
+                }
+            }
+            
+            // Puis supprimer localement
+            this.operations = this.operations.filter(op => !this.selectedOperations.has(op.id));
+            
+            this.sauvegarderLocalement();
+            
+            // Retirer les suppressions de la liste après un délai
+            setTimeout(() => {
+                this.selectedOperations.forEach(opId => {
+                    this.suppressionsEnCours.delete(opId);
+                });
+                console.log(`🧹 ${this.selectedOperations.size} suppressions retirées de la liste`);
+            }, 5000);
+            
+            this.selectedOperations.clear();
+            this.toggleEditMode(false);
+            this.mettreAJourAffichage();
+            this.afficherMessageSucces('Opérations supprimées');
+            
+        } catch (error) {
+            console.error('❌ Erreur suppression multiple:', error);
+            this.selectedOperations.forEach(opId => {
+                this.suppressionsEnCours.delete(opId);
+            });
+            alert('Erreur lors de la suppression. Vérifiez votre connexion.');
+        }
+    }
+
+    updateStats() {
+        this.calculerSoldes();
+        const container = document.getElementById('statsContainer');
+        if (!container) return;
+
+        container.innerHTML = 
+            '<div class="stats-grid">' +
+            this.creerCarteCaisse('abdel_caisse', 'Caisse Abdel') +
+            this.creerCarteCaisse('omar_caisse', 'Caisse Omar') +
+            this.creerCarteCaisse('hicham_caisse', 'Caisse Hicham') +
+            this.creerCarteCaisse('zaitoun_caisse', 'Caisse Zaitoun') +
+            this.creerCarteCaisse('3commain_caisse', 'Caisse 3 Commain') +
+            '</div>';
+    }
+
+    calculerSoldes() {
+        this.caisses = {
+            'abdel_caisse': 0, 'omar_caisse': 0, 'hicham_caisse': 0, 
+            'zaitoun_caisse': 0, '3commain_caisse': 0
+        };
+
+        this.operations.forEach(op => {
+            this.caisses[op.caisse] += op.montant;
+        });
+    }
+
+    creerCarteCaisse(cleCaisse, nomCaisse) {
+        const solde = this.caisses[cleCaisse];
+        const classeCouleur = solde >= 0 ? 'solde-positif' : 'solde-negatif';
+        const estSelectionnee = this.caisseSelectionnee === cleCaisse ? 'caisse-selectionnee' : '';
+        
+        return `<div class="stat-card ${classeCouleur} ${estSelectionnee}" onclick="app.afficherDetailsCaisse('${cleCaisse}')" style="cursor: pointer;">
+            <div class="stat-label">${nomCaisse}</div>
+            <div class="stat-value">${solde.toFixed(2)}</div>
+            <div class="stat-label">DH</div>
+        </div>`;
+    }
+
+    afficherDetailsCaisse(caisse) {
+        this.caisseSelectionnee = caisse;
+        this.updateStats();
+        
+        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+        const nomCaisse = this.formaterCaisse(caisse);
+        
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        let soldeCaisse = 0;
+        
+        operationsCaisse.forEach(op => {
+            if (op.montant > 0) totalRevenus += op.montant;
+            else totalFrais += Math.abs(op.montant);
+            soldeCaisse += op.montant;
+        });
+
+        const container = document.getElementById('dataDisplay');
+        
+        const detailsHTML = `
+            <div class="fade-in">
+                <div class="vue-header">
+                    <h3>📊 Détails de la ${nomCaisse}</h3>
+                    <div class="totals-container">
+                        <div class="total-item">
+                            <span class="total-label">💰 Total Revenus:</span>
+                            <span class="total-value positive">+${totalRevenus.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">💸 Total Frais:</span>
+                            <span class="total-value negative">-${totalFrais.toFixed(2)} DH</span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">⚖️ Solde Actuel:</span>
+                            <span class="total-value ${soldeCaisse >= 0 ? 'positive' : 'negative'}">
+                                ${soldeCaisse >= 0 ? '+' : ''}${soldeCaisse.toFixed(2)} DH
+                            </span>
+                        </div>
+                        <div class="total-item">
+                            <span class="total-label">📊 Nombre d'opérations:</span>
+                            <span class="total-value">${operationsCaisse.length}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 20px 0;">
+                    <h4>📋 Historique des opérations</h4>
+                    <div>
+                        <button class="btn-secondary" onclick="app.afficherHistorique('global')">
+                            ↩️ Retour
+                        </button>
+                    </div>
+                </div>
+                
+                ${operationsCaisse.length === 0 ? 
+                    '<div class="empty-message"><p>Aucune opération</p></div>' : 
+                    this.creerTableauDetailsCaisse(operationsCaisse)
+                }
+            </div>
+        `;
+        
+        container.innerHTML = detailsHTML;
+        this.mettreAJourOngletsCaisse(caisse);
+    }
+
+    creerTableauDetailsCaisse(operations) {
+        let tableHTML = `
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Groupe</th>
+                            <th>Type Opération</th>
+                            <th>Transaction</th>
+                            <th>Description</th>
+                            <th>Montant (DH)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        operations.forEach(op => {
+            const montantAbsolu = Math.abs(op.montant);
+            const estNegatif = op.montant < 0;
+            
+            tableHTML += `
+                <tr>
+                    <td>${this.formaterDate(op.date)}</td>
+                    <td>${this.formaterOperateur(op.operateur)}</td>
+                    <td>${this.formaterGroupe(op.groupe)}</td>
+                    <td>${this.formaterTypeOperation(op.typeOperation)}</td>
+                    <td class="${estNegatif ? 'type-frais' : 'type-revenu'}">${this.formaterTypeTransaction(op.typeTransaction)}</td>
+                    <td>${op.description}</td>
+                    <td style="font-weight: bold; color: ${estNegatif ? '#e74c3c' : '#27ae60'};">
+                        ${estNegatif ? '-' : '+'}${montantAbsolu.toFixed(2)}
+                    </td>
+                    <td>
+                        <div class="operation-actions">
+                            <button class="btn-small btn-warning" onclick="app.ouvrirModalModification('${op.id}')">✏️</button>
+                            <button class="btn-small btn-danger" onclick="app.supprimerOperation('${op.id}')">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += '</tbody></table></div>';
+        return tableHTML;
+    }
+
+    async ajouterOperation(e) {
+        e.preventDefault();
+
+        // Vérifier que l'utilisateur est connecté
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour ajouter une opération');
+            return;
+        }
+
+        const operateur = document.getElementById('operateur').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisse = document.getElementById('caisse').value;
+        const montantSaisi = parseFloat(document.getElementById('montant').value);
+        const descriptionValue = document.getElementById('description').value.trim();
+
+        if (montantSaisi <= 0 || isNaN(montantSaisi)) {
+            alert('Le montant doit être supérieur à 0');
+            return;
+        }
+
+        if (!descriptionValue) {
+            alert('Veuillez saisir une description');
+            return;
+        }
+
+        let operationsACreer = [];
+
+        if (typeOperation === 'travailleur_global') {
+            const montantZaitoun = montantSaisi / 3;
+            const montant3Commain = (montantSaisi * 2) / 3;
+
+            operationsACreer = [
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateur,
+                    groupe: 'zaitoun',
+                    typeOperation: 'zaitoun',
+                    typeTransaction: typeTransaction,
+                    caisse: caisse,
+                    description: descriptionValue + ' (Part Zaitoun - 1/3)',
+                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
+                    repartition: true,
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
+                },
+                {
+                    date: new Date().toISOString().split('T')[0],
+                    operateur: operateur,
+                    groupe: '3commain',
+                    typeOperation: '3commain',
+                    typeTransaction: typeTransaction,
+                    caisse: caisse,
+                    description: descriptionValue + ' (Part 3 Commain - 2/3)',
+                    montant: typeTransaction === 'frais' ? -montant3Commain : montant3Commain,
+                    repartition: true,
+                    timestamp: new Date().toISOString(),
+                    userId: this.currentUser.uid,
+                    userEmail: this.currentUser.email
+                }
+            ];
+        } else {
+            operationsACreer = [{
+                date: new Date().toISOString().split('T')[0],
+                operateur: operateur,
+                groupe: groupe,
+                typeOperation: typeOperation,
+                typeTransaction: typeTransaction,
+                caisse: caisse,
+                description: descriptionValue,
+                montant: typeTransaction === 'frais' ? -montantSaisi : montantSaisi,
+                repartition: false,
+                timestamp: new Date().toISOString(),
+                userId: this.currentUser.uid,
+                userEmail: this.currentUser.email
+            }];
+        }
+
+        try {
+            // Sauvegarder d'abord sur Firebase pour obtenir les IDs
+            for (const op of operationsACreer) {
+                if (window.firebaseSync) {
+                    const result = await firebaseSync.addDocument('operations', op);
+                    
+                    const operationAvecId = {
+                        id: result.id,
+                        ...op
+                    };
+                    
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Nouvelle opération ${result.id} ajoutée avec ID Firebase`);
+                } else {
+                    const operationAvecId = {
+                        id: 'local_' + Date.now(),
+                        ...op
+                    };
+                    this.operations.unshift(operationAvecId);
+                    console.log(`➕ Nouvelle opération ${operationAvecId.id} ajoutée en local`);
+                }
+            }
+
+            this.sauvegarderLocalement();
+            this.afficherMessageSucces('Opération enregistrée !');
+            this.resetForm();
+            this.mettreAJourAffichage();
+            
+        } catch (error) {
+            console.error('❌ Erreur ajout opération:', error);
+            alert('Erreur lors de l\'enregistrement. Vérifiez votre connexion.');
+        }
+    }
+
+    // MÉTHODES D'EXPORT EXCEL
+    async exporterVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
+        console.log('📊 Exportation vers Excel...');
+        
+        try {
+            const wb = XLSX.utils.book_new();
+            
+            const donneesExport = this.preparerDonneesPourExport();
+            
+            const ws = XLSX.utils.json_to_sheet(donneesExport.operations);
+            XLSX.utils.book_append_sheet(wb, ws, "Operations");
+            
+            const wsSoldes = XLSX.utils.json_to_sheet(donneesExport.soldes);
+            XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
+            
+            const date = new Date().toISOString().split('T')[0];
+            const nomFichier = `Gestion_Ferme_Ben_Amara_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces('Export Excel réussi !');
+            console.log('✅ Export Excel terminé');
+            
+        } catch (error) {
+            console.error('❌ Erreur export Excel:', error);
+            this.afficherMessageSucces('❌ Erreur lors de l\'export');
+        }
+    }
+
+    preparerDonneesPourExport() {
+        const operationsExport = this.operations.map(op => ({
+            'Date': this.formaterDate(op.date),
+            'Opérateur': this.formaterOperateur(op.operateur),
+            'Groupe': this.formaterGroupe(op.groupe),
+            'Type Opération': this.formaterTypeOperation(op.typeOperation),
+            'Type Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+            'Caisse': this.formaterCaisse(op.caisse),
+            'Description': op.description,
+            'Montant (DH)': op.montant,
+            'Montant Absolu (DH)': Math.abs(op.montant),
+            'Timestamp': op.timestamp
+        }));
+
+        this.calculerSoldes();
+        const soldesExport = Object.keys(this.caisses).map(cle => ({
+            'Caisse': this.formaterCaisse(cle),
+            'Solde (DH)': this.caisses[cle]
+        }));
+
+        return {
+            operations: operationsExport,
+            soldes: soldesExport
+        };
+    }
+
+    exporterVueVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
+        console.log(`📊 Export de la vue ${this.currentView} vers Excel...`);
+        
+        try {
+            let operationsFiltrees = [];
+            
+            switch(this.currentView) {
+                case 'global':
+                    operationsFiltrees = this.operations;
+                    break;
+                case 'zaitoun':
+                    operationsFiltrees = this.operations.filter(op => op.groupe === 'zaitoun');
+                    break;
+                case '3commain':
+                    operationsFiltrees = this.operations.filter(op => op.groupe === '3commain');
+                    break;
+                case 'abdel':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'abdel');
+                    break;
+                case 'omar':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'omar');
+                    break;
+                case 'hicham':
+                    operationsFiltrees = this.operations.filter(op => op.operateur === 'hicham');
+                    break;
+                case 'transferts':
+                    operationsFiltrees = this.operations.filter(op => op.transfert === true);
+                    break;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const operationsExport = operationsFiltrees.map(op => ({
+                'Date': this.formaterDate(op.date),
+                'Opérateur': this.formaterOperateur(op.operateur),
+                'Groupe': this.formaterGroupe(op.groupe),
+                'Type Opération': this.formaterTypeOperation(op.typeOperation),
+                'Type Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': this.formaterCaisse(op.caisse),
+                'Description': op.description,
+                'Montant (DH)': op.montant,
+                'Montant Absolu (DH)': Math.abs(op.montant)
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(operationsExport);
+            
+            const nomsVues = {
+                'global': 'Toutes_Operations',
+                'zaitoun': 'Zaitoun',
+                '3commain': '3_Commain',
+                'abdel': 'Abdel',
+                'omar': 'Omar',
+                'hicham': 'Hicham',
+                'transferts': 'Transferts'
+            };
+            
+            XLSX.utils.book_append_sheet(wb, ws, nomsVues[this.currentView]);
+            
+            const date = new Date().toISOString().split('T')[0];
+            const nomFichier = `Gestion_Ferme_${nomsVues[this.currentView]}_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces(`Export ${nomsVues[this.currentView]} réussi !`);
+            
+        } catch (error) {
+            console.error('❌ Erreur export vue:', error);
+            this.afficherMessageSucces('❌ Erreur lors de l\'export');
+        }
+    }
+
+    async exporterDetailVersExcel() {
+        if (!this.currentUser) {
+            this.afficherMessageErreur('Veuillez vous connecter pour exporter les données');
+            return;
+        }
+
+        console.log('📊 Export détaillé vers Excel...');
+        
+        try {
+            const wb = XLSX.utils.book_new();
+            const date = new Date().toISOString().split('T')[0];
+            
+            const operationsExport = this.operations.map(op => ({
+                'Date': this.formaterDate(op.date),
+                'Opérateur': this.formaterOperateur(op.operateur),
+                'Groupe': this.formaterGroupe(op.groupe),
+                'Type Opération': this.formaterTypeOperation(op.typeOperation),
+                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': this.formaterCaisse(op.caisse),
+                'Description': op.description,
+                'Montant (DH)': op.montant,
+                'Signe': op.montant >= 0 ? 'Positif' : 'Négatif'
+            }));
+            
+            const wsOps = XLSX.utils.json_to_sheet(operationsExport);
+            XLSX.utils.book_append_sheet(wb, wsOps, "Operations");
+            
+            this.calculerSoldes();
+            const soldesExport = Object.keys(this.caisses).map(cle => ({
+                'Caisse': this.formaterCaisse(cle),
+                'Solde Actuel (DH)': this.caisses[cle],
+                'Statut': this.caisses[cle] >= 0 ? 'Excédent' : 'Déficit'
+            }));
+            
+            const wsSoldes = XLSX.utils.json_to_sheet(soldesExport);
+            XLSX.utils.book_append_sheet(wb, wsSoldes, "Soldes");
+            
+            const stats = this.calculerStatistiques();
+            const statsExport = [
+                { 'Statistique': 'Total des opérations', 'Valeur': stats.totalOperations },
+                { 'Statistique': 'Total revenus (DH)', 'Valeur': stats.totalRevenus },
+                { 'Statistique': 'Total frais (DH)', 'Valeur': stats.totalFrais },
+                { 'Statistique': 'Solde global (DH)', 'Valeur': stats.soldeGlobal },
+                { 'Statistique': 'Opérations ce mois', 'Valeur': stats.operationsCeMois },
+                { 'Statistique': 'Date export', 'Valeur': date }
+            ];
+            
+            const wsStats = XLSX.utils.json_to_sheet(statsExport);
+            XLSX.utils.book_append_sheet(wb, wsStats, "Statistiques");
+            
+            const nomFichier = `Rapport_Complet_Ferme_${date}.xlsx`;
+            XLSX.writeFile(wb, nomFichier);
+            
+            this.afficherMessageSucces('Rapport Excel généré !');
+            
+        } catch (error) {
+            console.error('❌ Erreur export détaillé:', error);
+            this.afficherMessageSucces('❌ Erreur lors de la génération du rapport');
+        }
+    }
+
+    calculerStatistiques() {
+        const totalOperations = this.operations.length;
+        let totalRevenus = 0;
+        let totalFrais = 0;
+        
+        this.operations.forEach(op => {
+            if (op.montant > 0) {
+                totalRevenus += op.montant;
+            } else {
+                totalFrais += Math.abs(op.montant);
+            }
+        });
+        
+        const soldeGlobal = totalRevenus - totalFrais;
+        
+        const maintenant = new Date();
+        const moisEnCours = maintenant.getMonth();
+        const anneeEnCours = maintenant.getFullYear();
+        
+        const operationsCeMois = this.operations.filter(op => {
+            const dateOp = new Date(op.date);
+            return dateOp.getMonth() === moisEnCours && dateOp.getFullYear() === anneeEnCours;
+        }).length;
+        
+        return {
+            totalOperations,
+            totalRevenus,
+            totalFrais,
+            soldeGlobal,
+            operationsCeMois
+        };
     }
 
     resetForm() {
         const saisieForm = document.getElementById('saisieForm');
         const repartitionInfo = document.getElementById('repartitionInfo');
-        
-        if (saisieForm) {
-            // Sauvegarder la valeur de l'opérateur actuel
-            const selectOperateur = document.getElementById('operateur');
-            const operateurActuel = selectOperateur ? selectOperateur.value : '';
-            
-            // Réinitialiser le formulaire
-            saisieForm.reset();
-            
-            // CORRECTION : Remettre l'opérateur automatiquement
-            if (this.currentUser) {
-                const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-                if (operateur && selectOperateur) {
-                    selectOperateur.value = operateur;
-                    selectOperateur.disabled = true;
-                    console.log(`👤 Opérateur réinitialisé: ${operateur}`);
-                }
-            } else {
-                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
-                if (selectOperateur && operateurActuel) {
-                    selectOperateur.value = operateurActuel;
-                }
-            }
-        }
-        
-        if (repartitionInfo) {
-            repartitionInfo.style.display = 'none';
-        }
-        
-        console.log('📝 Formulaire réinitialisé avec opérateur conservé');
+        if (saisieForm) saisieForm.reset();
+        if (repartitionInfo) repartitionInfo.style.display = 'none';
     }
 
-    closeModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
+    afficherMessageSucces(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'success-message';
+        messageDiv.textContent = message;
+        const header = document.querySelector('header');
+        if (header) {
+            header.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 4000);
         }
     }
 
-    cancelEditMode() {
-        this.editMode = false;
-        this.selectedOperations.clear();
-        this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
-    }
-
-    exportExcelComplet() {
-        console.log('📊 Export Excel complet...');
-        try {
-            if (!window.XLSX) {
-                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
-                return;
-            }
-
-            // Créer un classeur
-            const wb = XLSX.utils.book_new();
-            
-            // Préparer les données pour les opérations
-            const operationsData = this.operations.map(op => ({
-                'Date': new Date(op.timestamp).toLocaleDateString('fr-FR'),
-                'Heure': new Date(op.timestamp).toLocaleTimeString('fr-FR'),
-                'Opérateur': op.operateur,
-                'Type Opération': op.typeOperation,
-                'Groupe': op.groupe,
-                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
-                'Caisse': op.caisse,
-                'Montant (DH)': parseFloat(op.montant),
-                'Description': op.description,
-                'Email Utilisateur': op.userEmail
-            }));
-            
-            // Préparer les données pour les transferts
-            const transfertsData = this.transferts.map(tr => ({
-                'Date': new Date(tr.timestamp).toLocaleDateString('fr-FR'),
-                'Heure': new Date(tr.timestamp).toLocaleTimeString('fr-FR'),
-                'Opérateur': tr.operateur,
-                'Type': 'Transfert',
-                'Caisse Source': tr.caisseSource,
-                'Caisse Destination': tr.caisseDestination,
-                'Montant (DH)': parseFloat(tr.montantTransfert),
-                'Description': tr.descriptionTransfert,
-                'Email Utilisateur': tr.userEmail
-            }));
-            
-            // Créer les feuilles
-            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
-            const wsTransferts = XLSX.utils.json_to_sheet(transfertsData);
-            
-            // Ajouter les feuilles au classeur
-            XLSX.utils.book_append_sheet(wb, wsOperations, 'Opérations');
-            XLSX.utils.book_append_sheet(wb, wsTransferts, 'Transferts');
-            
-            // Générer le fichier et le télécharger
-            const fileName = `gestion_ferme_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(wb, fileName);
-            
-            this.showMessage('✅ Export Excel réussi!', 'success');
-            
-        } catch (error) {
-            console.error('❌ Erreur export Excel:', error);
-            this.showMessage('❌ Erreur lors de l\'export Excel', 'error');
+    afficherMessageErreur(message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'error-message';
+        messageDiv.textContent = message;
+        const header = document.querySelector('header');
+        if (header) {
+            header.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 4000);
         }
     }
 
-    // CORRECTION : Implémentation des méthodes manquantes
-    exportVueActuelle() {
-        console.log('📊 Export de la vue actuelle:', this.currentView);
-        try {
-            if (!window.XLSX) {
-                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
-                return;
-            }
-
-            // Filtrer les données pour la vue actuelle
-            let dataToExport = [];
-            
-            switch (this.currentView) {
-                case 'global':
-                    dataToExport = [...this.operations, ...this.transferts];
-                    break;
-                case 'zaitoun':
-                    dataToExport = this.operations.filter(op => 
-                        op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
-                    );
-                    break;
-                case '3commain':
-                    dataToExport = this.operations.filter(op => 
-                        op.caisse === '3commain_caisse' || op.groupe === '3commain'
-                    );
-                    break;
-                case 'abdel':
-                    dataToExport = this.operations.filter(op => 
-                        op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
-                    );
-                    break;
-                case 'omar':
-                    dataToExport = this.operations.filter(op => 
-                        op.caisse === 'omar_caisse' || op.operateur === 'omar'
-                    );
-                    break;
-                case 'hicham':
-                    dataToExport = this.operations.filter(op => 
-                        op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
-                    );
-                    break;
-                case 'transferts':
-                    dataToExport = this.transferts;
-                    break;
-                case 'les_deux_groupes':
-                    dataToExport = this.operations.filter(op => op.groupe === 'les_deux_groupes');
-                    break;
-                default:
-                    dataToExport = [...this.operations, ...this.transferts];
-            }
-
-            // Préparer les données
-            const exportData = dataToExport.map(item => {
-                if (item.hasOwnProperty('typeOperation')) {
-                    return {
-                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
-                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
-                        'Opérateur': item.operateur,
-                        'Type Opération': item.typeOperation,
-                        'Groupe': item.groupe,
-                        'Transaction': item.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
-                        'Caisse': item.caisse,
-                        'Montant (DH)': parseFloat(item.montant),
-                        'Description': item.description,
-                        'Email Utilisateur': item.userEmail
-                    };
-                } else {
-                    return {
-                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
-                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
-                        'Opérateur': item.operateur,
-                        'Type': 'Transfert',
-                        'Caisse Source': item.caisseSource,
-                        'Caisse Destination': item.caisseDestination,
-                        'Montant (DH)': parseFloat(item.montantTransfert),
-                        'Description': item.descriptionTransfert,
-                        'Email Utilisateur': item.userEmail
-                    };
-                }
-            });
-
-            // Créer le classeur
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            
-            XLSX.utils.book_append_sheet(wb, ws, `Vue_${this.currentView}`);
-            
-            const fileName = `gestion_ferme_${this.currentView}_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(wb, fileName);
-            
-            this.showMessage(`✅ Export de la vue "${this.getNomVue(this.currentView)}" réussi!`, 'success');
-            
-        } catch (error) {
-            console.error('❌ Erreur export vue:', error);
-            this.showMessage('❌ Erreur lors de l\'export', 'error');
-        }
+    // Méthodes de formatage
+    formaterDate(dateStr) {
+        return new Date(dateStr).toLocaleDateString('fr-FR');
     }
 
-    exportRapportComplet() {
-        console.log('📈 Export rapport complet...');
-        this.showMessage('📈 Fonction d\'export rapport complet bientôt disponible!', 'info');
+    formaterOperateur(operateur) {
+        const noms = { 'abdel': 'Abdel', 'omar': 'Omar', 'hicham': 'Hicham', 'system': 'Système' };
+        return noms[operateur] || operateur;
     }
 
-    resetLocalData() {
-        if (confirm('⚠️ Êtes-vous sûr de vouloir réinitialiser toutes les données locales ? Cette action est irréversible.')) {
-            localStorage.clear();
-            sessionStorage.clear();
-            this.operations = [];
-            this.transferts = [];
-            this.updateAffichage();
-            this.updateStats();
-            this.showMessage('✅ Données locales réinitialisées', 'success');
-        }
+    formaterGroupe(groupe) {
+        const noms = { 'zaitoun': 'Zaitoun', '3commain': '3 Commain', 'system': 'Système' };
+        return noms[groupe] || groupe;
     }
 
-    resetFirebaseData() {
-        this.showMessage('🔥 Réinitialisation Firebase - Action dangereuse, contactez l\'administrateur', 'warning');
+    formaterTypeOperation(type) {
+        const types = {
+            'travailleur_global': 'Travailleur Global',
+            'zaitoun': 'Zaitoun', '3commain': '3 Commain',
+            'autre': 'Autre', 'transfert': 'Transfert'
+        };
+        return types[type] || type;
     }
 
-    showManual() {
-        const manualContent = `
-            <h3>📖 Manuel d'utilisation</h3>
-            <div style="text-align: left; line-height: 1.6;">
-                <h4>Fonctionnalités principales :</h4>
-                <ul>
-                    <li><strong>➕ Ajouter une opération</strong> : Utilisez le formulaire principal</li>
-                    <li><strong>🔄 Transferts</strong> : Transférez de l'argent entre caisses</li>
-                    <li><strong>✏️ Modifier/Supprimer</strong> : Cliquez sur les boutons dans le tableau</li>
-                    <li><strong>📊 Vues</strong> : Changez de vue avec les onglets</li>
-                    <li><strong>📈 Export</strong> : Exportez les données en Excel</li>
-                </ul>
-                
-                <h4>Types d'opérations :</h4>
-                <ul>
-                    <li><strong>Revenu</strong> : Argent entrant dans une caisse</li>
-                    <li><strong>Frais</strong> : Argent sortant d'une caisse</li>
-                    <li><strong>Répartition 1/3 - 2/3</strong> : Pour les frais des deux groupes</li>
-                </ul>
-                
-                <h4>Permissions :</h4>
-                <ul>
-                    <li>Chaque utilisateur ne peut modifier que ses propres opérations</li>
-                    <li>L'administrateur a accès à toutes les fonctionnalités</li>
-                </ul>
-            </div>
-        `;
-        
-        // Afficher dans une modal
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                ${manualContent}
-                <button onclick="this.closest('.modal').remove()" style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                    Fermer
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
+    formaterTypeTransaction(type) {
+        return type === 'revenu' ? '💰 Revenu' : '💸 Frais';
+    }
+
+    formaterCaisse(caisse) {
+        const caisses = {
+            'abdel_caisse': 'Caisse Abdel', 'omar_caisse': 'Caisse Omar',
+            'hicham_caisse': 'Caisse Hicham', 'zaitoun_caisse': 'Caisse Zaitoun',
+            '3commain_caisse': 'Caisse 3 Commain'
+        };
+        return caisses[caisse] || caisse;
     }
 }
 
-// Initialiser l'application
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM chargé - Initialisation application...');
-    window.gestionFermeApp = new GestionFermeApp();
-});
-
-// Gestion des erreurs globales
-window.addEventListener('error', function(e) {
-    console.error('💥 Erreur globale:', e.error);
-});
-
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('💥 Promise rejetée non gérée:', e.reason);
+// Initialisation
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new GestionFerme();
 });
