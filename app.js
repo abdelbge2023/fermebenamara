@@ -458,48 +458,37 @@ class GestionFermeApp {
         }
     }
 
-   afficherTotauxVue(data) {
+  afficherTotauxVue(data) {
     const dataDisplay = document.getElementById('dataDisplay');
     if (!dataDisplay || data.length === 0) return;
     
-    // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
+    // Calculer les totaux
     let totalRevenus = 0;
     let totalDepenses = 0;
     let totalTransferts = 0;
     
-    // Pour suivre les opérations déjà comptabilisées
-    const operationsTraitees = new Set();
-    
     data.forEach(item => {
         if (item.hasOwnProperty('typeOperation')) {
-            // C'est une opération
             const montant = parseFloat(item.montant) || 0;
             const description = item.description || '';
             
-            // CORRECTION : Identifier et gérer les opérations de répartition
+            // Identifier les opérations de répartition secondaires
             const isRepartitionSecondaire = item.repartition === true || 
                                           description.includes('Part ') ||
                                           description.includes('part ');
             
-            // Pour les frais répartis, ne compter que l'opération PRINCIPALE
+            // Ignorer les répartitions secondaires pour éviter la double comptabilisation
             if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
-                console.log('🔀 Opération de répartition SECONDAIRE ignorée:', {
-                    id: item.id,
-                    description: description,
-                    montant: montant
-                });
-                return; // Ignorer cette opération dans les totaux
+                console.log('🔀 Opération de répartition ignorée:', description);
+                return;
             }
             
-            // Compter les opérations normales
             if (item.typeTransaction === 'revenu') {
                 totalRevenus += Math.abs(montant);
             } else if (item.typeTransaction === 'frais') {
                 totalDepenses += Math.abs(montant);
             }
-            
         } else {
-            // C'est un transfert
             totalTransferts += parseFloat(item.montantTransfert) || 0;
         }
     });
@@ -530,6 +519,8 @@ class GestionFermeApp {
         </div>
     `;
     
+    dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
+}
     // Insérer les totaux avant le tableau
     dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
     
@@ -1799,6 +1790,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
