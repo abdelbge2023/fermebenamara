@@ -1730,3 +1730,4 @@ window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
 
+
