@@ -17,8 +17,9 @@ class GestionFermeApp {
     }
 // CORRECTION DE LA MÉTHODE showManual - À AJOUTER DANS LA CLASSE GestionFermeApp
 
+// MÉTHODE showManual COMPLÈTE AVEC MANUEL D'UTILISATION ET CALCULS
 showManual() {
-    console.log('📖 Affichage du manuel des calculs');
+    console.log('📖 Affichage du manuel complet');
     
     const manualModal = document.createElement('div');
     manualModal.className = 'modal';
@@ -38,255 +39,354 @@ showManual() {
     `;
     
     manualModal.innerHTML = `
-        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 900px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
-                <h2 style="margin: 0; color: #2c3e50;">📊 MANUEL DES CALCULS - GESTION FERME BEN AMARA</h2>
+                <h2 style="margin: 0; color: #2c3e50;">📚 MANUEL COMPLET - GESTION FERME BEN AMARA</h2>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
             </div>
-            
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #3498db; border-left: 4px solid #3498db; padding-left: 10px;">🏦 SYSTÈME DE CAISSES</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <h4 style="margin-top: 0; color: #2c3e50;">👨‍💼 Caisses Personnelles</h4>
-                        <ul style="margin: 0;">
-                            <li><strong>Caisse Abdel</strong> (abdel_caisse)</li>
-                            <li><strong>Caisse Omar</strong> (omar_caisse)</li>
-                            <li><strong>Caisse Hicham</strong> (hicham_caisse)</li>
-                        </ul>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                        <h4 style="margin-top: 0; color: #2c3e50;">🏢 Caisses de Groupes</h4>
-                        <ul style="margin: 0;">
-                            <li><strong>🫒 Caisse Zaitoun</strong> (zaitoun_caisse)</li>
-                            <li><strong>🔧 Caisse 3 Commain</strong> (3commain_caisse)</li>
-                        </ul>
-                    </div>
-                </div>
+
+            <!-- MENU DE NAVIGATION -->
+            <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+                <button onclick="this.scrollToSection('utilisation')" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">🚀 Utilisation du Site</button>
+                <button onclick="this.scrollToSection('calculs')" style="padding: 10px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">🧮 Calculs des Caisses</button>
+                <button onclick="this.scrollToSection('fonctions')" style="padding: 10px 15px; background: #9b59b6; color: white; border: none; border-radius: 5px; cursor: pointer;">⚙️ Fonctions Avancées</button>
             </div>
 
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #27ae60; border-left: 4px solid #27ae60; padding-left: 10px;">💰 TYPES D'OPÉRATIONS</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
-                        <h4 style="margin-top: 0; color: #27ae60;">💎 REVENUS</h4>
-                        <p><strong>Formule :</strong> SOLDE = SOLDE + MONTANT</p>
-                        <p><strong>Exemple :</strong></p>
-                        <div style="background: white; padding: 10px; border-radius: 5px; margin: 5px 0;">
-                            Caisse Abdel reçoit 1000 DH de vente<br>
-                            <strong>→ Abdel: +1000 DH</strong>
-                        </div>
-                    </div>
-                    <div style="background: #fde8e8; padding: 15px; border-radius: 8px;">
-                        <h4 style="margin-top: 0; color: #e74c3c;">💸 FRAIS</h4>
-                        <p><strong>Formule :</strong> SOLDE = SOLDE - MONTANT</p>
-                        <p><strong>Exemple :</strong></p>
-                        <div style="background: white; padding: 10px; border-radius: 5px; margin: 5px 0;">
-                            Caisse Omar paye 200 DH essence<br>
-                            <strong>→ Omar: -200 DH</strong>
-                        </div>
-                    </div>
-                </div>
-                <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                    <h4 style="margin-top: 0; color: #3498db;">🔄 TRANSFERTS</h4>
-                    <p><strong>Formule :</strong></p>
-                    <ul>
-                        <li><strong>Source :</strong> SOLDE = SOLDE - MONTANT</li>
-                        <li><strong>Destination :</strong> SOLDE = SOLDE + MONTANT</li>
-                    </ul>
-                    <p><strong>Exemple :</strong></p>
-                    <div style="background: white; padding: 10px; border-radius: 5px; margin: 5px 0;">
-                        Transfert 300 DH de Abdel → Omar<br>
-                        <strong>→ Abdel: -300 DH, Omar: +300 DH</strong>
-                    </div>
-                </div>
-            </div>
+            <!-- PARTIE 1 : UTILISATION DU SITE -->
+            <div id="section-utilisation" style="margin-bottom: 40px;">
+                <h3 style="color: #3498db; border-left: 4px solid #3498db; padding-left: 10px; margin-bottom: 20px;">🚀 GUIDE D'UTILISATION DU SITE</h3>
 
-            <!-- NOUVEAU : FONCTIONNEMENT DES CALCULS DES CAISSES -->
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #9b59b6; border-left: 4px solid #9b59b6; padding-left: 10px;">🧮 FONCTIONNEMENT DES CALCULS DES CAISSES</h3>
-                
-                <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #9b59b6;">FORMULE GÉNÉRALE DE CALCUL</h4>
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9b59b6;">
-                        <p style="font-family: monospace; font-size: 18px; font-weight: bold; text-align: center; color: #9b59b6;">
-                            SOLDE CAISSE = Σ(REVENUS) - Σ(FRAIS) - Σ(TRANSFERTS SORTANTS) + Σ(TRANSFERTS ENTRANTS)
-                        </p>
-                    </div>
-                </div>
-
-                <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #9b59b6;">DÉTAIL DU CALCUL POUR CHAQUE CAISSE</h4>
-                    
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                        <h5 style="color: #9b59b6; margin-top: 0;">1. REVENUS</h5>
-                        <p><strong>Source :</strong> Toutes les opérations de type "Revenu" sur la caisse</p>
-                        <p><strong>Calcul :</strong> Somme de tous les montants POSITIFS</p>
-                        <p><strong>Exemple :</strong> Si Abdel a 3 revenus de 500, 300, 700 DH</p>
-                        <p style="text-align: center; font-weight: bold;">→ Revenus = 500 + 300 + 700 = 1500 DH</p>
-                    </div>
-
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                        <h5 style="color: #9b59b6; margin-top: 0;">2. FRAIS</h5>
-                        <p><strong>Source :</strong> Toutes les opérations de type "Frais" sur la caisse</p>
-                        <p><strong>Calcul :</strong> Somme de tous les montants NÉGATIFS (en valeur absolue)</p>
-                        <p><strong>Exemple :</strong> Si Abdel a 2 frais de 200, 150 DH</p>
-                        <p style="text-align: center; font-weight: bold;">→ Frais = 200 + 150 = 350 DH</p>
-                    </div>
-
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                        <h5 style="color: #9b59b6; margin-top: 0;">3. TRANSFERTS</h5>
-                        <p><strong>Transferts sortants :</strong> Montants envoyés VERS d'autres caisses</p>
-                        <p><strong>Transferts entrants :</strong> Montants reçus DEPUIS d'autres caisses</p>
-                        <p><strong>Exemple :</strong> Abdel envoie 400 DH → Omar reçoit 300 DH</p>
-                        <p style="text-align: center; font-weight: bold;">
-                            → Transferts sortants = 400 DH<br>
-                            → Transferts entrants = 300 DH
-                        </p>
-                    </div>
-
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border: 2px solid #9b59b6;">
-                        <h5 style="color: #9b59b6; margin-top: 0;">CALCUL FINAL DU SOLDE</h5>
-                        <p style="text-align: center; font-size: 20px; font-weight: bold; color: #9b59b6;">
-                            SOLDE = 1500 - 350 - 400 + 300 = 1050 DH
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #e67e22; border-left: 4px solid #e67e22; padding-left: 10px;">🔀 SYSTÈME DE RÉPARTITION AUTOMATIQUE</h3>
-                
-                <div style="background: #fef5e7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #e67e22;">CAS 1 : FRAIS POUR UN SEUL GROUPE</h4>
-                    <p><strong>Exemple :</strong> Frais de 600 DH pour Zaitoun payé par Caisse Abdel</p>
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #e67e22;">
-                        <p><strong>Calcul :</strong></p>
-                        <p>1. <span style="color: #e74c3c;">Caisse Abdel (payeur) : -600 DH</span><br>
-                           "Frais pour Zaitoun - payé par abdel_caisse"</p>
-                        <p>2. <span style="color: #e74c3c;">Caisse Zaitoun (bénéficiaire) : -600 DH</span><br>
-                           "Frais pour Zaitoun"</p>
-                        <p><strong>Résultat :</strong> Abdel: -600 DH, Zaitoun: -600 DH</p>
-                        <p><strong>Total système : -1200 DH</strong> (correct - double comptabilité)</p>
-                    </div>
-                </div>
-
-                <div style="background: #fef5e7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #e67e22;">CAS 2 : FRAIS POUR LES DEUX GROUPES (RÉPARTITION 1/3 - 2/3)</h4>
-                    <p><strong>Exemple :</strong> Frais de 900 DH pour les deux groupes payé par Caisse Omar</p>
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #e67e22;">
-                        <p><strong>Calcul des parts :</strong></p>
-                        <p>🫒 <strong>ZAITOUN (1/3)</strong> = 900 × 1/3 = <strong>300 DH</strong></p>
-                        <p>🔧 <strong>3 COMMAIN (2/3)</strong> = 900 × 2/3 = <strong>600 DH</strong></p>
-                        
-                        <p><strong>Opérations créées :</strong></p>
-                        <p>1. <span style="color: #e74c3c;">Caisse Omar : -900 DH</span><br>
-                           "Frais pour les deux groupes - Total: 900 DH"</p>
-                        <p>2. <span style="color: #e74c3c;">Caisse Zaitoun : -300 DH</span><br>
-                           "Part Zaitoun (1/3 = 300 DH)"</p>
-                        <p>3. <span style="color: #e74c3c;">Caisse 3 Commain : -600 DH</span><br>
-                           "Part 3 Commain (2/3 = 600 DH)"</p>
-                        
-                        <p><strong>Résultat :</strong><br>
-                        - Omar: -900 DH<br>
-                        - Zaitoun: -300 DH<br>
-                        - 3 Commain: -600 DH</p>
-                        <p><strong>Total système : -1800 DH</strong> (correct - triple comptabilité)</p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #e74c3c; border-left: 4px solid #e74c3c; padding-left: 10px;">📈 EXEMPLE COMPLET DE CALCUL</h3>
-                <div style="background: #fde8e8; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #e74c3c;">SCÉNARIO AVEC 5 OPÉRATIONS</h4>
-                    
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                        <p><strong>Opérations enregistrées :</strong></p>
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px;">🔐 CONNEXION AU SYSTÈME</h4>
+                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
+                        <p><strong>Étapes :</strong></p>
                         <ol>
-                            <li>✅ Revenu Abdel : 2000 DH (Caisse Abdel)</li>
-                            <li>✅ Frais Omar : 500 DH (Caisse Omar)</li>
-                            <li>🔄 Transfert Abdel → Omar : 300 DH</li>
-                            <li>✅ Frais Zaitoun payé par Abdel : 400 DH</li>
-                            <li>✅ Frais deux groupes payé par Hicham : 900 DH</li>
+                            <li>Renseignez votre email et mot de passe</li>
+                            <li>Cliquez sur "Se connecter"</li>
+                            <li>Le système configure automatiquement votre profil</li>
+                            <li>Vous êtes redirigé vers le tableau de bord</li>
                         </ol>
+                        <p><strong>💡 Astuce :</strong> Votre opérateur est automatiquement détecté selon votre email</p>
                     </div>
+                </div>
 
-                    <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                        <p><strong>Calculs détaillés par caisse :</strong></p>
-                        
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                            <strong>👨‍💼 Caisse Abdel :</strong><br>
-                            +2000 (revenu) - 400 (frais Zaitoun) - 300 (transfert) = <strong>1300 DH</strong>
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px;">➕ SAISIE D'UNE NOUVELLE OPÉRATION</h4>
+                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
+                        <p><strong>Formulaire principal :</strong></p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                            <div>
+                                <p><strong>Champs obligatoires :</strong></p>
+                                <ul>
+                                    <li>👤 Opérateur (automatique)</li>
+                                    <li>📋 Type d'opération</li>
+                                    <li>🏷️ Groupe concerné</li>
+                                    <li>💰 Type de transaction</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Suite :</strong></p>
+                                <ul>
+                                    <li>🏦 Caisse impactée</li>
+                                    <li>💵 Montant (DH)</li>
+                                    <li>📝 Description</li>
+                                </ul>
+                            </div>
                         </div>
-                        
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                            <strong>👨‍💻 Caisse Omar :</strong><br>
-                            -500 (frais) + 300 (transfert) = <strong>-200 DH</strong>
+                        <p><strong>⚠️ Important :</strong> Pour "Travailleur Global + Les Deux Groupes", la répartition 1/3-2/3 est automatique</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px;">🔄 EFFECTUER UN TRANSFERT</h4>
+                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
+                        <p><strong>Onglet "Transfert" :</strong></p>
+                        <ol>
+                            <li>Sélectionnez la caisse source</li>
+                            <li>Sélectionnez la caisse destination</li>
+                            <li>Entrez le montant du transfert</li>
+                            <li>Ajoutez une description</li>
+                            <li>Cliquez sur "Effectuer le transfert"</li>
+                        </ol>
+                        <p><strong>✅ Validation :</strong> Le système vérifie automatiquement les fonds disponibles</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px;">📊 NAVIGATION ENTRE LES VUES</h4>
+                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p><strong>Onglets disponibles :</strong></p>
+                                <ul>
+                                    <li>🌍 Toutes les opérations</li>
+                                    <li>🫒 Zaitoun</li>
+                                    <li>🔧 3 Commain</li>
+                                    <li>👨‍💼 Abdel</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Suite :</strong></p>
+                                <ul>
+                                    <li>👨‍💻 Omar</li>
+                                    <li>👨‍🔧 Hicham</li>
+                                    <li>🔄 Transferts</li>
+                                    <li>👥 Les Deux Groupes</li>
+                                </ul>
+                            </div>
                         </div>
-                        
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                            <strong>👨‍🔧 Caisse Hicham :</strong><br>
-                            -900 (frais deux groupes) = <strong>-900 DH</strong>
-                        </div>
-                        
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                            <strong>🫒 Caisse Zaitoun :</strong><br>
-                            -400 (frais Zaitoun) - 300 (part frais deux groupes) = <strong>-700 DH</strong>
-                        </div>
-                        
-                        <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                            <strong>🔧 Caisse 3 Commain :</strong><br>
-                            -600 (part frais deux groupes) = <strong>-600 DH</strong>
+                        <p><strong>💡 Fonctionnalité :</strong> Chaque vue montre les totaux spécifiques</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px;">✏️ GESTION DES OPÉRATIONS</h4>
+                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p><strong>Édition simple :</strong></p>
+                                <ul>
+                                    <li>Cliquez sur <strong>✏️</strong> pour modifier</li>
+                                    <li>Modifiez les champs nécessaires</li>
+                                    <li>Sauvegardez les changements</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Mode édition avancé :</strong></p>
+                                <ul>
+                                    <li>Activez le <strong>Mode Édition</strong></li>
+                                    <li>Sélectionnez plusieurs opérations</li>
+                                    <li>Supprimez en masse avec <strong>🗑️ Supprimer (X)</strong></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 25px;">
-                <h3 style="color: #34495e; border-left: 4px solid #34495e; padding-left: 10px;">⚠️ IMPORTANT - COMPRÉHENSION DES TOTAUX</h3>
-                <div style="background: #ecf0f1; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                    <h4 style="margin-top: 0; color: #34495e;">Pourquoi les totaux semblent élevés ?</h4>
-                    <p>Le système enregistre <strong>chaque impact financier réel</strong> :</p>
-                    <ul>
-                        <li>❌ <strong>Une dépense affecte à la fois le payeur ET le bénéficiaire</strong></li>
-                        <li>❌ <strong>Les répartitions créent des mouvements supplémentaires mais réels</strong></li>
-                        <li>✅ <strong>Le système reflète la réalité économique complète</strong></li>
-                    </ul>
-                    <p><strong>Exemple :</strong> Quand Abdel paye 600 DH pour Zaitoun :</p>
-                    <ul>
-                        <li>Abdel perd 600 DH (impact réel)</li>
-                        <li>Zaitoun est débité de 600 DH (impact réel)</li>
-                        <li><strong>Total : -1200 DH (correct car deux impacts réels)</strong></li>
-                    </ul>
+            <!-- PARTIE 2 : CALCULS DES CAISSES -->
+            <div id="section-calculs" style="margin-bottom: 40px;">
+                <h3 style="color: #27ae60; border-left: 4px solid #27ae60; padding-left: 10px; margin-bottom: 20px;">🧮 SYSTÈME DE CALCUL DES CAISSES</h3>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #229954; margin-bottom: 15px;">🏦 ARCHITECTURE DES CAISSES</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
+                            <h5 style="margin-top: 0; color: #27ae60;">👨‍💼 Caisses Personnelles</h5>
+                            <ul style="margin: 0;">
+                                <li><strong>Caisse Abdel</strong> (abdel_caisse)</li>
+                                <li><strong>Caisse Omar</strong> (omar_caisse)</li>
+                                <li><strong>Caisse Hicham</strong> (hicham_caisse)</li>
+                            </ul>
+                        </div>
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
+                            <h5 style="margin-top: 0; color: #27ae60;">🏢 Caisses de Groupes</h5>
+                            <ul style="margin: 0;">
+                                <li><strong>🫒 Caisse Zaitoun</strong> (zaitoun_caisse)</li>
+                                <li><strong>🔧 Caisse 3 Commain</strong> (3commain_caisse)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #229954; margin-bottom: 15px;">🧮 FORMULE DE CALCUL</h4>
+                    <div style="background: #d4efdf; padding: 20px; border-radius: 8px; text-align: center;">
+                        <p style="font-family: monospace; font-size: 20px; font-weight: bold; color: #196f3d;">
+                            SOLDE = Σ(REVENUS) - Σ(FRAIS) - Σ(TRANSFERTS SORTANTS) + Σ(TRANSFERTS ENTRANTS)
+                        </p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #229954; margin-bottom: 15px;">🔀 RÉPARTITION AUTOMATIQUE</h4>
+                    <div style="background: #e8f5e8; padding: 20px; border-radius: 8px;">
+                        <p><strong>Cas spécial : Travailleur Global + Les Deux Groupes</strong></p>
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                            <p><strong>Exemple : Frais de 900 DH</strong></p>
+                            <p>🫒 <strong>Zaitoun (1/3)</strong> = 900 × 1/3 = <strong>300 DH</strong></p>
+                            <p>🔧 <strong>3 Commain (2/3)</strong> = 900 × 2/3 = <strong>600 DH</strong></p>
+                            <p><strong>→ 2 opérations créées automatiquement</strong></p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div style="background: #2c3e50; color: white; padding: 25px; border-radius: 8px; text-align: center; margin-top: 30px;">
-                <h4 style="margin: 0 0 15px 0; font-size: 20px;">💡 BONNES PRATIQUES</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left;">
+            <!-- PARTIE 3 : FONCTIONS AVANCÉES -->
+            <div id="section-fonctions" style="margin-bottom: 30px;">
+                <h3 style="color: #9b59b6; border-left: 4px solid #9b59b6; padding-left: 10px; margin-bottom: 20px;">⚙️ FONCTIONS AVANCÉES</h3>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px;">📊 TABLEAU DE BORD EN TEMPS RÉEL</h4>
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p><strong>Fonctionnalités :</strong></p>
+                                <ul>
+                                    <li>✅ Soldes mis à jour instantanément</li>
+                                    <li>✅ Synchronisation multi-appareils</li>
+                                    <li>✅ Historique complet des opérations</li>
+                                    <li>✅ Filtrage par date et type</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Indicateurs :</strong></p>
+                                <ul>
+                                    <li>📈 Solde positif (vert)</li>
+                                    <li>📉 Solde négatif (rouge)</li>
+                                    <li>📊 Nombre d'opérations</li>
+                                    <li>💰 Totaux par vue</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px;">📤 EXPORT DE DONNÉES</h4>
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0;">
+                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                                <strong>📄 Export Complet</strong>
+                                <p style="font-size: 12px; margin: 5px 0 0 0;">Toutes les données en Excel</p>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                                <strong>👁️ Export Vue</strong>
+                                <p style="font-size: 12px; margin: 5px 0 0 0;">Données de la vue actuelle</p>
+                            </div>
+                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
+                                <strong>📈 Rapport Détaillé</strong>
+                                <p style="font-size: 12px; margin: 5px 0 0 0;">Avec statistiques</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px;">🛠️ OUTILS D'ADMINISTRATION</h4>
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p><strong>Nettoyage :</strong></p>
+                                <ul>
+                                    <li>🗑️ Vider données locales</li>
+                                    <li>🔥 Réinitialiser Firebase</li>
+                                    <li>🔄 Resynchroniser</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Sécurité :</strong></p>
+                                <ul>
+                                    <li>🔐 Authentification sécurisée</li>
+                                    <li>👥 Gestion des permissions</li>
+                                    <li>📱 Accès multi-appareils</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px;">🎯 RACCOURCS ET ASTUCES</h4>
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p><strong>Navigation rapide :</strong></p>
+                                <ul>
+                                    <li>Cliquez sur une caisse pour voir son détail</li>
+                                    <li>Utilisez les onglets pour filtrer</li>
+                                    <li>Mode édition pour actions groupées</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p><strong>Productivité :</strong></p>
+                                <ul>
+                                    <li>Reset formulaire après saisie</li>
+                                    <li>Recherche dans l'historique</li>
+                                    <li>Export régulier pour backup</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RÉSUMÉ DES FONCTIONNALITÉS -->
+            <div style="background: #2c3e50; color: white; padding: 25px; border-radius: 8px; margin-top: 30px;">
+                <h4 style="margin: 0 0 20px 0; text-align: center; font-size: 20px;">🎯 RÉSUMÉ DES FONCTIONNALITÉS PRINCIPALES</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center;">
                     <div>
-                        <p style="margin: 5px 0;">✅ Vérifier les soldes avant chaque opération</p>
-                        <p style="margin: 5px 0;">✅ Documenter précisément chaque transaction</p>
-                        <p style="margin: 5px 0;">✅ Utiliser les exports Excel pour analyse</p>
+                        <div style="font-size: 24px; margin-bottom: 10px;">➕</div>
+                        <p style="margin: 0; font-weight: bold;">Saisie Opérations</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Simple et rapide</p>
                     </div>
                     <div>
-                        <p style="margin: 5px 0;">✅ Équilibrer les transferts entre caisses</p>
-                        <p style="margin: 5px 0;">✅ Auditer régulièrement les comptes</p>
-                        <p style="margin: 5px 0;">✅ Comprendre la double comptabilité</p>
+                        <div style="font-size: 24px; margin-bottom: 10px;">🔄</div>
+                        <p style="margin: 0; font-weight: bold;">Transferts</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Entre caisses</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: 10px;">📊</div>
+                        <p style="margin: 0; font-weight: bold;">Tableau de Bord</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Temps réel</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: 10px;">✏️</div>
+                        <p style="margin: 0; font-weight: bold;">Édition</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Simple et multiple</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: 10px;">📤</div>
+                        <p style="margin: 0; font-weight: bold;">Export</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Excel complet</p>
+                    </div>
+                    <div>
+                        <div style="font-size: 24px; margin-bottom: 10px;">🔐</div>
+                        <p style="margin: 0; font-weight: bold;">Sécurité</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px;">Authentification</p>
                     </div>
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
-                <p style="color: #7f8c8d; font-size: 14px;">
-                    📞 Pour toute question : Consultez l'administrateur système<br>
-                    🕐 Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}
+            <!-- PIED DE PAGE -->
+            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #ddd;">
+                <p style="color: #7f8c8d; font-size: 14px; margin: 0;">
+                    📞 Support : Contactez l'administrateur système | 
+                    🕐 Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR')} |
+                    🔄 Version : 2.0
                 </p>
             </div>
         </div>
     `;
     
+    document.body.appendChild(manualModal);
+    
+    // Ajouter la fonction de navigation
+    manualModal.querySelectorAll('button[onclick*="scrollToSection"]').forEach(btn => {
+        btn.onclick = function() {
+            const sectionId = this.getAttribute('onclick').match(/'([^']+)'/)[1];
+            const section = document.getElementById(`section-${sectionId}`);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+    });
+    
+    // Fermer la modale en cliquant à l'extérieur
+    manualModal.addEventListener('click', (e) => {
+        if (e.target === manualModal) {
+            manualModal.remove();
+        }
+    });
+    
+    // Fermer avec la touche Échap
+    document.addEventListener('keydown', function closeOnEscape(e) {
+        if (e.key === 'Escape') {
+            manualModal.remove();
+            document.removeEventListener('keydown', closeOnEscape);
+        }
+    });
+}
     document.body.appendChild(manualModal);
     
     // Fermer la modale en cliquant à l'extérieur
@@ -383,7 +483,10 @@ showManual() {
         // Manuel
         const btnManual = document.getElementById('btnManual');
         if (btnManual) {
-            btnManual.addEventListener('click', () => this.showManual());
+            btnManual.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showManual();
+            });
         }
 
         document.querySelectorAll('.close-modal').forEach(btn => {
@@ -1729,5 +1832,6 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
