@@ -453,7 +453,7 @@ class GestionFermeApp {
         const dataDisplay = document.getElementById('dataDisplay');
         if (!dataDisplay || data.length === 0) return;
         
-        // CORRECTION : Calculer les totaux sans ignorer les opérations de répartition
+        // CORRECTION DÉFINITIVE : Calculer les totaux SANS ignorer les opérations de répartition
         let totalRevenus = 0;
         let totalDepenses = 0;
         let totalTransferts = 0;
@@ -462,7 +462,7 @@ class GestionFermeApp {
             if (item.hasOwnProperty('typeOperation')) {
                 const montant = parseFloat(item.montant) || 0;
                 
-                // CORRECTION : Ne pas ignorer les opérations de répartition dans les vues spécifiques
+                // CORRECTION : NE JAMAIS ignorer les opérations dans les totaux de vue
                 // Toutes les opérations affichées doivent être comptabilisées
                 if (item.typeTransaction === 'revenu') {
                     totalRevenus += Math.abs(montant);
@@ -501,6 +501,13 @@ class GestionFermeApp {
         `;
         
         dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
+        
+        // DEBUG: Afficher le calcul détaillé dans la console
+        console.log('🧮 CALCUL DÉTAILLÉ DES TOTAUX:');
+        console.log('- Total Revenus:', totalRevenus);
+        console.log('- Total Dépenses:', totalDepenses);
+        console.log('- Total Transferts:', totalTransferts);
+        console.log('- Solde Net:', soldeNet);
     }
 
     getNomVue(vue) {
@@ -582,15 +589,8 @@ class GestionFermeApp {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
-            // CORRECTION : Ignorer les opérations de répartition secondaires
-            const isRepartitionSecondaire = operation.repartition === true || 
-                                          (operation.description && operation.description.includes('Part ')) ||
-                                          (operation.description && operation.description.includes('part '));
-            
-            if (isRepartitionSecondaire) {
-                return; // Ignorer cette opération
-            }
-            
+            // CORRECTION : Ne pas ignorer les opérations de répartition pour les stats des caisses
+            // Toutes les opérations doivent être comptabilisées pour le solde des caisses
             if (caisse && soldes[caisse] !== undefined) {
                 soldes[caisse] += montant;
             }
