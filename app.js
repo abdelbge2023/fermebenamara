@@ -461,72 +461,96 @@ class GestionFermeApp {
         }
     }
 
-    afficherTotauxVue(data) {
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay || data.length === 0) return;
-        
-        // Calculer les totaux
-        let totalRevenus = 0;
-        let totalDepenses = 0;
-        let totalTransferts = 0;
-        
-        data.forEach(item => {
-            if (item.hasOwnProperty('typeOperation')) {
-                // C'est une opération
-                const montant = parseFloat(item.montant) || 0;
-                if (item.typeTransaction === 'revenu') {
-                    totalRevenus += montant;
-                } else {
-                    totalDepenses += montant;
-                }
-            } else {
-                // C'est un transfert
-                totalTransferts += parseFloat(item.montantTransfert) || 0;
+   afficherTotauxVue(data) {
+    const dataDisplay = document.getElementById('dataDisplay');
+    if (!dataDisplay || data.length === 0) return;
+    
+    // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
+    let totalRevenus = 0;
+    let totalDepenses = 0;
+    let totalTransferts = 0;
+    
+    // Pour éviter la double comptabilisation des frais répartis
+    const operationsTraitees = new Set();
+    
+    data.forEach(item => {
+        if (item.hasOwnProperty('typeOperation')) {
+            // C'est une opération
+            const montant = parseFloat(item.montant) || 0;
+            
+            // CORRECTION : Identifier les opérations de répartition
+            const isRepartition = item.repartition === true;
+            const description = item.description || '';
+            
+            // Pour les frais répartis, ne compter que l'opération principale
+            if (isRepartition && item.typeTransaction === 'frais') {
+                console.log('🔀 Opération de répartition ignorée dans les totaux:', {
+                    id: item.id,
+                    description: description,
+                    montant: montant
+                });
+                return; // Ignorer cette opération dans les totaux
             }
-        });
-        
-        const soldeNet = totalRevenus - totalDepenses;
-        
-        const htmlTotaux = `
-            <div class="vue-header">
-                <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
-                <div class="totals-container">
-                    <div class="total-item">
-                        <span class="total-label">💰 Revenus</span>
-                        <span class="total-value positive">${totalRevenus.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">💸 Dépenses</span>
-                        <span class="total-value negative">${totalDepenses.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">🔄 Transferts</span>
-                        <span class="total-value">${totalTransferts.toFixed(2)} DH</span>
-                    </div>
-                    <div class="total-item">
-                        <span class="total-label">⚖️ Solde Net</span>
-                        <span class="total-value ${soldeNet >= 0 ? 'positive' : 'negative'}">${soldeNet.toFixed(2)} DH</span>
-                    </div>
+            
+            // Vérifier si c'est une opération principale de frais répartis
+            if (item.typeTransaction === 'frais' && description.includes('Frais pour les deux groupes')) {
+                console.log('💰 Opération principale de frais répartis:', {
+                    id: item.id,
+                    description: description,
+                    montant: montant
+                });
+                // C'est l'opération principale, on la compte normalement
+                totalDepenses += Math.abs(montant);
+                operationsTraitees.add(item.id);
+            }
+            else if (item.typeTransaction === 'revenu') {
+                totalRevenus += montant;
+            } else if (item.typeTransaction === 'frais' && !operationsTraitees.has(item.id)) {
+                // Frais normal (non réparti)
+                totalDepenses += Math.abs(montant);
+            }
+        } else {
+            // C'est un transfert
+            totalTransferts += parseFloat(item.montantTransfert) || 0;
+        }
+    });
+    
+    const soldeNet = totalRevenus - totalDepenses;
+    
+    const htmlTotaux = `
+        <div class="vue-header">
+            <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
+            <div class="totals-container">
+                <div class="total-item">
+                    <span class="total-label">💰 Revenus</span>
+                    <span class="total-value positive">${totalRevenus.toFixed(2)} DH</span>
+                </div>
+                <div class="total-item">
+                    <span class="total-label">💸 Dépenses</span>
+                    <span class="total-value negative">${totalDepenses.toFixed(2)} DH</span>
+                </div>
+                <div class="total-item">
+                    <span class="total-label">🔄 Transferts</span>
+                    <span class="total-value">${totalTransferts.toFixed(2)} DH</span>
+                </div>
+                <div class="total-item">
+                    <span class="total-label">⚖️ Solde Net</span>
+                    <span class="total-value ${soldeNet >= 0 ? 'positive' : 'negative'}">${soldeNet.toFixed(2)} DH</span>
                 </div>
             </div>
-        `;
-        
-        // Insérer les totaux avant le tableau
-        dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
-    }
-
-    getNomVue(vue) {
-        const noms = {
-            'global': 'Toutes les opérations',
-            'zaitoun': 'Zaitoun',
-            '3commain': '3 Commain', 
-            'abdel': 'Abdel',
-            'omar': 'Omar',
-            'hicham': 'Hicham',
-            'transferts': 'Transferts'
-        };
-        return noms[vue] || vue;
-    }
+        </div>
+    `;
+    
+    // Insérer les totaux avant le tableau
+    dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
+    
+    console.log('📊 Totaux calculés:', {
+        revenus: totalRevenus,
+        depenses: totalDepenses,
+        transferts: totalTransferts,
+        solde: soldeNet
+    });
+}
 
     setupCheckboxListeners() {
         const selectAll = document.getElementById('selectAll');
@@ -1777,4 +1801,5 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
