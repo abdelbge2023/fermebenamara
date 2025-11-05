@@ -591,7 +591,89 @@ class GestionFermeApp {
         operations: this.operations.length,
         transferts: this.transferts.length
     });
+// Ajoutez cette méthode dans la classe, après la méthode updateStats()
+showDetailsCaisse(caisse) {
+    console.log('📊 Détails de la caisse:', caisse);
+    
+    // Filtrer les opérations pour cette caisse
+    const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+    const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
+    const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
+    
+    let totalRevenus = operationsCaisse
+        .filter(op => op.typeTransaction === 'revenu')
+        .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+        
+    let totalDepenses = operationsCaisse
+        .filter(op => op.typeTransaction === 'frais')
+        .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
+    
+    let totalSortants = transfertsSource
+        .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
+        
+    let totalEntrants = transfertsDestination
+        .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
+    
+    const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
+    
+    let message = `📊 Détails de ${this.getNomCaisse(caisse)}:\n\n`;
+    message += `📝 Opérations: ${operationsCaisse.length}\n`;
+    message += `💰 Revenus: ${totalRevenus.toFixed(2)} DH\n`;
+    message += `💸 Dépenses: ${totalDepenses.toFixed(2)} DH\n`;
+    message += `🔄 Transferts sortants: ${transfertsSource.length} (${totalSortants.toFixed(2)} DH)\n`;
+    message += `🔄 Transferts entrants: ${transfertsDestination.length} (${totalEntrants.toFixed(2)} DH)\n\n`;
+    message += `⚖️ Solde calculé: ${solde.toFixed(2)} DH\n`;
+    message += `📋 Total mouvements: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
+    
+    // Afficher dans une modal au lieu d'une alerte
+    this.showCaisseDetailsModal(caisse, {
+        operations: operationsCaisse.length,
+        revenus: totalRevenus,
+        depenses: totalDepenses,
+        transfertsSortants: totalSortants,
+        transfertsEntrants: totalEntrants,
+        solde: solde,
+        totalMouvements: operationsCaisse.length + transfertsSource.length + transfertsDestination.length
+    });
+}
 
+showCaisseDetailsModal(caisse, details) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h3>📊 Détails de ${this.getNomCaisse(caisse)}</h3>
+            <div style="margin: 15px 0;">
+                <div><strong>📝 Opérations:</strong> ${details.operations}</div>
+                <div><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                <div><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                <div><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                <div><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+            </div>
+            <div style="border-top: 1px solid #ccc; padding-top: 10px;">
+                <div><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
+            </div>
+            <button onclick="this.closest('div[style]').remove()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Fermer
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
     // 1. Calculer les soldes basés sur les opérations
     this.operations.forEach(operation => {
         const montant = parseFloat(operation.montant) || 0;
@@ -1137,22 +1219,30 @@ class GestionFermeApp {
             }
         }
     }
-
 resetForm() {
     const saisieForm = document.getElementById('saisieForm');
     const repartitionInfo = document.getElementById('repartitionInfo');
-    const selectOperateur = document.getElementById('operateur');
     
     if (saisieForm) {
+        // Sauvegarder la valeur de l'opérateur actuel
+        const selectOperateur = document.getElementById('operateur');
+        const operateurActuel = selectOperateur ? selectOperateur.value : '';
+        
+        // Réinitialiser le formulaire
         saisieForm.reset();
         
-        // Réinitialiser l'opérateur avec la valeur de l'utilisateur connecté
-        if (this.currentUser && selectOperateur) {
+        // CORRECTION : Remettre l'opérateur automatiquement
+        if (this.currentUser) {
             const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-            if (operateur) {
+            if (operateur && selectOperateur) {
                 selectOperateur.value = operateur;
                 selectOperateur.disabled = true;
                 console.log(`👤 Opérateur réinitialisé: ${operateur}`);
+            }
+        } else {
+            // Si pas d'utilisateur connecté, remettre l'ancienne valeur
+            if (selectOperateur && operateurActuel) {
+                selectOperateur.value = operateurActuel;
             }
         }
     }
@@ -1161,7 +1251,7 @@ resetForm() {
         repartitionInfo.style.display = 'none';
     }
     
-    this.showMessage('📝 Formulaire réinitialisé', 'info');
+    console.log('📝 Formulaire réinitialisé avec opérateur conservé');
 }
 
     closeModal(modal) {
@@ -1724,6 +1814,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
