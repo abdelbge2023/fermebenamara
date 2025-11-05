@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -375,6 +375,11 @@ class GestionFermeApp {
     }
 
     renderDataTable(data, container) {
+        if (!container) {
+            console.error('❌ Container non trouvé pour l\'affichage des données');
+            return;
+        }
+
         if (data.length === 0) {
             container.innerHTML = '<div class="empty-message">Aucune donnée à afficher</div>';
             return;
@@ -400,18 +405,48 @@ class GestionFermeApp {
         `;
         
         data.forEach(item => {
-            const isOperation = item.hasOwnProperty('typeOperation');
-            const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
+            const isOperation = item && item.hasOwnProperty('typeOperation');
+            const canEdit = this.currentUser && window.firebaseAuthFunctions && 
+                           window.firebaseAuthFunctions.canModifyOperation ? 
+                           window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser) : false;
             
-            // Utiliser l'ID Firebase comme identifiant
-            const itemId = item.id;
+            // Utiliser l'ID Firebase comme identifiant - CORRECTION : vérifier si item existe
+            const itemId = item && item.id ? item.id : 'unknown';
+            
+            // CORRECTION : Vérifier que toutes les propriétés existent avant de les utiliser
+            const operateur = item && item.operateur ? item.operateur : 'N/A';
+            const typeOperation = item && item.typeOperation ? item.typeOperation : 'Transfert';
+            const groupe = item && item.groupe ? item.groupe : 'N/A';
+            const typeTransaction = item && item.typeTransaction ? item.typeTransaction : 'transfert';
+            const caisse = item && item.caisse ? item.caisse : 
+                          (item && item.caisseSource && item.caisseDestination ? 
+                           `${item.caisseSource} → ${item.caisseDestination}` : 'N/A');
+            
+            // CORRECTION : Gérer les montants de manière sécurisée
+            let montantValue = 0;
+            let montantText = 'N/A';
+            
+            if (item) {
+                if (item.montant !== undefined && item.montant !== null) {
+                    montantValue = parseFloat(item.montant) || 0;
+                    montantText = `${Math.abs(montantValue).toFixed(2)} DH`;
+                } else if (item.montantTransfert !== undefined && item.montantTransfert !== null) {
+                    montantValue = parseFloat(item.montantTransfert) || 0;
+                    montantText = `${montantValue.toFixed(2)} DH`;
+                }
+            }
+            
+            const description = item && (item.description || item.descriptionTransfert) ? 
+                              (item.description || item.descriptionTransfert) : '';
+            
+            const date = item && item.timestamp ? 
+                        new Date(item.timestamp).toLocaleDateString('fr-FR') : 'Date inconnue';
             
             console.log('🔐 Permission pour item:', {
                 id: itemId,
-                operateur: item.operateur,
+                operateur: operateur,
                 canEdit: canEdit,
-                currentUser: this.currentUser ? this.currentUser.email : 'null',
-                operateurConnecte: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser?.email)
+                currentUser: this.currentUser ? this.currentUser.email : 'null'
             });
             
             html += `
@@ -424,18 +459,18 @@ class GestionFermeApp {
                             }
                         </td>
                     ` : ''}
-                    <td>${new Date(item.timestamp).toLocaleDateString('fr-FR')}</td>
-                    <td>${item.operateur || 'N/A'}</td>
-                    <td>${item.typeOperation || 'Transfert'}</td>
-                    <td>${item.groupe || 'N/A'}</td>
-                    <td class="type-${item.typeTransaction || 'transfert'}">
-                        ${isOperation ? (item.typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
+                    <td>${date}</td>
+                    <td>${operateur}</td>
+                    <td>${typeOperation}</td>
+                    <td>${groupe}</td>
+                    <td class="type-${typeTransaction}">
+                        ${isOperation ? (typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
                     </td>
-                    <td>${item.caisse || `${item.caisseSource} → ${item.caisseDestination}`}</td>
-                    <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
-                        ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
+                    <td>${caisse}</td>
+                    <td style="font-weight: bold; color: ${(typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
+                        ${montantText}
                     </td>
-                    <td>${item.description || item.descriptionTransfert || ''}</td>
+                    <td>${description}</td>
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
@@ -459,7 +494,7 @@ class GestionFermeApp {
 
     afficherTotauxVue(data) {
         const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay || data.length === 0) return;
+        if (!dataDisplay || !data || data.length === 0) return;
         
         // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
         let totalRevenus = 0;
@@ -467,6 +502,8 @@ class GestionFermeApp {
         let totalTransferts = 0;
         
         data.forEach(item => {
+            if (!item) return; // CORRECTION : Ignorer les items null
+                
             if (item.hasOwnProperty('typeOperation')) {
                 const montant = parseFloat(item.montant) || 0;
                 const description = item.description || '';
@@ -614,6 +651,8 @@ class GestionFermeApp {
 
         // 1. Calculer les soldes basés sur les opérations - CORRECTION
         this.operations.forEach(operation => {
+            if (!operation) return; // CORRECTION : Ignorer les opérations null
+            
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
@@ -646,6 +685,8 @@ class GestionFermeApp {
 
         // 2. Gérer les transferts entre caisses
         this.transferts.forEach(transfert => {
+            if (!transfert) return; // CORRECTION : Ignorer les transferts null
+            
             const montant = parseFloat(transfert.montantTransfert) || 0;
             
             // Soustraire de la caisse source
@@ -702,16 +743,16 @@ class GestionFermeApp {
         console.log('📊 Détails de la caisse:', caisse);
         
         // Filtrer les opérations pour cette caisse
-        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-        const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
-        const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
+        const operationsCaisse = this.operations.filter(op => op && op.caisse === caisse);
+        const transfertsSource = this.transferts.filter(t => t && t.caisseSource === caisse);
+        const transfertsDestination = this.transferts.filter(t => t && t.caisseDestination === caisse);
         
         let totalRevenus = operationsCaisse
-            .filter(op => op.typeTransaction === 'revenu')
+            .filter(op => op && op.typeTransaction === 'revenu')
             .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
             
         let totalDepenses = operationsCaisse
-            .filter(op => op.typeTransaction === 'frais')
+            .filter(op => op && op.typeTransaction === 'frais')
             .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
         
         let totalSortants = transfertsSource
@@ -806,21 +847,29 @@ class GestionFermeApp {
     }
 
     updateRepartition() {
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const montant = parseFloat(document.getElementById('montant').value) || 0;
+        const typeOperation = document.getElementById('typeOperation');
+        const groupe = document.getElementById('groupe');
+        const montant = document.getElementById('montant');
+        
+        if (!typeOperation || !groupe || !montant) return;
+        
+        const typeOpValue = typeOperation.value;
+        const groupeValue = groupe.value;
+        const montantValue = parseFloat(montant.value) || 0;
         
         const repartitionInfo = document.getElementById('repartitionInfo');
         const repartitionDetails = document.getElementById('repartitionDetails');
         
+        if (!repartitionInfo || !repartitionDetails) return;
+        
         // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
-        if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
+        if (typeOpValue === 'travailleur_global' && groupeValue === 'les_deux_groupes' && montantValue > 0) {
             let zaitounPart = 0;
             let commainPart = 0;
             
             // Calcul des parts
-            zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
-            commainPart = parseFloat((montant * (2/3)).toFixed(2));
+            zaitounPart = parseFloat((montantValue * (1/3)).toFixed(2));
+            commainPart = parseFloat((montantValue * (2/3)).toFixed(2));
             
             repartitionDetails.innerHTML = `
                 <div class="repartition-details">
@@ -838,7 +887,7 @@ class GestionFermeApp {
                     </div>
                     <div class="repartition-total">
                         <strong>💰 Total payé</strong><br>
-                        ${montant.toFixed(2)} DH
+                        ${montantValue.toFixed(2)} DH
                     </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
@@ -860,13 +909,27 @@ class GestionFermeApp {
             return;
         }
         
-        const operateur = document.getElementById('operateur').value;
-        const typeOperation = document.getElementById('typeOperation').value;
-        const groupe = document.getElementById('groupe').value;
-        const typeTransaction = document.getElementById('typeTransaction').value;
-        const caisse = document.getElementById('caisse').value;
-        const montantTotal = parseFloat(document.getElementById('montant').value);
-        const description = document.getElementById('description').value.trim();
+        const operateur = document.getElementById('operateur');
+        const typeOperation = document.getElementById('typeOperation');
+        const groupe = document.getElementById('groupe');
+        const typeTransaction = document.getElementById('typeTransaction');
+        const caisse = document.getElementById('caisse');
+        const montant = document.getElementById('montant');
+        const description = document.getElementById('description');
+        
+        // CORRECTION : Vérifier que tous les éléments existent
+        if (!operateur || !typeOperation || !groupe || !typeTransaction || !caisse || !montant || !description) {
+            this.showMessage('❌ Erreur: Formulaire incomplet', 'error');
+            return;
+        }
+        
+        const operateurValue = operateur.value;
+        const typeOperationValue = typeOperation.value;
+        const groupeValue = groupe.value;
+        const typeTransactionValue = typeTransaction.value;
+        const caisseValue = caisse.value;
+        const montantTotal = parseFloat(montant.value);
+        const descriptionValue = description.value.trim();
         
         // Validation
         if (!montantTotal || montantTotal <= 0) {
@@ -874,7 +937,7 @@ class GestionFermeApp {
             return;
         }
         
-        if (!description) {
+        if (!descriptionValue) {
             this.showMessage('❌ Veuillez saisir une description', 'error');
             return;
         }
@@ -882,30 +945,30 @@ class GestionFermeApp {
         try {
             if (window.firebaseSync) {
                 // CAS FRAIS (pour TOUS les types d'opérations)
-                if (typeTransaction === 'frais') {
+                if (typeTransactionValue === 'frais') {
                     
                     // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                    if (typeOperationValue === 'travailleur_global' && groupeValue === 'les_deux_groupes') {
                         // Calcul des parts 1/3 et 2/3
                         const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
                         const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
                         
                         console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
                             total: montantTotal,
-                            caisse_principale: caisse,
+                            caisse_principale: caisseValue,
                             zaitoun: montantZaitoun,
                             commain: montantCommain
                         });
 
                         // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                         const operationCaissePrincipale = {
-                            operateur: operateur,
+                            operateur: operateurValue,
                             groupe: 'les_deux_groupes',
                             typeOperation: 'travailleur_global',
                             typeTransaction: 'frais',
-                            caisse: caisse,
+                            caisse: caisseValue,
                             montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
+                            description: `${descriptionValue} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -913,13 +976,13 @@ class GestionFermeApp {
 
                         // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
                         const operationZaitoun = {
-                            operateur: operateur,
+                            operateur: operateurValue,
                             groupe: 'zaitoun',
                             typeOperation: 'zaitoun',
                             typeTransaction: 'frais',
                             caisse: 'zaitoun_caisse',
                             montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
+                            description: `${descriptionValue} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -928,13 +991,13 @@ class GestionFermeApp {
 
                         // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
                         const operationCommain = {
-                            operateur: operateur,
+                            operateur: operateurValue,
                             groupe: '3commain',
                             typeOperation: '3commain',
                             typeTransaction: 'frais',
                             caisse: '3commain_caisse',
                             montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                            description: `${descriptionValue} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -952,26 +1015,26 @@ class GestionFermeApp {
                         await window.firebaseSync.addDocument('operations', operationZaitoun);
                         await window.firebaseSync.addDocument('operations', operationCommain);
                         
-                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisseValue} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
 
                     } 
                     // CAS FRAIS NORMAL (pour un seul groupe)
                     else {
                         console.log('💰 FRAIS NORMAL:', {
                             total: montantTotal,
-                            caisse_principale: caisse,
-                            groupe: groupe
+                            caisse_principale: caisseValue,
+                            groupe: groupeValue
                         });
 
                         // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                         const operationCaissePrincipale = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
+                            operateur: operateurValue,
+                            groupe: groupeValue,
+                            typeOperation: typeOperationValue,
                             typeTransaction: 'frais',
-                            caisse: caisse,
+                            caisse: caisseValue,
                             montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais payé par ${caisse}`,
+                            description: `${descriptionValue} - Frais payé par ${caisseValue}`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -980,28 +1043,28 @@ class GestionFermeApp {
                         // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
                         let operationGroupe = null;
                         
-                        if (groupe === 'zaitoun') {
+                        if (groupeValue === 'zaitoun') {
                             operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
+                                operateur: operateurValue,
+                                groupe: groupeValue,
+                                typeOperation: typeOperationValue,
                                 typeTransaction: 'frais',
                                 caisse: 'zaitoun_caisse',
                                 montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour Zaitoun`,
+                                description: `${descriptionValue} - Frais pour Zaitoun`,
                                 timestamp: new Date().toISOString(),
                                 userId: this.currentUser.uid,
                                 userEmail: this.currentUser.email
                             };
-                        } else if (groupe === '3commain') {
+                        } else if (groupeValue === '3commain') {
                             operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
+                                operateur: operateurValue,
+                                groupe: groupeValue,
+                                typeOperation: typeOperationValue,
                                 typeTransaction: 'frais',
                                 caisse: '3commain_caisse',
                                 montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour 3 Commain`,
+                                description: `${descriptionValue} - Frais pour 3 Commain`,
                                 timestamp: new Date().toISOString(),
                                 userId: this.currentUser.uid,
                                 userEmail: this.currentUser.email
@@ -1019,24 +1082,24 @@ class GestionFermeApp {
                             await window.firebaseSync.addDocument('operations', operationGroupe);
                         }
                         
-                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
+                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisseValue} a payé ${montantTotal} DH pour ${groupeValue}`, 'success');
                     }
 
                 } 
                 // CAS REVENU (pour TOUS les types d'opérations)
-                else if (typeTransaction === 'revenu') {
+                else if (typeTransactionValue === 'revenu') {
                     
                     // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                    if (typeOperationValue === 'travailleur_global' && groupeValue === 'les_deux_groupes') {
                         // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                         const operation = {
-                            operateur: operateur,
+                            operateur: operateurValue,
                             groupe: 'les_deux_groupes',
                             typeOperation: 'travailleur_global',
                             typeTransaction: 'revenu',
-                            caisse: caisse,
+                            caisse: caisseValue,
                             montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
+                            description: `${descriptionValue} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -1045,20 +1108,20 @@ class GestionFermeApp {
                         console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
                         
                         await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisseValue} pour les deux groupes`, 'success');
 
                     } 
                     // CAS REVENU NORMAL (pour un seul groupe)
                     else {
                         // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                         const operation = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
+                            operateur: operateurValue,
+                            groupe: groupeValue,
+                            typeOperation: typeOperationValue,
                             typeTransaction: 'revenu',
-                            caisse: caisse,
+                            caisse: caisseValue,
                             montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: description,
+                            description: descriptionValue,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -1067,7 +1130,7 @@ class GestionFermeApp {
                         console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
                         
                         await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisseValue} pour ${groupeValue}`, 'success');
                     }
                 }
                 
@@ -1095,17 +1158,25 @@ class GestionFermeApp {
             return;
         }
         
-        const caisseSource = document.getElementById('caisseSource').value;
-        const caisseDestination = document.getElementById('caisseDestination').value;
+        const caisseSource = document.getElementById('caisseSource');
+        const caisseDestination = document.getElementById('caisseDestination');
         
-        if (caisseSource === caisseDestination) {
+        if (!caisseSource || !caisseDestination) {
+            this.showMessage('❌ Erreur: Champs de transfert manquants', 'error');
+            return;
+        }
+        
+        const caisseSourceValue = caisseSource.value;
+        const caisseDestinationValue = caisseDestination.value;
+        
+        if (caisseSourceValue === caisseDestinationValue) {
             this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
             return;
         }
         
         const transfert = {
-            caisseSource: caisseSource,
-            caisseDestination: caisseDestination,
+            caisseSource: caisseSourceValue,
+            caisseDestination: caisseDestinationValue,
             montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
             descriptionTransfert: document.getElementById('descriptionTransfert').value,
             operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
@@ -1196,14 +1267,17 @@ class GestionFermeApp {
         }
         
         // Trouver l'opération
-        const operation = this.operations.find(op => op.id === operationId);
+        const operation = this.operations.find(op => op && op.id === operationId);
         if (!operation) {
             this.showMessage('❌ Opération non trouvée', 'error');
             return;
         }
         
         // Vérifier les permissions
-        const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
+        const canDelete = window.firebaseAuthFunctions && 
+                         window.firebaseAuthFunctions.canModifyOperation ? 
+                         window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser) : false;
+        
         if (!canDelete) {
             this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
             return;
@@ -1233,14 +1307,17 @@ class GestionFermeApp {
         }
         
         // Trouver l'opération
-        const operation = this.operations.find(op => op.id === operationId);
+        const operation = this.operations.find(op => op && op.id === operationId);
         if (!operation) {
             this.showMessage('❌ Opération non trouvée', 'error');
             return;
         }
         
         // Vérifier les permissions
-        const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
+        const canEdit = window.firebaseAuthFunctions && 
+                       window.firebaseAuthFunctions.canModifyOperation ? 
+                       window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser) : false;
+        
         if (!canEdit) {
             this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
             return;
@@ -1341,7 +1418,9 @@ class GestionFermeApp {
         
         // Gérer la soumission du formulaire
         const editForm = document.getElementById('editForm');
-        editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
+        }
         
         this.currentEditModal = modal;
     }
@@ -1414,10 +1493,12 @@ class GestionFermeApp {
             let successCount = 0;
             let errorCount = 0;
             
-            for (const operationId of this.selectedOperations) {
+        for (const operationId of this.selectedOperations) {
                 try {
-                    const operation = this.operations.find(op => op.id === operationId);
-                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+                    const operation = this.operations.find(op => op && op.id === operationId);
+                    if (operation && window.firebaseAuthFunctions && 
+                        window.firebaseAuthFunctions.canModifyOperation &&
+                        window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
                         await window.firebaseSync.deleteDocument('operations', operationId);
                         successCount++;
                     } else {
