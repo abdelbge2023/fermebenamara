@@ -785,7 +785,7 @@ class GestionFermeApp {
     }
 }
 
-   async handleNouvelleOperation(e) {
+  async handleNouvelleOperation(e) {
     e.preventDefault();
     console.log('➕ Nouvelle opération en cours...');
     
@@ -798,7 +798,7 @@ class GestionFermeApp {
     const typeOperation = document.getElementById('typeOperation').value;
     const groupe = document.getElementById('groupe').value;
     const typeTransaction = document.getElementById('typeTransaction').value;
-    const caisse = document.getElementById('caisse').value; // CAISSE QUI PAIE
+    const caisse = document.getElementById('caisse').value; // CAISSE CONCERNÉE
     const montantTotal = parseFloat(document.getElementById('montant').value);
     const description = document.getElementById('description').value.trim();
     
@@ -815,92 +815,194 @@ class GestionFermeApp {
     
     try {
         if (window.firebaseSync) {
-            // CAS TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-            if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                // Calcul des parts 1/3 et 2/3
-                const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
-                const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
+            // CAS FRAIS (pour TOUS les types d'opérations)
+            if (typeTransaction === 'frais') {
                 
-                console.log('💰 RÉPARTITION 1/3 - 2/3:', {
-                    total: montantTotal,
-                    caisse_payante: caisse,
-                    zaitoun: montantZaitoun,
-                    commain: montantCommain
-                });
+                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                    // Calcul des parts 1/3 et 2/3
+                    const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
+                    const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
+                    
+                    console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
+                        total: montantTotal,
+                        caisse_principale: caisse,
+                        zaitoun: montantZaitoun,
+                        commain: montantCommain
+                    });
 
-                // CRÉATION DE DEUX OPÉRATIONS DISTINCTES AVEC LA MÊME CAISSE
+                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total)
+                    const operationCaissePrincipale = {
+                        operateur: operateur,
+                        groupe: 'les_deux_groupes',
+                        typeOperation: 'travailleur_global',
+                        typeTransaction: 'frais',
+                        caisse: caisse, // CAISSE QUI PAIE
+                        montant: -montantTotal, // MONTANT TOTAL en négatif
+                        description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
 
-                // 1. OPÉRATION POUR ZAITOUN (1/3)
-                const operationZaitoun = {
-                    operateur: operateur,
-                    groupe: 'zaitoun',
-                    typeOperation: 'zaitoun',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse, // MÊME CAISSE POUR LES DEUX
-                    montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                    description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
-                    timestamp: new Date().toISOString(),
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email,
-                    repartition: {
-                        type: 'travailleur_global',
-                        part: 'zaitoun',
-                        montant_original: montantTotal,
-                        pourcentage: '33.3%'
+                    // 2. RÉPARTITION POUR ZAITOUN (1/3)
+                    const operationZaitoun = {
+                        operateur: operateur,
+                        groupe: 'zaitoun',
+                        typeOperation: 'zaitoun',
+                        typeTransaction: 'frais',
+                        caisse: 'zaitoun_caisse', // CAISSE ZAITOUN
+                        montant: -montantZaitoun, // 1/3 en négatif
+                        description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email,
+                        repartition: true
+                    };
+
+                    // 3. RÉPARTITION POUR 3 COMMAIN (2/3)
+                    const operationCommain = {
+                        operateur: operateur,
+                        groupe: '3commain',
+                        typeOperation: '3commain',
+                        typeTransaction: 'frais',
+                        caisse: '3commain_caisse', // CAISSE 3 COMMAIN
+                        montant: -montantCommain, // 2/3 en négatif
+                        description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email,
+                        repartition: true
+                    };
+
+                    console.log('📝 FRAIS - 3 OPÉRATIONS:', {
+                        principale: operationCaissePrincipale,
+                        zaitoun: operationZaitoun,
+                        commain: operationCommain
+                    });
+
+                    // ENREGISTREMENT DES 3 OPÉRATIONS
+                    await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                    await window.firebaseSync.addDocument('operations', operationZaitoun);
+                    await window.firebaseSync.addDocument('operations', operationCommain);
+                    
+                    this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+
+                } 
+                // CAS FRAIS NORMAL (pour un seul groupe)
+                else {
+                    console.log('💰 FRAIS NORMAL:', {
+                        total: montantTotal,
+                        caisse_principale: caisse,
+                        groupe: groupe
+                    });
+
+                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total)
+                    const operationCaissePrincipale = {
+                        operateur: operateur,
+                        groupe: groupe,
+                        typeOperation: typeOperation,
+                        typeTransaction: 'frais',
+                        caisse: caisse, // CAISSE QUI PAIE
+                        montant: -montantTotal, // MONTANT TOTAL en négatif
+                        description: `${description} - Frais payé par ${caisse}`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+
+                    // 2. FRAIS POUR LA CAISSE DU GROUPE
+                    let operationGroupe = null;
+                    
+                    if (groupe === 'zaitoun') {
+                        operationGroupe = {
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
+                            typeTransaction: 'frais',
+                            caisse: 'zaitoun_caisse', // CAISSE DU GROUPE
+                            montant: -montantTotal, // MONTANT TOTAL en négatif
+                            description: `${description} - Frais pour Zaitoun`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+                    } else if (groupe === '3commain') {
+                        operationGroupe = {
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
+                            typeTransaction: 'frais',
+                            caisse: '3commain_caisse', // CAISSE DU GROUPE
+                            montant: -montantTotal, // MONTANT TOTAL en négatif
+                            description: `${description} - Frais pour 3 Commain`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
                     }
-                };
 
-                // 2. OPÉRATION POUR 3 COMMAIN (2/3)
-                const operationCommain = {
-                    operateur: operateur,
-                    groupe: '3commain',
-                    typeOperation: '3commain',
-                    typeTransaction: typeTransaction,
-                    caisse: caisse, // MÊME CAISSE POUR LES DEUX
-                    montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
-                    description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
-                    timestamp: new Date().toISOString(),
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email,
-                    repartition: {
-                        type: 'travailleur_global',
-                        part: '3commain',
-                        montant_original: montantTotal,
-                        pourcentage: '66.7%'
+                    console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS:', {
+                        principale: operationCaissePrincipale,
+                        groupe: operationGroupe
+                    });
+
+                    // ENREGISTREMENT DES 2 OPÉRATIONS
+                    await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                    if (operationGroupe) {
+                        await window.firebaseSync.addDocument('operations', operationGroupe);
                     }
-                };
-
-                console.log('📝 ENREGISTREMENT DES DEUX OPÉRATIONS:', {
-                    zaitoun: operationZaitoun,
-                    commain: operationCommain
-                });
-
-                // ENREGISTREMENT DES DEUX OPÉRATIONS
-                await window.firebaseSync.addDocument('operations', operationZaitoun);
-                await window.firebaseSync.addDocument('operations', operationCommain);
-                
-                this.showMessage(`✅ RÉPARTITION EFFECTUÉE! ${caisse} a payé: Zaitoun ${montantZaitoun} DH (1/3) + 3 Commain ${montantCommain} DH (2/3)`, 'success');
+                    
+                    this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
+                }
 
             } 
-            // CAS OPÉRATION NORMALE (UN SEUL GROUPE)
-            else {
-                const operation = {
-                    operateur: operateur,
-                    groupe: groupe,
-                    typeOperation: typeOperation,
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    montant: typeTransaction === 'frais' ? -montantTotal : montantTotal,
-                    description: description,
-                    timestamp: new Date().toISOString(),
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email
-                };
+            // CAS REVENU (pour TOUS les types d'opérations)
+            else if (typeTransaction === 'revenu') {
                 
-                console.log('📝 ENREGISTREMENT OPÉRATION NORMALE:', operation);
-                
-                await window.firebaseSync.addDocument('operations', operation);
-                this.showMessage('✅ Opération enregistrée avec succès', 'success');
+                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                    // REVENU : Seulement sur la caisse concernée
+                    const operation = {
+                        operateur: operateur,
+                        groupe: 'les_deux_groupes',
+                        typeOperation: 'travailleur_global',
+                        typeTransaction: 'revenu',
+                        caisse: caisse, // SEULEMENT SUR LA CAISSE CONCERNÉE
+                        montant: montantTotal, // MONTANT TOTAL
+                        description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+
+                    console.log('📝 REVENU - 1 OPÉRATION:', operation);
+                    
+                    await window.firebaseSync.addDocument('operations', operation);
+                    this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
+
+                } 
+                // CAS REVENU NORMAL (pour un seul groupe)
+                else {
+                    // REVENU : Seulement sur la caisse concernée
+                    const operation = {
+                        operateur: operateur,
+                        groupe: groupe,
+                        typeOperation: typeOperation,
+                        typeTransaction: 'revenu',
+                        caisse: caisse, // SEULEMENT SUR LA CAISSE CONCERNÉE
+                        montant: montantTotal, // MONTANT TOTAL
+                        description: description,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email
+                    };
+
+                    console.log('📝 REVENU NORMAL - 1 OPÉRATION:', operation);
+                    
+                    await window.firebaseSync.addDocument('operations', operation);
+                    this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
+                }
             }
             
             // Réinitialisation du formulaire
@@ -1607,6 +1709,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
