@@ -15,149 +15,209 @@ class GestionFermeApp {
         this.initEventListeners();
         this.setupAuthHandlers();
     }
-// CORRECTION DE LA MÉTHODE showManual - À AJOUTER DANS LA CLASSE GestionFermeApp
 
-// MÉTHODE showManual COMPLÈTE AVEC MANUEL D'UTILISATION ET CALCULS
+// MÉTHODE showManual COMPLÈTEMENT CORRIGÉE
 showManual() {
     console.log('📖 Affichage du manuel complet');
     
+    // Supprimer toute modale existante
+    const existingModal = document.querySelector('.modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
     const manualModal = document.createElement('div');
-    manualModal.className = 'modal';
+    manualModal.className = 'manual-modal';
     manualModal.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0,0,0,0.8);
+        background: rgba(0,0,0,0.9);
         display: flex;
         justify-content: center;
-        align-items: center;
-        z-index: 1000;
+        align-items: flex-start;
+        z-index: 10000;
         overflow-y: auto;
         padding: 20px;
+        font-family: Arial, sans-serif;
     `;
     
     manualModal.innerHTML = `
-        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
-                <h2 style="margin: 0; color: #2c3e50;">📚 MANUEL COMPLET - GESTION FERME BEN AMARA</h2>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">×</button>
+        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 1200px; width: 95%; max-height: 95vh; overflow-y: auto; box-shadow: 0 10px 50px rgba(0,0,0,0.5); position: relative;">
+            <!-- BOUTON FERMETURE -->
+            <button onclick="this.closest('.manual-modal').remove()" style="position: absolute; top: 15px; right: 15px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10001;">×</button>
+            
+            <!-- EN-TÊTE -->
+            <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #3498db;">
+                <h1 style="margin: 0 0 10px 0; color: #2c3e50; font-size: 28px;">📚 MANUEL COMPLET</h1>
+                <h2 style="margin: 0; color: #3498db; font-size: 22px;">Gestion Ferme Ben Amara</h2>
+                <p style="color: #7f8c8d; margin: 10px 0 0 0;">Guide d'utilisation et système de calcul</p>
             </div>
 
             <!-- MENU DE NAVIGATION -->
-            <div style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
-                <button onclick="this.scrollToSection('utilisation')" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">🚀 Utilisation du Site</button>
-                <button onclick="this.scrollToSection('calculs')" style="padding: 10px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer;">🧮 Calculs des Caisses</button>
-                <button onclick="this.scrollToSection('fonctions')" style="padding: 10px 15px; background: #9b59b6; color: white; border: none; border-radius: 5px; cursor: pointer;">⚙️ Fonctions Avancées</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 30px; flex-wrap: wrap; justify-content: center;">
+                <button class="nav-btn" data-section="utilisation" style="padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: all 0.3s;">🚀 Utilisation du Site</button>
+                <button class="nav-btn" data-section="calculs" style="padding: 12px 20px; background: #27ae60; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: all 0.3s;">🧮 Calculs des Caisses</button>
+                <button class="nav-btn" data-section="fonctions" style="padding: 12px 20px; background: #9b59b6; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: bold; transition: all 0.3s;">⚙️ Fonctions Avancées</button>
+            </div>
+
+            <!-- INDICATEUR DE SECTION ACTIVE -->
+            <div id="section-indicator" style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #3498db; font-size: 18px;">
+                🚀 Utilisation du Site
             </div>
 
             <!-- PARTIE 1 : UTILISATION DU SITE -->
-            <div id="section-utilisation" style="margin-bottom: 40px;">
-                <h3 style="color: #3498db; border-left: 4px solid #3498db; padding-left: 10px; margin-bottom: 20px;">🚀 GUIDE D'UTILISATION DU SITE</h3>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #2980b9; margin-bottom: 15px;">🔐 CONNEXION AU SYSTÈME</h4>
-                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
-                        <p><strong>Étapes :</strong></p>
-                        <ol>
-                            <li>Renseignez votre email et mot de passe</li>
-                            <li>Cliquez sur "Se connecter"</li>
-                            <li>Le système configure automatiquement votre profil</li>
-                            <li>Vous êtes redirigé vers le tableau de bord</li>
-                        </ol>
-                        <p><strong>💡 Astuce :</strong> Votre opérateur est automatiquement détecté selon votre email</p>
-                    </div>
+            <div id="section-utilisation" class="manual-section" style="display: block;">
+                <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                    <h3 style="margin: 0; font-size: 24px;">🚀 GUIDE D'UTILISATION DU SITE</h3>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Apprenez à utiliser toutes les fonctionnalités principales</p>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #2980b9; margin-bottom: 15px;">➕ SAISIE D'UNE NOUVELLE OPÉRATION</h4>
-                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
-                        <p><strong>Formulaire principal :</strong></p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                <!-- CONNEXION -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #2980b9; padding-left: 10px;">🔐 CONNEXION AU SYSTÈME</h4>
+                    <div style="background: #e8f4fd; padding: 25px; border-radius: 10px; border: 2px solid #3498db;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                             <div>
-                                <p><strong>Champs obligatoires :</strong></p>
-                                <ul>
-                                    <li>👤 Opérateur (automatique)</li>
-                                    <li>📋 Type d'opération</li>
-                                    <li>🏷️ Groupe concerné</li>
-                                    <li>💰 Type de transaction</li>
-                                </ul>
+                                <h5 style="color: #2980b9; margin-top: 0;">📝 Étapes de connexion :</h5>
+                                <ol style="margin: 0; padding-left: 20px;">
+                                    <li><strong>Renseignez votre email</strong> professionnel</li>
+                                    <li><strong>Entrez votre mot de passe</strong></li>
+                                    <li><strong>Cliquez sur "Se connecter"</strong></li>
+                                    <li><strong>Attendez la redirection</strong> automatique</li>
+                                </ol>
                             </div>
                             <div>
-                                <p><strong>Suite :</strong></p>
-                                <ul>
-                                    <li>🏦 Caisse impactée</li>
-                                    <li>💵 Montant (DH)</li>
-                                    <li>📝 Description</li>
+                                <h5 style="color: #2980b9; margin-top: 0;">✅ Ce qui se passe :</h5>
+                                <ul style="margin: 0; padding-left: 20px;">
+                                    <li>Vérification des identifiants</li>
+                                    <li>Configuration automatique du profil</li>
+                                    <li>Chargement des données en temps réel</li>
+                                    <li>Affichage du tableau de bord</li>
                                 </ul>
                             </div>
                         </div>
-                        <p><strong>⚠️ Important :</strong> Pour "Travailleur Global + Les Deux Groupes", la répartition 1/3-2/3 est automatique</p>
+                        <div style="background: #d6eaf8; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db;">
+                            <strong>💡 Astuce importante :</strong> Votre opérateur (Abdel, Omar, Hicham) est automatiquement détecté selon votre email. Vous n'avez pas à le sélectionner manuellement !
+                        </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #2980b9; margin-bottom: 15px;">🔄 EFFECTUER UN TRANSFERT</h4>
-                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
-                        <p><strong>Onglet "Transfert" :</strong></p>
-                        <ol>
-                            <li>Sélectionnez la caisse source</li>
-                            <li>Sélectionnez la caisse destination</li>
-                            <li>Entrez le montant du transfert</li>
-                            <li>Ajoutez une description</li>
-                            <li>Cliquez sur "Effectuer le transfert"</li>
-                        </ol>
-                        <p><strong>✅ Validation :</strong> Le système vérifie automatiquement les fonds disponibles</p>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #2980b9; margin-bottom: 15px;">📊 NAVIGATION ENTRE LES VUES</h4>
-                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- SAISIE OPÉRATION -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #2980b9; padding-left: 10px;">➕ SAISIE D'UNE NOUVELLE OPÉRATION</h4>
+                    <div style="background: #e8f4fd; padding: 25px; border-radius: 10px; border: 2px solid #3498db;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
                             <div>
-                                <p><strong>Onglets disponibles :</strong></p>
-                                <ul>
-                                    <li>🌍 Toutes les opérations</li>
-                                    <li>🫒 Zaitoun</li>
-                                    <li>🔧 3 Commain</li>
-                                    <li>👨‍💼 Abdel</li>
-                                </ul>
+                                <h5 style="color: #2980b9; margin-top: 0;">📋 Champs obligatoires :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>👤 Opérateur :</strong> Automatique selon connexion</p>
+                                    <p><strong>📋 Type d'opération :</strong> Travailleur Global, Zaitoun, 3 Commain</p>
+                                    <p><strong>🏷️ Groupe :</strong> Zaitoun, 3 Commain, Les Deux Groupes</p>
+                                    <p><strong>💰 Transaction :</strong> Revenu ou Frais</p>
+                                </div>
                             </div>
                             <div>
-                                <p><strong>Suite :</strong></p>
-                                <ul>
-                                    <li>👨‍💻 Omar</li>
-                                    <li>👨‍🔧 Hicham</li>
-                                    <li>🔄 Transferts</li>
-                                    <li>👥 Les Deux Groupes</li>
-                                </ul>
+                                <h5 style="color: #2980b9; margin-top: 0;">🎯 Suite des champs :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🏦 Caisse :</strong> Caisse impactée par l'opération</p>
+                                    <p><strong>💵 Montant :</strong> Montant en DH (obligatoire)</p>
+                                    <p><strong>📝 Description :</strong> Explication de l'opération</p>
+                                </div>
                             </div>
                         </div>
-                        <p><strong>💡 Fonctionnalité :</strong> Chaque vue montre les totaux spécifiques</p>
+                        
+                        <div style="background: #d6eaf8; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                            <strong>⚠️ Cas spécial - Répartition automatique :</strong> Quand vous sélectionnez "Travailleur Global" + "Les Deux Groupes", le système calcule et crée AUTOMATIQUEMENT 2 opérations avec répartition 1/3 pour Zaitoun et 2/3 pour 3 Commain.
+                        </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #2980b9; margin-bottom: 15px;">✏️ GESTION DES OPÉRATIONS</h4>
-                    <div style="background: #e8f4fd; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- TRANSFERTS -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #2980b9; padding-left: 10px;">🔄 EFFECTUER UN TRANSFERT</h4>
+                    <div style="background: #e8f4fd; padding: 25px; border-radius: 10px; border: 2px solid #3498db;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div>
-                                <p><strong>Édition simple :</strong></p>
-                                <ul>
-                                    <li>Cliquez sur <strong>✏️</strong> pour modifier</li>
-                                    <li>Modifiez les champs nécessaires</li>
-                                    <li>Sauvegardez les changements</li>
-                                </ul>
+                                <h5 style="color: #2980b9; margin-top: 0;">📝 Procédure complète :</h5>
+                                <ol style="margin: 0; padding-left: 20px;">
+                                    <li><strong>Allez dans l'onglet "Transfert"</strong></li>
+                                    <li><strong>Sélectionnez la caisse source</strong> (qui envoie l'argent)</li>
+                                    <li><strong>Sélectionnez la caisse destination</strong> (qui reçoit l'argent)</li>
+                                    <li><strong>Entrez le montant</strong> du transfert</li>
+                                    <li><strong>Ajoutez une description</strong> explicative</li>
+                                    <li><strong>Cliquez sur "Effectuer le transfert"</strong></li>
+                                </ol>
                             </div>
                             <div>
-                                <p><strong>Mode édition avancé :</strong></p>
-                                <ul>
-                                    <li>Activez le <strong>Mode Édition</strong></li>
-                                    <li>Sélectionnez plusieurs opérations</li>
-                                    <li>Supprimez en masse avec <strong>🗑️ Supprimer (X)</strong></li>
-                                </ul>
+                                <h5 style="color: #2980b9; margin-top: 0;">🔒 Sécurité intégrée :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>✅ Vérification des fonds :</strong> Le système vérifie que la caisse source a suffisamment d'argent</p>
+                                    <p><strong>✅ Validation :</strong> Impossible de transférer vers la même caisse</p>
+                                    <p><strong>✅ Traçabilité :</strong> Tous les transferts sont enregistrés et traçables</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NAVIGATION -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #2980b9; padding-left: 10px;">📊 NAVIGATION ENTRE LES VUES</h4>
+                    <div style="background: #e8f4fd; padding: 25px; border-radius: 10px; border: 2px solid #3498db;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <h5 style="color: #2980b9; margin-top: 0;">🌍 Vues disponibles :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🌍 Toutes les opérations :</strong> Vue complète de tout</p>
+                                    <p><strong>🫒 Zaitoun :</strong> Opérations du groupe Zaitoun</p>
+                                    <p><strong>🔧 3 Commain :</strong> Opérations du groupe 3 Commain</p>
+                                    <p><strong>👨‍💼 Abdel :</strong> Opérations d'Abdel</p>
+                                    <p><strong>👨‍💻 Omar :</strong> Opérations d'Omar</p>
+                                    <p><strong>👨‍🔧 Hicham :</strong> Opérations d'Hicham</p>
+                                    <p><strong>🔄 Transferts :</strong> Tous les transferts entre caisses</p>
+                                    <p><strong>👥 Les Deux Groupes :</strong> Opérations pour les deux groupes</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 style="color: #2980b9; margin-top: 0;">📈 Fonctionnalités des vues :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>💰 Totaux spécifiques :</strong> Chaque vue montre ses propres totaux</p>
+                                    <p><strong>📊 Statistiques :</strong> Revenus, dépenses, solde net</p>
+                                    <p><strong>🔍 Filtrage automatique :</strong> Données filtrées selon la vue</p>
+                                    <p><strong>📱 Interface adaptative :</strong> Affichage optimisé pour chaque vue</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GESTION OPÉRATIONS -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2980b9; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #2980b9; padding-left: 10px;">✏️ GESTION DES OPÉRATIONS</h4>
+                    <div style="background: #e8f4fd; padding: 25px; border-radius: 10px; border: 2px solid #3498db;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h5 style="color: #2980b9; margin-top: 0;">🛠️ Édition simple :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>1. Repérez l'opération</strong> à modifier dans le tableau</p>
+                                    <p><strong>2. Cliquez sur le bouton</strong> <span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 3px;">✏️</span></p>
+                                    <p><strong>3. Modifiez les champs</strong> dans la fenêtre qui s'ouvre</p>
+                                    <p><strong>4. Cliquez sur "Enregistrer"</strong> pour valider</p>
+                                    <p><strong>5. Les données sont mises à jour</strong> automatiquement</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 style="color: #2980b9; margin-top: 0;">⚡ Mode édition avancé :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>1. Activez le</strong> <span style="background: #f39c12; color: white; padding: 2px 6px; border-radius: 3px;">✏️ Mode Édition</span></p>
+                                    <p><strong>2. Cochez les cases</strong> des opérations à modifier</p>
+                                    <p><strong>3. Utilisez "Tout sélectionner"</strong> pour sélectionner toutes</p>
+                                    <p><strong>4. Cliquez sur</strong> <span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 3px;">🗑️ Supprimer (X)</span></p>
+                                    <p><strong>5. Confirmez la suppression</strong> groupée</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -165,195 +225,284 @@ showManual() {
             </div>
 
             <!-- PARTIE 2 : CALCULS DES CAISSES -->
-            <div id="section-calculs" style="margin-bottom: 40px;">
-                <h3 style="color: #27ae60; border-left: 4px solid #27ae60; padding-left: 10px; margin-bottom: 20px;">🧮 SYSTÈME DE CALCUL DES CAISSES</h3>
+            <div id="section-calculs" class="manual-section" style="display: none;">
+                <div style="background: linear-gradient(135deg, #27ae60, #229954); color: white; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                    <h3 style="margin: 0; font-size: 24px;">🧮 SYSTÈME DE CALCUL DES CAISSES</h3>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Comprenez comment les soldes sont calculés automatiquement</p>
+                </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #229954; margin-bottom: 15px;">🏦 ARCHITECTURE DES CAISSES</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
-                            <h5 style="margin-top: 0; color: #27ae60;">👨‍💼 Caisses Personnelles</h5>
-                            <ul style="margin: 0;">
-                                <li><strong>Caisse Abdel</strong> (abdel_caisse)</li>
-                                <li><strong>Caisse Omar</strong> (omar_caisse)</li>
-                                <li><strong>Caisse Hicham</strong> (hicham_caisse)</li>
-                            </ul>
+                <!-- ARCHITECTURE CAISSES -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #229954; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #229954; padding-left: 10px;">🏦 ARCHITECTURE DES CAISSES</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; border: 2px solid #27ae60;">
+                            <h5 style="color: #229954; margin-top: 0; text-align: center;">👨‍💼 CAISSES PERSONNELLES</h5>
+                            <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                <p><strong>👨‍💼 Caisse Abdel</strong><br><small>Code : abdel_caisse</small></p>
+                                <p><strong>👨‍💻 Caisse Omar</strong><br><small>Code : omar_caisse</small></p>
+                                <p><strong>👨‍🔧 Caisse Hicham</strong><br><small>Code : hicham_caisse</small></p>
+                            </div>
                         </div>
-                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
-                            <h5 style="margin-top: 0; color: #27ae60;">🏢 Caisses de Groupes</h5>
-                            <ul style="margin: 0;">
-                                <li><strong>🫒 Caisse Zaitoun</strong> (zaitoun_caisse)</li>
-                                <li><strong>🔧 Caisse 3 Commain</strong> (3commain_caisse)</li>
-                            </ul>
+                        <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; border: 2px solid #27ae60;">
+                            <h5 style="color: #229954; margin-top: 0; text-align: center;">🏢 CAISSES DE GROUPES</h5>
+                            <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                <p><strong>🫒 Caisse Zaitoun</strong><br><small>Code : zaitoun_caisse</small></p>
+                                <p><strong>🔧 Caisse 3 Commain</strong><br><small>Code : 3commain_caisse</small></p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #229954; margin-bottom: 15px;">🧮 FORMULE DE CALCUL</h4>
-                    <div style="background: #d4efdf; padding: 20px; border-radius: 8px; text-align: center;">
-                        <p style="font-family: monospace; font-size: 20px; font-weight: bold; color: #196f3d;">
+                <!-- FORMULE CALCUL -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #229954; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #229954; padding-left: 10px;">🧮 FORMULE DE CALCUL PRINCIPALE</h4>
+                    <div style="background: #d4efdf; padding: 30px; border-radius: 10px; text-align: center; border: 2px solid #27ae60;">
+                        <p style="font-family: 'Courier New', monospace; font-size: 22px; font-weight: bold; color: #196f3d; margin: 0;">
                             SOLDE = Σ(REVENUS) - Σ(FRAIS) - Σ(TRANSFERTS SORTANTS) + Σ(TRANSFERTS ENTRANTS)
                         </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-top: 20px;">
+                            <div style="background: #27ae60; color: white; padding: 10px; border-radius: 5px;">
+                                <strong>Σ(REVENUS)</strong><br>Somme revenus
+                            </div>
+                            <div style="background: #e74c3c; color: white; padding: 10px; border-radius: 5px;">
+                                <strong>Σ(FRAIS)</strong><br>Somme frais
+                            </div>
+                            <div style="background: #e67e22; color: white; padding: 10px; border-radius: 5px;">
+                                <strong>Σ(TRANSFERTS SORTANTS)</strong><br>Argent envoyé
+                            </div>
+                            <div style="background: #3498db; color: white; padding: 10px; border-radius: 5px;">
+                                <strong>Σ(TRANSFERTS ENTRANTS)</strong><br>Argent reçu
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #229954; margin-bottom: 15px;">🔀 RÉPARTITION AUTOMATIQUE</h4>
-                    <div style="background: #e8f5e8; padding: 20px; border-radius: 8px;">
+                <!-- RÉPARTITION -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #229954; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #229954; padding-left: 10px;">🔀 SYSTÈME DE RÉPARTITION AUTOMATIQUE</h4>
+                    <div style="background: #e8f5e8; padding: 25px; border-radius: 10px; border: 2px solid #27ae60;">
                         <p><strong>Cas spécial : Travailleur Global + Les Deux Groupes</strong></p>
-                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
-                            <p><strong>Exemple : Frais de 900 DH</strong></p>
-                            <p>🫒 <strong>Zaitoun (1/3)</strong> = 900 × 1/3 = <strong>300 DH</strong></p>
-                            <p>🔧 <strong>3 Commain (2/3)</strong> = 900 × 2/3 = <strong>600 DH</strong></p>
-                            <p><strong>→ 2 opérations créées automatiquement</strong></p>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #27ae60;">
+                            <h5 style="color: #229954; margin-top: 0;">📊 Exemple : Frais de 900 DH pour les deux groupes</h5>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 15px 0;">
+                                <div style="text-align: center; padding: 15px; background: #d4efdf; border-radius: 8px;">
+                                    <div style="font-size: 24px;">🫒</div>
+                                    <strong>ZAITOUN (1/3)</strong><br>
+                                    900 × 1/3 = <span style="color: #e74c3c; font-weight: bold;">300 DH</span>
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #d4efdf; border-radius: 8px;">
+                                    <div style="font-size: 24px;">🔧</div>
+                                    <strong>3 COMMAIN (2/3)</strong><br>
+                                    900 × 2/3 = <span style="color: #e74c3c; font-weight: bold;">600 DH</span>
+                                </div>
+                            </div>
+                            
+                            <div style="background: #f9ebea; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                                <strong>🎯 Résultat : 2 opérations créées automatiquement</strong>
+                                <p style="margin: 10px 0 0 0; font-size: 14px;">
+                                    • Caisse Zaitoun : -300 DH (Part Zaitoun - 1/3)<br>
+                                    • Caisse 3 Commain : -600 DH (Part 3 Commain - 2/3)
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EXEMPLE COMPLET -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #229954; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #229954; padding-left: 10px;">📈 EXEMPLE COMPLET DE CALCUL</h4>
+                    <div style="background: #e8f5e8; padding: 25px; border-radius: 10px; border: 2px solid #27ae60;">
+                        <div style="background: white; padding: 20px; border-radius: 8px;">
+                            <h5 style="color: #229954; margin-top: 0;">Scénario avec 3 opérations pour Caisse Abdel :</h5>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0;">
+                                <div style="text-align: center; padding: 15px; background: #d4efdf; border-radius: 5px;">
+                                    <strong>💰 Revenu</strong><br>
+                                    +2000 DH
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #fadbd8; border-radius: 5px;">
+                                    <strong>💸 Frais</strong><br>
+                                    -500 DH
+                                </div>
+                                <div style="text-align: center; padding: 15px; background: #d6eaf8; border-radius: 5px;">
+                                    <strong>🔄 Transfert</strong><br>
+                                    -300 DH
+                                </div>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 20px; padding: 20px; background: #2c3e50; color: white; border-radius: 8px;">
+                                <strong style="font-size: 20px;">CALCUL FINAL :</strong><br>
+                                <span style="font-size: 24px; font-weight: bold;">2000 - 500 - 300 = 1200 DH</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- PARTIE 3 : FONCTIONS AVANCÉES -->
-            <div id="section-fonctions" style="margin-bottom: 30px;">
-                <h3 style="color: #9b59b6; border-left: 4px solid #9b59b6; padding-left: 10px; margin-bottom: 20px;">⚙️ FONCTIONS AVANCÉES</h3>
+            <div id="section-fonctions" class="manual-section" style="display: none;">
+                <div style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                    <h3 style="margin: 0; font-size: 24px;">⚙️ FONCTIONS AVANCÉES</h3>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">Découvrez les fonctionnalités expertes du système</p>
+                </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #8e44ad; margin-bottom: 15px;">📊 TABLEAU DE BORD EN TEMPS RÉEL</h4>
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- TABLEAU DE BORD -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #8e44ad; padding-left: 10px;">📊 TABLEAU DE BORD EN TEMPS RÉEL</h4>
+                    <div style="background: #f4ecf7; padding: 25px; border-radius: 10px; border: 2px solid #9b59b6;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div>
-                                <p><strong>Fonctionnalités :</strong></p>
-                                <ul>
-                                    <li>✅ Soldes mis à jour instantanément</li>
-                                    <li>✅ Synchronisation multi-appareils</li>
-                                    <li>✅ Historique complet des opérations</li>
-                                    <li>✅ Filtrage par date et type</li>
-                                </ul>
+                                <h5 style="color: #8e44ad; margin-top: 0;">🚀 Fonctionnalités temps réel :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>✅ Mise à jour instantanée :</strong> Les soldes se mettent à jour immédiatement après chaque opération</p>
+                                    <p><strong>✅ Synchronisation multi-appareils :</strong> Les données sont synchronisées entre tous les appareils connectés</p>
+                                    <p><strong>✅ Historique complet :</strong> Accès à tout l'historique des opérations</p>
+                                    <p><strong>✅ Filtrage avancé :</strong> Filtrage par date, type, opérateur, groupe</p>
+                                </div>
                             </div>
                             <div>
-                                <p><strong>Indicateurs :</strong></p>
-                                <ul>
-                                    <li>📈 Solde positif (vert)</li>
-                                    <li>📉 Solde négatif (rouge)</li>
-                                    <li>📊 Nombre d'opérations</li>
-                                    <li>💰 Totaux par vue</li>
-                                </ul>
+                                <h5 style="color: #8e44ad; margin-top: 0;">🎯 Indicateurs visuels :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><span style="color: #27ae60; font-weight: bold;">📈 Solde positif :</span> Affiché en vert avec indicateur de croissance</p>
+                                    <p><span style="color: #e74c3c; font-weight: bold;">📉 Solde négatif :</span> Affiché en rouge avec indicateur de baisse</p>
+                                    <p><strong>📊 Compteurs :</strong> Nombre d'opérations, montants totaux</p>
+                                    <p><strong>💰 Résumés :</strong> Totaux détaillés pour chaque vue</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #8e44ad; margin-bottom: 15px;">📤 EXPORT DE DONNÉES</h4>
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0;">
-                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
-                                <strong>📄 Export Complet</strong>
-                                <p style="font-size: 12px; margin: 5px 0 0 0;">Toutes les données en Excel</p>
+                <!-- EXPORT -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #8e44ad; padding-left: 10px;">📤 EXPORT DE DONNÉES</h4>
+                    <div style="background: #f4ecf7; padding: 25px; border-radius: 10px; border: 2px solid #9b59b6;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; border: 2px solid #3498db;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">📄</div>
+                                <strong style="color: #3498db;">Export Complet</strong>
+                                <p style="margin: 10px 0 0 0; font-size: 14px; color: #7f8c8d;">Toutes les données système dans un fichier Excel structuré</p>
                             </div>
-                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
-                                <strong>👁️ Export Vue</strong>
-                                <p style="font-size: 12px; margin: 5px 0 0 0;">Données de la vue actuelle</p>
+                            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; border: 2px solid #27ae60;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">👁️</div>
+                                <strong style="color: #27ae60;">Export Vue Actuelle</strong>
+                                <p style="margin: 10px 0 0 0; font-size: 14px; color: #7f8c8d;">Seulement les données de la vue affichée actuellement</p>
                             </div>
-                            <div style="text-align: center; padding: 15px; background: white; border-radius: 5px;">
-                                <strong>📈 Rapport Détaillé</strong>
-                                <p style="font-size: 12px; margin: 5px 0 0 0;">Avec statistiques</p>
+                            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; border: 2px solid #9b59b6;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">📈</div>
+                                <strong style="color: #9b59b6;">Rapport Détaillé</strong>
+                                <p style="margin: 10px 0 0 0; font-size: 14px; color: #7f8c8d;">Avec statistiques avancées et analyses</p>
+                            </div>
+                        </div>
+                        <div style="background: #e8daef; padding: 15px; border-radius: 8px; text-align: center;">
+                            <strong>💡 Utilisation recommandée :</strong> Exportez régulièrement vos données pour sauvegarde et analyse externe
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMINISTRATION -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #8e44ad; padding-left: 10px;">🛠️ OUTILS D'ADMINISTRATION</h4>
+                    <div style="background: #f4ecf7; padding: 25px; border-radius: 10px; border: 2px solid #9b59b6;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <h5 style="color: #8e44ad; margin-top: 0;">🧹 Nettoyage et maintenance :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🗑️ Vider données locales :</strong> Supprime les données du navigateur uniquement</p>
+                                    <p><strong>🔥 Réinitialiser Firebase :</strong> Supprime TOUTES les données définitivement</p>
+                                    <p><strong>🔄 Resynchroniser :</strong> Force une resynchronisation avec le cloud</p>
+                                    <p><strong>📊 Recalculer :</strong> Recalcule tous les soldes manuellement</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 style="color: #8e44ad; margin-top: 0;">🔐 Sécurité et accès :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🔐 Authentification sécurisée :</strong> Connexion par email/mot de passe</p>
+                                    <p><strong>👥 Gestion des permissions :</strong> Chaque utilisateur a ses droits</p>
+                                    <p><strong>📱 Accès multi-appareils :</strong> Utilisation sur mobile, tablette, ordinateur</p>
+                                    <p><strong>🌐 Synchronisation cloud :</strong> Données accessibles partout</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #8e44ad; margin-bottom: 15px;">🛠️ OUTILS D'ADMINISTRATION</h4>
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <!-- RACCOURCIS -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #8e44ad; margin-bottom: 15px; font-size: 20px; border-left: 4px solid #8e44ad; padding-left: 10px;">🎯 RACCOURCIS ET ASTUCES</h4>
+                    <div style="background: #f4ecf7; padding: 25px; border-radius: 10px; border: 2px solid #9b59b6;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                             <div>
-                                <p><strong>Nettoyage :</strong></p>
-                                <ul>
-                                    <li>🗑️ Vider données locales</li>
-                                    <li>🔥 Réinitialiser Firebase</li>
-                                    <li>🔄 Resynchroniser</li>
-                                </ul>
+                                <h5 style="color: #8e44ad; margin-top: 0;">⚡ Navigation rapide :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🖱️ Cliquez sur une caisse :</strong> Pour voir son détail complet</p>
+                                    <p><strong>📱 Utilisez les onglets :</strong> Pour filtrer rapidement les données</p>
+                                    <p><strong>🔍 Mode édition :</strong> Pour actions groupées sur plusieurs opérations</p>
+                                    <p><strong>📊 Vues spécifiques :</strong> Pour analyser par groupe ou opérateur</p>
+                                </div>
                             </div>
                             <div>
-                                <p><strong>Sécurité :</strong></p>
-                                <ul>
-                                    <li>🔐 Authentification sécurisée</li>
-                                    <li>👥 Gestion des permissions</li>
-                                    <li>📱 Accès multi-appareils</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="color: #8e44ad; margin-bottom: 15px;">🎯 RACCOURCS ET ASTUCES</h4>
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div>
-                                <p><strong>Navigation rapide :</strong></p>
-                                <ul>
-                                    <li>Cliquez sur une caisse pour voir son détail</li>
-                                    <li>Utilisez les onglets pour filtrer</li>
-                                    <li>Mode édition pour actions groupées</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <p><strong>Productivité :</strong></p>
-                                <ul>
-                                    <li>Reset formulaire après saisie</li>
-                                    <li>Recherche dans l'historique</li>
-                                    <li>Export régulier pour backup</li>
-                                </ul>
+                                <h5 style="color: #8e44ad; margin-top: 0;">🚀 Productivité :</h5>
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <p><strong>🔄 Reset formulaire :</strong> Après chaque saisie pour gagner du temps</p>
+                                    <p><strong>🔍 Recherche :</strong> Utilisez la recherche dans l'historique</p>
+                                    <p><strong>💾 Export régulier :</strong> Pour backup et analyse externe</p>
+                                    <p><strong>📱 Mobile first :</strong> Interface optimisée pour mobile</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- RÉSUMÉ DES FONCTIONNALITÉS -->
-            <div style="background: #2c3e50; color: white; padding: 25px; border-radius: 8px; margin-top: 30px;">
-                <h4 style="margin: 0 0 20px 0; text-align: center; font-size: 20px;">🎯 RÉSUMÉ DES FONCTIONNALITÉS PRINCIPALES</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center;">
+            <!-- RÉSUMÉ VISUEL -->
+            <div style="background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 30px; border-radius: 10px; margin-top: 40px;">
+                <h4 style="margin: 0 0 25px 0; text-align: center; font-size: 24px;">🎯 SYNTHÈSE DES FONCTIONNALITÉS</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">➕</div>
-                        <p style="margin: 0; font-weight: bold;">Saisie Opérations</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Simple et rapide</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">➕</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Saisie Opérations</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Simple, rapide, intuitive</p>
                     </div>
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">🔄</div>
-                        <p style="margin: 0; font-weight: bold;">Transferts</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Entre caisses</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">🔄</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Transferts</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Entre caisses sécurisés</p>
                     </div>
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">📊</div>
-                        <p style="margin: 0; font-weight: bold;">Tableau de Bord</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Temps réel</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">📊</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Tableau de Bord</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Temps réel complet</p>
                     </div>
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">✏️</div>
-                        <p style="margin: 0; font-weight: bold;">Édition</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Simple et multiple</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">✏️</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Édition</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Simple et multiple</p>
                     </div>
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">📤</div>
-                        <p style="margin: 0; font-weight: bold;">Export</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Excel complet</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">📤</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Export Excel</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Complet et détaillé</p>
                     </div>
                     <div>
-                        <div style="font-size: 24px; margin-bottom: 10px;">🔐</div>
-                        <p style="margin: 0; font-weight: bold;">Sécurité</p>
-                        <p style="margin: 5px 0 0 0; font-size: 12px;">Authentification</p>
+                        <div style="font-size: 40px; margin-bottom: 10px;">🔐</div>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">Sécurité</p>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.8;">Authentification</p>
                     </div>
                 </div>
             </div>
 
             <!-- PIED DE PAGE -->
-            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ecf0f1;">
                 <p style="color: #7f8c8d; font-size: 14px; margin: 0;">
-                    📞 Support : Contactez l'administrateur système | 
-                    🕐 Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR')} |
-                    🔄 Version : 2.0
+                    <strong>📞 Support :</strong> Contactez l'administrateur système | 
+                    <strong>🕐 Dernière mise à jour :</strong> ${new Date().toLocaleDateString('fr-FR')} |
+                    <strong>🔄 Version :</strong> 2.0 Complète
+                </p>
+                <p style="color: #bdc3c7; font-size: 12px; margin: 10px 0 0 0;">
+                    © 2024 Gestion Ferme Ben Amara - Tous droits réservés
                 </p>
             </div>
         </div>
@@ -361,48 +510,83 @@ showManual() {
     
     document.body.appendChild(manualModal);
     
-    // Ajouter la fonction de navigation
-    manualModal.querySelectorAll('button[onclick*="scrollToSection"]').forEach(btn => {
-        btn.onclick = function() {
-            const sectionId = this.getAttribute('onclick').match(/'([^']+)'/)[1];
-            const section = document.getElementById(`section-${sectionId}`);
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // GESTION DE LA NAVIGATION
+    const navButtons = manualModal.querySelectorAll('.nav-btn');
+    const sections = manualModal.querySelectorAll('.manual-section');
+    const indicator = manualModal.querySelector('#section-indicator');
+    
+    navButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetSection = this.getAttribute('data-section');
+            
+            // Mettre à jour les boutons
+            navButtons.forEach(btn => {
+                btn.style.opacity = '0.7';
+                btn.style.transform = 'scale(0.95)';
+            });
+            this.style.opacity = '1';
+            this.style.transform = 'scale(1)';
+            
+            // Mettre à jour les sections
+            sections.forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            const activeSection = manualModal.querySelector(`#section-${targetSection}`);
+            if (activeSection) {
+                activeSection.style.display = 'block';
+                
+                // Mettre à jour l'indicateur
+                const sectionNames = {
+                    'utilisation': '🚀 Utilisation du Site',
+                    'calculs': '🧮 Calculs des Caisses', 
+                    'fonctions': '⚙️ Fonctions Avancées'
+                };
+                indicator.textContent = sectionNames[targetSection];
+                
+                // Animation d'apparition
+                activeSection.style.animation = 'fadeIn 0.5s ease-in';
             }
-        };
+        });
     });
     
-    // Fermer la modale en cliquant à l'extérieur
+    // Activer la première section par défaut
+    if (navButtons[0]) {
+        navButtons[0].style.opacity = '1';
+        navButtons[0].style.transform = 'scale(1)';
+    }
+    
+    // FERMETURE
     manualModal.addEventListener('click', (e) => {
         if (e.target === manualModal) {
             manualModal.remove();
         }
     });
     
-    // Fermer avec la touche Échap
+    // Touche Échap
     document.addEventListener('keydown', function closeOnEscape(e) {
         if (e.key === 'Escape') {
             manualModal.remove();
             document.removeEventListener('keydown', closeOnEscape);
         }
     });
-}
-    document.body.appendChild(manualModal);
     
-    // Fermer la modale en cliquant à l'extérieur
-    manualModal.addEventListener('click', (e) => {
-        if (e.target === manualModal) {
-            manualModal.remove();
+    // Ajouter le CSS pour l'animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-    });
-    
-    // Fermer avec la touche Échap
-    document.addEventListener('keydown', function closeOnEscape(e) {
-        if (e.key === 'Escape') {
-            manualModal.remove();
-            document.removeEventListener('keydown', closeOnEscape);
+        .manual-section {
+            animation: fadeIn 0.5s ease-in;
         }
-    });
+        .nav-btn:hover {
+            transform: scale(1.05) !important;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+    `;
+    document.head.appendChild(style);
 }
     initEventListeners() {
         // Écouteurs d'authentification
@@ -1832,6 +2016,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
