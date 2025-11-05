@@ -831,28 +831,28 @@ class GestionFermeApp {
                         commain: montantCommain
                     });
 
-                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total)
+                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                     const operationCaissePrincipale = {
                         operateur: operateur,
                         groupe: 'les_deux_groupes',
                         typeOperation: 'travailleur_global',
                         typeTransaction: 'frais',
                         caisse: caisse,
-                        montant: -montantTotal,
+                        montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
                         description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
                         userEmail: this.currentUser.email
                     };
 
-                    // 2. RÉPARTITION POUR ZAITOUN (1/3)
+                    // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
                     const operationZaitoun = {
                         operateur: operateur,
                         groupe: 'zaitoun',
                         typeOperation: 'zaitoun',
                         typeTransaction: 'frais',
                         caisse: 'zaitoun_caisse',
-                        montant: -montantZaitoun,
+                        montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
                         description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -860,14 +860,14 @@ class GestionFermeApp {
                         repartition: true
                     };
 
-                    // 3. RÉPARTITION POUR 3 COMMAIN (2/3)
+                    // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
                     const operationCommain = {
                         operateur: operateur,
                         groupe: '3commain',
                         typeOperation: '3commain',
                         typeTransaction: 'frais',
                         caisse: '3commain_caisse',
-                        montant: -montantCommain,
+                        montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
                         description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -875,7 +875,7 @@ class GestionFermeApp {
                         repartition: true
                     };
 
-                    console.log('📝 FRAIS - 3 OPÉRATIONS:', {
+                    console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
                         principale: operationCaissePrincipale,
                         zaitoun: operationZaitoun,
                         commain: operationCommain
@@ -897,21 +897,21 @@ class GestionFermeApp {
                         groupe: groupe
                     });
 
-                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total)
+                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                     const operationCaissePrincipale = {
                         operateur: operateur,
                         groupe: groupe,
                         typeOperation: typeOperation,
                         typeTransaction: 'frais',
                         caisse: caisse,
-                        montant: -montantTotal,
+                        montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
                         description: `${description} - Frais payé par ${caisse}`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
                         userEmail: this.currentUser.email
                     };
 
-                    // 2. FRAIS POUR LA CAISSE DU GROUPE
+                    // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
                     let operationGroupe = null;
                     
                     if (groupe === 'zaitoun') {
@@ -921,7 +921,7 @@ class GestionFermeApp {
                             typeOperation: typeOperation,
                             typeTransaction: 'frais',
                             caisse: 'zaitoun_caisse',
-                            montant: -montantTotal,
+                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
                             description: `${description} - Frais pour Zaitoun`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
@@ -934,7 +934,7 @@ class GestionFermeApp {
                             typeOperation: typeOperation,
                             typeTransaction: 'frais',
                             caisse: '3commain_caisse',
-                            montant: -montantTotal,
+                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
                             description: `${description} - Frais pour 3 Commain`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
@@ -942,7 +942,7 @@ class GestionFermeApp {
                         };
                     }
 
-                    console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS:', {
+                    console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
                         principale: operationCaissePrincipale,
                         groupe: operationGroupe
                     });
@@ -962,21 +962,21 @@ class GestionFermeApp {
                 
                 // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
                 if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                    // REVENU : Seulement sur la caisse concernée
+                    // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                     const operation = {
                         operateur: operateur,
                         groupe: 'les_deux_groupes',
                         typeOperation: 'travailleur_global',
                         typeTransaction: 'revenu',
                         caisse: caisse,
-                        montant: montantTotal,
+                        montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
                         description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
                         userEmail: this.currentUser.email
                     };
 
-                    console.log('📝 REVENU - 1 OPÉRATION:', operation);
+                    console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
                     
                     await window.firebaseSync.addDocument('operations', operation);
                     this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
@@ -984,28 +984,28 @@ class GestionFermeApp {
                 } 
                 // CAS REVENU NORMAL (pour un seul groupe)
                 else {
-                    // REVENU : Seulement sur la caisse concernée
+                    // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                     const operation = {
                         operateur: operateur,
                         groupe: groupe,
                         typeOperation: typeOperation,
                         typeTransaction: 'revenu',
                         caisse: caisse,
-                        montant: montantTotal,
+                        montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
                         description: description,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
                         userEmail: this.currentUser.email
                     };
 
-                    console.log('📝 REVENU NORMAL - 1 OPÉRATION:', operation);
+                    console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
                     
                     await window.firebaseSync.addDocument('operations', operation);
                     this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
                 }
             }
             
-            // CORRECTION : Utiliser resetForm() pour réinitialiser tout en gardant l'opérateur
+            // Réinitialisation du formulaire
             this.resetForm();
             
             // Rechargement des données
@@ -1724,6 +1724,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
