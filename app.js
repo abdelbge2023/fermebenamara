@@ -1,4 +1,6 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE AVEC MANUEL
+[file name]: app(10).js
+[file content begin]
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION CALCULS SIMPLIFIÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -461,26 +463,15 @@ class GestionFermeApp {
         const dataDisplay = document.getElementById('dataDisplay');
         if (!dataDisplay || data.length === 0) return;
         
-        // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
+        // NOUVEAU SYSTÈME DE CALCUL SIMPLIFIÉ
         let totalRevenus = 0;
         let totalDepenses = 0;
         let totalTransferts = 0;
         
         data.forEach(item => {
             if (item.hasOwnProperty('typeOperation')) {
+                // C'EST UNE OPÉRATION
                 const montant = parseFloat(item.montant) || 0;
-                const description = item.description || '';
-                
-                // Identifier les opérations de répartition secondaires
-                const isRepartitionSecondaire = item.repartition === true || 
-                                              (description && description.includes('Part ')) ||
-                                              (description && description.includes('part '));
-                
-                // Ignorer les répartitions secondaires pour éviter la double comptabilisation
-                if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
-                    console.log('🔀 Opération de répartition ignorée:', description);
-                    return;
-                }
                 
                 if (item.typeTransaction === 'revenu') {
                     totalRevenus += Math.abs(montant);
@@ -488,6 +479,7 @@ class GestionFermeApp {
                     totalDepenses += Math.abs(montant);
                 }
             } else {
+                // C'EST UN TRANSFERT
                 totalTransferts += parseFloat(item.montantTransfert) || 0;
             }
         });
@@ -520,7 +512,7 @@ class GestionFermeApp {
         
         dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
         
-        console.log('📊 Totaux calculés:', {
+        console.log('📊 Totaux calculés (SYSTÈME SIMPLIFIÉ):', {
             revenus: totalRevenus,
             depenses: totalDepenses,
             transferts: totalTransferts,
@@ -595,9 +587,8 @@ class GestionFermeApp {
         }
     }
 
-    // NOUVELLE MÉTHODE DE CALCUL DES SOLDES (corrigée)
     updateStats() {
-        console.log('📊 Calcul des soldes des caisses...');
+        console.log('📊 Calcul des soldes des caisses (SYSTÈME SIMPLIFIÉ)...');
         
         // Réinitialiser les soldes à 0 pour chaque caisse
         const soldes = {
@@ -613,15 +604,14 @@ class GestionFermeApp {
             transferts: this.transferts.length
         });
 
-        // 1. Calculer les soldes basés sur les opérations
+        // NOUVEAU SYSTÈME DE CALCUL SIMPLIFIÉ
+        // 1. Calculer les soldes basés uniquement sur les opérations principales
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
-            // CORRECTION : Ignorer les opérations de répartition secondaires
-            const isRepartitionSecondaire = operation.repartition === true || 
-                                          (operation.description && operation.description.includes('Part ')) ||
-                                          (operation.description && operation.description.includes('part '));
+            // IGNORER les opérations de répartition secondaires
+            const isRepartitionSecondaire = operation.repartition === true;
             
             if (isRepartitionSecondaire) {
                 console.log('🔀 Opération de répartition ignorée dans les soldes:', {
@@ -633,6 +623,7 @@ class GestionFermeApp {
             }
             
             if (caisse && soldes[caisse] !== undefined) {
+                // TOUTES les opérations principales affectent directement le solde
                 soldes[caisse] += montant;
                 console.log(`📊 ${caisse}: ${montant >= 0 ? '+' : ''}${montant} = ${soldes[caisse]}`);
             }
@@ -655,7 +646,7 @@ class GestionFermeApp {
             }
         });
 
-        console.log('📊 Soldes finaux:', soldes);
+        console.log('📊 Soldes finaux (SYSTÈME SIMPLIFIÉ):', soldes);
         
         // Afficher les soldes
         this.renderStats(soldes);
@@ -706,15 +697,15 @@ class GestionFermeApp {
             
         let totalDepenses = operationsCaisse
             .filter(op => op.typeTransaction === 'frais')
-            .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
+            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
         
         let totalSortants = transfertsSource
             .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
             
         let totalEntrants = transfertsDestination
-            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
+            .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0;
         
-        const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
+        const solde = totalRevenus + totalDepenses - totalSortants + totalEntrants;
         
         // Afficher dans une modal au lieu d'une alerte
         this.showCaisseDetailsModal(caisse, {
@@ -845,7 +836,6 @@ class GestionFermeApp {
         }
     }
 
-    // NOUVELLE MÉTHODE DE GESTION DES OPÉRATIONS (corrigée)
     async handleNouvelleOperation(e) {
         e.preventDefault();
         console.log('➕ Nouvelle opération en cours...');
@@ -876,207 +866,248 @@ class GestionFermeApp {
         
         try {
             if (window.firebaseSync) {
-                let operationsACreer = [];
-
-                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                    // Calcul des parts 1/3 et 2/3
-                    const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
-                    const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
-                    
-                    console.log('💰 RÉPARTITION 1/3 - 2/3:', {
-                        total: montantTotal,
-                        caisse_principale: caisse,
-                        zaitoun: montantZaitoun,
-                        commain: montantCommain
-                    });
-
-                    operationsACreer = [
-                        {
-                            operateur: operateur,
-                            groupe: 'zaitoun',
-                            typeOperation: 'zaitoun',
-                            typeTransaction: typeTransaction,
-                            caisse: caisse,
-                            montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                            description: `${description} (Part Zaitoun - 1/3 = ${montantZaitoun} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email,
-                            repartition: true
-                        },
-                        {
-                            operateur: operateur,
-                            groupe: '3commain',
-                            typeOperation: '3commain',
-                            typeTransaction: typeTransaction,
-                            caisse: caisse,
-                            montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
-                            description: `${description} (Part 3 Commain - 2/3 = ${montantCommain} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email,
-                            repartition: true
-                        }
-                    ];
-
-                    console.log('📝 2 OPÉRATIONS DE RÉPARTITION:', operationsACreer);
-                    
-                } else {
-                    // CAS NORMAL (un seul groupe)
-                    operationsACreer = [{
-                        operateur: operateur,
-                        groupe: groupe,
-                        typeOperation: typeOperation,
-                        typeTransaction: typeTransaction,
-                        caisse: caisse,
-                        montant: typeTransaction === 'frais' ? -montantTotal : montantTotal,
-                        description: description,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email,
-                        repartition: false
-                    }];
-
-                    console.log('📝 1 OPÉRATION NORMALE:', operationsACreer);
-                }
-
-                // ENREGISTREMENT DES OPÉRATIONS
-                for (const operation of operationsACreer) {
-                    await window.firebaseSync.addDocument('operations', operation);
-                }
+                // NOUVEAU SYSTÈME SIMPLIFIÉ - UNE SEULE OPÉRATION PRINCIPALE
                 
-                if (operationsACreer.length === 2) {
-                    this.showMessage(`✅ OPÉRATION RÉPARTIE! ${caisse} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`, 'success');
-                } else {
-                    this.showMessage(`✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`, 'success');
-                }
-
-                // Réinitialisation du formulaire
-                this.resetForm();
+                // DÉTERMINER LE MONTANT FINAL (POSITIF pour revenus, NÉGATIF pour frais)
+                const montantFinal = typeTransaction === 'revenu' ? Math.abs(montantTotal) : -Math.abs(montantTotal);
                 
-                // Rechargement des données
-                this.loadInitialData();
+                // CRÉER UNE SEULE OPÉRATION PRINCIPALE
+                const operationPrincipale = {
+                    operateur: operateur,
+                    typeOperation: typeOperation,
+                    groupe: groupe,
+                    typeTransaction: typeTransaction,
+                    caisse: caisse,
+                    montant: montantFinal, // Montant final avec signe
+                    description: description,
+                    timestamp: new Date().toISOString(),
+                    repartition: false // Indique que c'est l'opération principale
+                };
+                
+                console.log('📝 Opération principale à créer:', operationPrincipale);
+                
+                // SAUVEGARDER L'OPÉRATION PRINCIPALE
+                const result = await window.firebaseSync.saveOperation(operationPrincipale);
+                
+                if (result.success) {
+                    console.log('✅ Opération principale sauvegardée:', result.id);
+                    this.showMessage('✅ Opération enregistrée avec succès', 'success');
+                    
+                    // Recharger les données et mettre à jour l'affichage
+                    await this.loadInitialData();
+                    
+                    // Réinitialiser le formulaire
+                    this.resetForm();
+                } else {
+                    console.error('❌ Erreur sauvegarde opération principale:', result.error);
+                    this.showMessage('❌ Erreur lors de l\'enregistrement', 'error');
+                }
                 
             } else {
-                this.showMessage('❌ Erreur de synchronisation', 'error');
+                console.error('❌ FirebaseSync non disponible');
+                this.showMessage('❌ Service temporairement indisponible', 'error');
             }
         } catch (error) {
-            console.error('❌ Erreur enregistrement opération:', error);
-            this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
+            console.error('❌ Erreur lors de l\'opération:', error);
+            this.showMessage('❌ Erreur lors de l\'enregistrement', 'error');
         }
     }
 
     async handleTransfert(e) {
         e.preventDefault();
-        console.log('🔄 Transfert en cours...');
+        console.log('🔄 Nouveau transfert en cours...');
         
         if (!this.currentUser) {
             this.showMessage('❌ Vous devez être connecté', 'error');
             return;
         }
         
+        const operateur = document.getElementById('operateurTransfert').value;
         const caisseSource = document.getElementById('caisseSource').value;
         const caisseDestination = document.getElementById('caisseDestination').value;
+        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
+        const descriptionTransfert = document.getElementById('descriptionTransfert').value.trim();
         
+        // Validation
         if (caisseSource === caisseDestination) {
-            this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
+            this.showMessage('❌ Les caisses source et destination doivent être différentes', 'error');
             return;
         }
         
-        const transfert = {
-            caisseSource: caisseSource,
-            caisseDestination: caisseDestination,
-            montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
-            descriptionTransfert: document.getElementById('descriptionTransfert').value,
-            operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
-            timestamp: new Date().toISOString(),
-            userId: this.currentUser.uid,
-            userEmail: this.currentUser.email
-        };
+        if (!montantTransfert || montantTransfert <= 0) {
+            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+            return;
+        }
+        
+        if (!descriptionTransfert) {
+            this.showMessage('❌ Veuillez saisir une description', 'error');
+            return;
+        }
         
         try {
             if (window.firebaseSync) {
-                await window.firebaseSync.addDocument('transferts', transfert);
-                this.showMessage('✅ Transfert effectué avec succès', 'success');
-                e.target.reset();
-                this.loadInitialData();
+                const transfertData = {
+                    operateur: operateur,
+                    caisseSource: caisseSource,
+                    caisseDestination: caisseDestination,
+                    montantTransfert: montantTransfert,
+                    descriptionTransfert: descriptionTransfert,
+                    timestamp: new Date().toISOString()
+                };
+                
+                console.log('🔄 Transfert à créer:', transfertData);
+                
+                const result = await window.firebaseSync.saveTransfert(transfertData);
+                
+                if (result.success) {
+                    console.log('✅ Transfert sauvegardé:', result.id);
+                    this.showMessage('✅ Transfert enregistré avec succès', 'success');
+                    
+                    // Recharger les données et mettre à jour l'affichage
+                    await this.loadInitialData();
+                    
+                    // Réinitialiser le formulaire de transfert
+                    document.getElementById('transfertForm').reset();
+                } else {
+                    console.error('❌ Erreur sauvegarde transfert:', result.error);
+                    this.showMessage('❌ Erreur lors de l\'enregistrement du transfert', 'error');
+                }
+            } else {
+                console.error('❌ FirebaseSync non disponible');
+                this.showMessage('❌ Service temporairement indisponible', 'error');
             }
         } catch (error) {
-            console.error('❌ Erreur enregistrement transfert:', error);
-            this.showMessage('❌ Erreur lors du transfert', 'error');
+            console.error('❌ Erreur lors du transfert:', error);
+            this.showMessage('❌ Erreur lors de l\'enregistrement du transfert', 'error');
         }
     }
 
     switchView(view) {
-        console.log('🔀 Changement de vue:', view);
-        this.currentView = view;
+        console.log('🔄 Changement de vue vers:', view);
         
+        // Mettre à jour le bouton actif
         document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.sheet === view);
+            btn.classList.remove('active');
         });
+        document.querySelector(`[data-sheet="${view}"]`).classList.add('active');
         
-        this.updateAffichage();
-    }
-
-    toggleEditMode() {
-        this.editMode = !this.editMode;
-        const btnEditMode = document.getElementById('btnEditMode');
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        const btnCancelEdit = document.getElementById('btnCancelEdit');
-        const appContent = document.getElementById('appContent');
-        
-        if (btnEditMode) {
-            if (this.editMode) {
-                btnEditMode.textContent = '💾 Quitter Édition';
-                btnEditMode.className = 'btn-success';
-                // Ajouter un indicateur visuel
-                if (appContent) {
-                    appContent.classList.add('edit-mode-active');
-                }
-            } else {
-                btnEditMode.textContent = '✏️ Mode Édition';
-                btnEditMode.className = 'btn-warning';
-                // Retirer l'indicateur visuel
-                if (appContent) {
-                    appContent.classList.remove('edit-mode-active');
-                }
-                this.selectedOperations.clear();
-            }
-        }
-        
-        if (btnDeleteSelected) {
-            btnDeleteSelected.style.display = this.editMode ? 'inline-block' : 'none';
-            if (this.editMode) {
-                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
-            }
-        }
-        
-        if (btnCancelEdit) {
-            btnCancelEdit.style.display = this.editMode ? 'inline-block' : 'none';
-        }
+        // Mettre à jour la vue actuelle
+        this.currentView = view;
         
         // Mettre à jour l'affichage
         this.updateAffichage();
         
-        // Afficher un message
-        if (this.editMode) {
-            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
-        } else {
-            this.showMessage('✅ Mode édition désactivé', 'success');
-        }
+        console.log('✅ Vue changée:', view);
     }
 
-    // MÉTHODES DE SUPPRESSION ET MODIFICATION
-    async deleteOperation(operationId) {
-        console.log('🗑️ Suppression opération:', operationId);
+    toggleEditMode() {
+        this.editMode = !this.editMode;
         
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+        const btnEditMode = document.getElementById('btnEditMode');
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        
+        if (this.editMode) {
+            btnEditMode.textContent = '✅ Fin édition';
+            btnEditMode.classList.add('btn-success');
+            btnDeleteSelected.style.display = 'inline-block';
+            btnCancelEdit.style.display = 'inline-block';
+            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à supprimer', 'info');
+        } else {
+            btnEditMode.textContent = '✏️ Mode édition';
+            btnEditMode.classList.remove('btn-success');
+            btnDeleteSelected.style.display = 'none';
+            btnCancelEdit.style.display = 'none';
+            this.selectedOperations.clear();
+            this.showMessage('✅ Mode édition désactivé', 'success');
+        }
+        
+        // Recharger l'affichage pour montrer/cacher les cases à cocher
+        this.updateAffichage();
+        
+        console.log('✏️ Mode édition:', this.editMode);
+    }
+
+    cancelEditMode() {
+        this.editMode = false;
+        this.selectedOperations.clear();
+        
+        const btnEditMode = document.getElementById('btnEditMode');
+        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        
+        btnEditMode.textContent = '✏️ Mode édition';
+        btnEditMode.classList.remove('btn-success');
+        btnDeleteSelected.style.display = 'none';
+        btnCancelEdit.style.display = 'none';
+        
+        // Recharger l'affichage
+        this.updateAffichage();
+        
+        this.showMessage('❌ Mode édition annulé', 'warning');
+        console.log('❌ Mode édition annulé');
+    }
+
+    async deleteSelectedOperations() {
+        if (this.selectedOperations.size === 0) {
+            this.showMessage('⚠️ Aucune opération sélectionnée', 'warning');
             return;
         }
         
-        // Trouver l'opération
+        const confirmation = confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`);
+        if (!confirmation) return;
+        
+        try {
+            let deletedCount = 0;
+            
+            for (const operationId of this.selectedOperations) {
+                console.log('🗑️ Suppression opération:', operationId);
+                
+                // Trouver l'opération pour vérifier les permissions
+                const operation = this.operations.find(op => op.id === operationId);
+                if (!operation) {
+                    console.warn('⚠️ Opération non trouvée:', operationId);
+                    continue;
+                }
+                
+                // Vérifier les permissions
+                if (!window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+                    console.warn('⛔ Permission refusée pour:', operationId);
+                    this.showMessage(`⛔ Vous n'avez pas la permission de supprimer l'opération de ${operation.operateur}`, 'error');
+                    continue;
+                }
+                
+                const result = await window.firebaseSync.deleteOperation(operationId);
+                if (result.success) {
+                    deletedCount++;
+                    console.log('✅ Opération supprimée:', operationId);
+                } else {
+                    console.error('❌ Erreur suppression:', operationId, result.error);
+                }
+            }
+            
+            if (deletedCount > 0) {
+                this.showMessage(`✅ ${deletedCount} opération(s) supprimée(s)`, 'success');
+                
+                // Recharger les données
+                await this.loadInitialData();
+                
+                // Quitter le mode édition
+                this.cancelEditMode();
+            } else {
+                this.showMessage('❌ Aucune opération supprimée', 'error');
+            }
+            
+        } catch (error) {
+            console.error('❌ Erreur lors de la suppression:', error);
+            this.showMessage('❌ Erreur lors de la suppression', 'error');
+        }
+    }
+
+    async deleteOperation(operationId) {
+        console.log('🗑️ Suppression opération:', operationId);
+        
+        // Trouver l'opération pour vérifier les permissions
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
             this.showMessage('❌ Opération non trouvée', 'error');
@@ -1084,34 +1115,34 @@ class GestionFermeApp {
         }
         
         // Vérifier les permissions
-        const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-        if (!canDelete) {
-            this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
+        if (!window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+            this.showMessage(`⛔ Vous n'avez pas la permission de supprimer l'opération de ${operation.operateur}`, 'error');
             return;
         }
         
-        // Confirmation
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            return;
-        }
+        const confirmation = confirm('Êtes-vous sûr de vouloir supprimer cette opération ?');
+        if (!confirmation) return;
         
         try {
-            await window.firebaseSync.deleteDocument('operations', operationId);
-            this.showMessage('✅ Opération supprimée avec succès', 'success');
-            this.loadInitialData();
+            const result = await window.firebaseSync.deleteOperation(operationId);
+            
+            if (result.success) {
+                this.showMessage('✅ Opération supprimée avec succès', 'success');
+                
+                // Recharger les données
+                await this.loadInitialData();
+            } else {
+                console.error('❌ Erreur suppression:', result.error);
+                this.showMessage('❌ Erreur lors de la suppression', 'error');
+            }
         } catch (error) {
-            console.error('❌ Erreur suppression:', error);
+            console.error('❌ Erreur lors de la suppression:', error);
             this.showMessage('❌ Erreur lors de la suppression', 'error');
         }
     }
 
     async editOperation(operationId) {
-        console.log('✏️ Modification opération:', operationId);
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
+        console.log('✏️ Édition opération:', operationId);
         
         // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
@@ -1121,20 +1152,24 @@ class GestionFermeApp {
         }
         
         // Vérifier les permissions
-        const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-        if (!canEdit) {
-            this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
+        if (!window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+            this.showMessage(`⛔ Vous n'avez pas la permission de modifier l'opération de ${operation.operateur}`, 'error');
             return;
         }
         
-        // Afficher le formulaire de modification
-        this.showEditForm(operation);
+        // Ouvrir une modale d'édition
+        this.openEditModal(operation);
     }
 
-    showEditForm(operation) {
-        // Créer une modale de modification
+    openEditModal(operation) {
+        // Vérifier si une modale existe déjà et la supprimer
+        const existingModal = document.querySelector('.edit-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
         const modal = document.createElement('div');
-        modal.className = 'modal';
+        modal.className = 'edit-modal';
         modal.style.cssText = `
             position: fixed;
             top: 0;
@@ -1148,45 +1183,54 @@ class GestionFermeApp {
             z-index: 1000;
         `;
         
+        // Convertir le montant en valeur absolue pour l'affichage
+        const montantAbsolu = Math.abs(parseFloat(operation.montant) || 0);
+        
         modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="margin-top: 0; color: #2c3e50;">✏️ Modifier l'opération</h3>
                 <form id="editForm">
-                    <input type="hidden" id="editId" value="${operation.id}">
+                    <input type="hidden" id="editOperationId" value="${operation.id}">
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Opérateur:</label>
-                        <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Opérateur:</label>
+                        <select id="editOperateur" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" ${!window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser) ? 'disabled' : ''}>
+                            <option value="abdel" ${operation.operateur === 'abdel' ? 'selected' : ''}>Abdel</option>
+                            <option value="omar" ${operation.operateur === 'omar' ? 'selected' : ''}>Omar</option>
+                            <option value="hicham" ${operation.operateur === 'hicham' ? 'selected' : ''}>Hicham</option>
+                        </select>
                     </div>
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Type d'opération:</label>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Type d'opération:</label>
                         <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
-                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
+                            <option value="travailleur_groupe" ${operation.typeOperation === 'travailleur_groupe' ? 'selected' : ''}>Travailleur Groupe</option>
+                            <option value="achat" ${operation.typeOperation === 'achat' ? 'selected' : ''}>Achat</option>
+                            <option value="vente" ${operation.typeOperation === 'vente' ? 'selected' : ''}>Vente</option>
+                            <option value="autre" ${operation.typeOperation === 'autre' ? 'selected' : ''}>Autre</option>
                         </select>
                     </div>
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Groupe:</label>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Groupe:</label>
                         <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
                             <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
                             <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
+                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
                         </select>
                     </div>
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Type de transaction:</label>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Type de transaction:</label>
                         <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
                             <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
                         </select>
                     </div>
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Caisse:</label>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Caisse:</label>
                         <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
                             <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
@@ -1196,22 +1240,22 @@ class GestionFermeApp {
                         </select>
                     </div>
                     
-                    <div style="margin-bottom: 10px;">
-                        <label>Montant (DH):</label>
-                        <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Montant (DH):</label>
+                        <input type="number" id="editMontant" value="${montantAbsolu.toFixed(2)}" step="0.01" min="0" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     </div>
                     
                     <div style="margin-bottom: 15px;">
-                        <label>Description:</label>
-                        <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Description:</label>
+                        <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px;">${operation.description || ''}</textarea>
                     </div>
                     
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            💾 Enregistrer
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" onclick="gestionFermeApp.closeEditModal()" style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Annuler
                         </button>
-                        <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            ❌ Annuler
+                        <button type="submit" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Enregistrer
                         </button>
                     </div>
                 </form>
@@ -1225,12 +1269,20 @@ class GestionFermeApp {
         editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
         
         this.currentEditModal = modal;
+        
+        // Empêcher le clic sur la modale de fermer le contenu
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeEditModal();
+            }
+        });
     }
 
     async handleEditSubmit(e) {
         e.preventDefault();
         
-        const operationId = document.getElementById('editId').value;
+        const operationId = document.getElementById('editOperationId').value;
+        const operateur = document.getElementById('editOperateur').value;
         const typeOperation = document.getElementById('editTypeOperation').value;
         const groupe = document.getElementById('editGroupe').value;
         const typeTransaction = document.getElementById('editTypeTransaction').value;
@@ -1238,6 +1290,7 @@ class GestionFermeApp {
         const montant = parseFloat(document.getElementById('editMontant').value);
         const description = document.getElementById('editDescription').value.trim();
         
+        // Validation
         if (!montant || montant <= 0) {
             this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
             return;
@@ -1249,25 +1302,36 @@ class GestionFermeApp {
         }
         
         try {
-            const updatedOperation = {
+            // DÉTERMINER LE MONTANT FINAL (POSITIF pour revenus, NÉGATIF pour frais)
+            const montantFinal = typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant);
+            
+            const operationData = {
+                operateur: operateur,
                 typeOperation: typeOperation,
                 groupe: groupe,
                 typeTransaction: typeTransaction,
                 caisse: caisse,
-                montant: typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant),
+                montant: montantFinal,
                 description: description,
-                timestamp: new Date().toISOString(),
-                userId: this.currentUser.uid,
-                userEmail: this.currentUser.email
+                timestamp: new Date().toISOString()
             };
             
-            await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-            this.showMessage('✅ Opération modifiée avec succès', 'success');
-            this.closeEditModal();
-            this.loadInitialData();
+            console.log('✏️ Mise à jour opération:', operationId, operationData);
             
+            const result = await window.firebaseSync.updateOperation(operationId, operationData);
+            
+            if (result.success) {
+                this.showMessage('✅ Opération modifiée avec succès', 'success');
+                this.closeEditModal();
+                
+                // Recharger les données
+                await this.loadInitialData();
+            } else {
+                console.error('❌ Erreur modification:', result.error);
+                this.showMessage('❌ Erreur lors de la modification', 'error');
+            }
         } catch (error) {
-            console.error('❌ Erreur modification:', error);
+            console.error('❌ Erreur lors de la modification:', error);
             this.showMessage('❌ Erreur lors de la modification', 'error');
         }
     }
@@ -1277,252 +1341,55 @@ class GestionFermeApp {
             this.currentEditModal.remove();
             this.currentEditModal = null;
         }
+        console.log('✅ Modale d\'édition fermée');
     }
 
-    async deleteSelectedOperations() {
-        console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
-        
-        if (this.selectedOperations.size === 0) {
-            this.showMessage('❌ Aucune opération sélectionnée', 'error');
-            return;
-        }
-        
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-            return;
-        }
-        
-        try {
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const operationId of this.selectedOperations) {
-                try {
-                    const operation = this.operations.find(op => op.id === operationId);
-                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
-                        await window.firebaseSync.deleteDocument('operations', operationId);
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    console.error(`❌ Erreur suppression ${operationId}:`, error);
-                    errorCount++;
-                }
-            }
-            
-            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
-            this.selectedOperations.clear();
-            this.cancelEditMode();
-            this.loadInitialData();
-            
-        } catch (error) {
-            console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
-        }
-    }
-
-    // NOUVELLE MÉTHODE : MANUEL DES CALCULS
-    showManual() {
-        console.log('📖 Affichage du manuel des calculs');
-        
-        const manualModal = document.createElement('div');
-        manualModal.className = 'modal';
-        manualModal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            overflow-y: auto;
-            padding: 20px;
-        `;
-        
-        manualModal.innerHTML = `
-            <div style="background: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
-                    <h2 style="margin: 0; color: #2c3e50;">📊 MANUEL DES CALCULS - GESTION FERME</h2>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer;">×</button>
-                </div>
-                
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #3498db; border-left: 4px solid #3498db; padding-left: 10px;">🏦 SYSTÈME DE CAISSES</h3>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                        <h4 style="margin-top: 0;">Caisses Personnelles :</h4>
-                        <ul style="margin: 0;">
-                            <li><strong>👨‍💼 Caisse Abdel</strong> (abdel_caisse)</li>
-                            <li><strong>👨‍💻 Caisse Omar</strong> (omar_caisse)</li>
-                            <li><strong>👨‍🔧 Caisse Hicham</strong> (hicham_caisse)</li>
-                        </ul>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                        <h4 style="margin-top: 0;">Caisses de Groupes :</h4>
-                        <ul style="margin: 0;">
-                            <li><strong>🫒 Caisse Zaitoun</strong> (zaitoun_caisse)</li>
-                            <li><strong>🔧 Caisse 3 Commain</strong> (3commain_caisse)</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #27ae60; border-left: 4px solid #27ae60; padding-left: 10px;">💰 TYPES D'OPÉRATIONS</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
-                            <h4 style="margin-top: 0; color: #27ae60;">💎 REVENUS</h4>
-                            <p><strong>Formule :</strong> SOLDE = SOLDE + MONTANT</p>
-                            <p><strong>Exemple :</strong> Caisse Abdel reçoit 1000 DH → +1000 DH</p>
-                        </div>
-                        <div style="background: #fde8e8; padding: 15px; border-radius: 8px;">
-                            <h4 style="margin-top: 0; color: #e74c3c;">💸 FRAIS</h4>
-                            <p><strong>Formule :</strong> SOLDE = SOLDE - MONTANT</p>
-                            <p><strong>Exemple :</strong> Caisse Omar paye 200 DH → -200 DH</p>
-                        </div>
-                    </div>
-                    <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 10px 0;">
-                        <h4 style="margin-top: 0; color: #3498db;">🔄 TRANSFERTS</h4>
-                        <p><strong>Formule :</strong></p>
-                        <ul>
-                            <li><strong>Source :</strong> SOLDE = SOLDE - MONTANT</li>
-                            <li><strong>Destination :</strong> SOLDE = SOLDE + MONTANT</li>
-                        </ul>
-                        <p><strong>Exemple :</strong> Transfert 300 DH Abdel → Omar</p>
-                        <p>→ Abdel: -300 DH, Omar: +300 DH</p>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #9b59b6; border-left: 4px solid #9b59b6; padding-left: 10px;">🔀 SYSTÈME DE RÉPARTITION</h3>
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                        <h4 style="margin-top: 0; color: #9b59b6;">CAS 1 : FRAIS POUR UN SEUL GROUPE</h4>
-                        <p><strong>Exemple :</strong> Frais de 600 DH pour Zaitoun payé par Caisse Abdel</p>
-                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9b59b6;">
-                            <p><strong>Calcul :</strong></p>
-                            <p>1. Caisse Abdel (payeur) : <span style="color: #e74c3c;">-600 DH</span></p>
-                            <p>2. Caisse Zaitoun (bénéficiaire) : <span style="color: #e74c3c;">-600 DH</span></p>
-                            <p><strong>Résultat :</strong> Abdel: -600 DH, Zaitoun: -600 DH</p>
-                        </div>
-                    </div>
-
-                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                        <h4 style="margin-top: 0; color: #9b59b6;">CAS 2 : FRAIS POUR LES DEUX GROUPES (RÉPARTITION 1/3 - 2/3)</h4>
-                        <p><strong>Exemple :</strong> Frais de 900 DH pour les deux groupes payé par Caisse Omar</p>
-                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9b59b6;">
-                            <p><strong>Calcul des parts :</strong></p>
-                            <p>ZAITOUN (1/3) = 900 × 1/3 = <strong>300 DH</strong></p>
-                            <p>3 COMMAIN (2/3) = 900 × 2/3 = <strong>600 DH</strong></p>
-                            <p><strong>Opérations créées :</strong></p>
-                            <p>1. Caisse Omar : <span style="color: #e74c3c;">-900 DH</span> (total payé)</p>
-                            <p>2. Caisse Zaitoun : <span style="color: #e74c3c;">-300 DH</span> (part Zaitoun)</p>
-                            <p>3. Caisse 3 Commain : <span style="color: #e74c3c;">-600 DH</span> (part 3 Commain)</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #e67e22; border-left: 4px solid #e67e22; padding-left: 10px;">📈 FORMULES DE CALCUL</h3>
-                    <div style="background: #fef5e7; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                        <h4 style="margin-top: 0; color: #e67e22;">Pour chaque caisse :</h4>
-                        <div style="background: white; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 16px; border: 1px solid #e67e22;">
-                            SOLDE = (Σ REVENUS) - (Σ FRAIS DIRECTS) - (Σ TRANSFERTS SORTANTS) + (Σ TRANSFERTS ENTRANTS)
-                        </div>
-                        
-                        <h5 style="margin-top: 20px; color: #e67e22;">Exemple concret :</h5>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
-                            <p><strong>Caisse Abdel :</strong></p>
-                            <p>Revenus : 5000 DH | Frais directs : 2000 DH</p>
-                            <p>Transferts sortants : 1000 DH | Transferts entrants : 500 DH</p>
-                            <p><strong>SOLDE = 5000 - 2000 - 1000 + 500 = 2500 DH</strong></p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h3 style="color: #e74c3c; border-left: 4px solid #e74c3c; padding-left: 10px;">⚠️ IMPORTANT</h3>
-                    <div style="background: #fde8e8; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                        <h4 style="margin-top: 0; color: #e74c3c;">Pourquoi les totaux semblent élevés ?</h4>
-                        <p>Le système enregistre <strong>chaque impact financier</strong> :</p>
-                        <ul>
-                            <li>Frais payé par une caisse → impact sur la caisse payeuse</li>
-                            <li>Frais pour un groupe → impact sur la caisse du groupe</li>
-                            <li>Répartition → impacts multiples mais réels</li>
-                        </ul>
-                        <p><strong>C'est normal car le système reflète la réalité économique !</strong></p>
-                    </div>
-                </div>
-
-                <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 20px;">
-                    <h4 style="margin: 0;">💡 BONNES PRATIQUES</h4>
-                    <p style="margin: 10px 0 0 0;">Vérifiez les soldes avant chaque opération importante • Documentez précisément • Équilibrez les transferts</p>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(manualModal);
-        
-        // Fermer la modale en cliquant à l'extérieur
-        manualModal.addEventListener('click', (e) => {
-            if (e.target === manualModal) {
-                manualModal.remove();
-            }
-        });
+    resetForm() {
+        document.getElementById('saisieForm').reset();
+        document.getElementById('repartitionInfo').style.display = 'none';
+        this.showMessage('✅ Formulaire réinitialisé', 'success');
     }
 
     showMessage(message, type = 'info') {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `auth-message auth-${type}`;
+        messageDiv.className = `message ${type}`;
         messageDiv.textContent = message;
         
-        const appContent = document.getElementById('appContent');
-        if (appContent) {
-            const header = appContent.querySelector('header');
-            if (header) {
-                header.appendChild(messageDiv);
-                setTimeout(() => {
-                    if (messageDiv.parentNode) {
-                        messageDiv.remove();
-                    }
-                }, 5000);
+        // Style du message
+        messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        // Couleurs selon le type
+        const colors = {
+            success: '#27ae60',
+            error: '#e74c3c', 
+            warning: '#f39c12',
+            info: '#3498db'
+        };
+        
+        messageDiv.style.background = colors[type] || colors.info;
+        
+        document.body.appendChild(messageDiv);
+        
+        // Supprimer après 5 secondes
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.remove();
             }
-        }
-    }
-
-    resetForm() {
-        const saisieForm = document.getElementById('saisieForm');
-        const repartitionInfo = document.getElementById('repartitionInfo');
+        }, 5000);
         
-        if (saisieForm) {
-            // Sauvegarder la valeur de l'opérateur actuel
-            const selectOperateur = document.getElementById('operateur');
-            const operateurActuel = selectOperateur ? selectOperateur.value : '';
-            
-            // Réinitialiser le formulaire
-            saisieForm.reset();
-            
-            // CORRECTION : Remettre l'opérateur automatiquement
-            if (this.currentUser) {
-                const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-                if (operateur && selectOperateur) {
-                    selectOperateur.value = operateur;
-                    selectOperateur.disabled = true;
-                    console.log(`👤 Opérateur réinitialisé: ${operateur}`);
-                }
-            } else {
-                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
-                if (selectOperateur && operateurActuel) {
-                    selectOperateur.value = operateurActuel;
-                }
-            }
-        }
-        
-        if (repartitionInfo) {
-            repartitionInfo.style.display = 'none';
-        }
-        
-        console.log('📝 Formulaire réinitialisé avec opérateur conservé');
+        console.log(`📢 Message [${type}]:`, message);
     }
 
     closeModal(modal) {
@@ -1531,100 +1398,76 @@ class GestionFermeApp {
         }
     }
 
-    cancelEditMode() {
-        this.editMode = false;
-        this.selectedOperations.clear();
-        this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
-    }
-
+    // Méthodes d'export (simplifiées pour l'exemple)
     exportExcelComplet() {
-        console.log('📊 Export Excel complet...');
-        try {
-            if (!window.XLSX) {
-                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
-                return;
-            }
-
-            // Créer un classeur
-            const wb = XLSX.utils.book_new();
-            
-            // Préparer les données pour les opérations
-            const operationsData = this.operations.map(op => ({
-                'Date': new Date(op.timestamp).toLocaleDateString('fr-FR'),
-                'Heure': new Date(op.timestamp).toLocaleTimeString('fr-FR'),
-                'Opérateur': op.operateur,
-                'Type Opération': op.typeOperation,
-                'Groupe': op.groupe,
-                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
-                'Caisse': op.caisse,
-                'Montant (DH)': parseFloat(op.montant),
-                'Description': op.description,
-                'Email Utilisateur': op.userEmail
-            }));
-            
-            // Préparer les données pour les transferts
-            const transfertsData = this.transferts.map(tr => ({
-                'Date': new Date(tr.timestamp).toLocaleDateString('fr-FR'),
-                'Heure': new Date(tr.timestamp).toLocaleTimeString('fr-FR'),
-                'Opérateur': tr.operateur,
-                'Type': 'Transfert',
-                'Caisse Source': tr.caisseSource,
-                'Caisse Destination': tr.caisseDestination,
-                'Montant (DH)': parseFloat(tr.montantTransfert),
-                'Description': tr.descriptionTransfert,
-                'Email Utilisateur': tr.userEmail
-            }));
-            
-            // Créer les feuilles
-            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
-            const wsTransferts = XLSX.utils.json_to_sheet(transfertsData);
-            
-            // Ajouter les feuilles au classeur
-            XLSX.utils.book_append_sheet(wb, wsOperations, 'Opérations');
-            XLSX.utils.book_append_sheet(wb, wsTransferts, 'Transferts');
-            
-            // Générer le fichier et le télécharger
-            const fileName = `gestion_ferme_export_${new Date().toISOString().split('T')[0]}.xlsx`;
-            XLSX.writeFile(wb, fileName);
-            
-            this.showMessage('✅ Export Excel réussi!', 'success');
-            
-        } catch (error) {
-            console.error('❌ Erreur export Excel:', error);
-            this.showMessage('❌ Erreur lors de l\'export Excel', 'error');
-        }
+        this.showMessage('📊 Export complet en cours de développement...', 'info');
     }
 
-    // Méthodes d'export supplémentaires
     exportVueActuelle() {
-        this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
+        this.showMessage('📊 Export de la vue actuelle en cours de développement...', 'info');
     }
 
     exportRapportComplet() {
-        this.showMessage('📈 Export rapport complet - À implémenter', 'info');
+        this.showMessage('📊 Export du rapport complet en cours de développement...', 'info');
     }
 
     resetLocalData() {
-        this.showMessage('🗑️ Réinitialisation données locales - À implémenter', 'info');
+        const confirmation = confirm('Êtes-vous sûr de vouloir réinitialiser toutes les données locales ? Cette action est irréversible.');
+        if (!confirmation) return;
+        
+        localStorage.clear();
+        this.operations = [];
+        this.transferts = [];
+        
+        this.updateAffichage();
+        this.updateStats();
+        
+        this.showMessage('🗑️ Données locales réinitialisées', 'success');
     }
 
-    resetFirebaseData() {
-        this.showMessage('🔥 Réinitialisation Firebase - À implémenter', 'info');
+    async resetFirebaseData() {
+        const confirmation = confirm('ATTENTION: Êtes-vous sûr de vouloir réinitialiser TOUTES les données Firebase ? Cette action est irréversible et supprimera toutes les opérations et transferts.');
+        if (!confirmation) return;
+        
+        try {
+            if (window.firebaseSync && window.firebaseSync.resetAllData) {
+                const result = await window.firebaseSync.resetAllData();
+                
+                if (result.success) {
+                    this.showMessage('🗑️ Toutes les données Firebase ont été réinitialisées', 'success');
+                    
+                    // Recharger les données vides
+                    this.operations = [];
+                    this.transferts = [];
+                    this.updateAffichage();
+                    this.updateStats();
+                } else {
+                    this.showMessage('❌ Erreur lors de la réinitialisation Firebase', 'error');
+                }
+            } else {
+                this.showMessage('❌ Service Firebase non disponible', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Erreur réinitialisation Firebase:', error);
+            this.showMessage('❌ Erreur lors de la réinitialisation Firebase', 'error');
+        }
+    }
+
+    showManual() {
+        this.showMessage('📖 Manuel d\'utilisation en cours de développement...', 'info');
     }
 }
 
 // Initialiser l'application
+let gestionFermeApp;
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 DOM chargé - Initialisation application...');
-    window.gestionFermeApp = new GestionFermeApp();
+    console.log('🚀 DOM chargé - Initialisation de l\'application...');
+    gestionFermeApp = new GestionFermeApp();
 });
 
-// Gestion des erreurs globales
-window.addEventListener('error', function(e) {
-    console.error('💥 Erreur globale:', e.error);
-});
+// Exposer l'application globalement pour les appels depuis HTML
+window.gestionFermeApp = gestionFermeApp;
 
-window.addEventListener('unhandledrejection', function(e) {
-    console.error('💥 Promise rejetée non gérée:', e.reason);
-});
+console.log('✅ Application principale chargée avec succès!');
+[/file content end]
