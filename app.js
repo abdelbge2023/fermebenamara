@@ -244,18 +244,25 @@ class GestionFermeApp {
         }
     }
 
-    setupOperateurAuto() {
-        if (this.currentUser) {
-            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-            const selectOperateur = document.getElementById('operateur');
-            
-            if (operateur && selectOperateur) {
-                selectOperateur.value = operateur;
-                selectOperateur.disabled = true;
-                console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
-            }
+   setupOperateurAuto() {
+    if (this.currentUser) {
+        const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
+        const selectOperateur = document.getElementById('operateur');
+        
+        if (operateur && selectOperateur) {
+            // CORRECTION : S'assurer que l'élément existe et n'est pas null
+            selectOperateur.value = operateur;
+            selectOperateur.disabled = true;
+            console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
+        } else {
+            console.warn('⚠️ Impossible de définir l\'opérateur:', {
+                operateur: operateur,
+                selectOperateur: !!selectOperateur,
+                currentUser: !!this.currentUser
+            });
         }
     }
+}
 
     async loadInitialData() {
         console.log('📥 Chargement des données initiales...');
@@ -1814,6 +1821,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
