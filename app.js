@@ -455,6 +455,27 @@ class GestionFermeApp {
         if (this.editMode) {
             this.setupCheckboxListeners();
         }
+        
+        // Ajouter les écouteurs pour les boutons d'action
+        this.setupActionButtons();
+    }
+
+    setupActionButtons() {
+        // Écouteurs pour les boutons d'édition
+        document.querySelectorAll('.btn-warning').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const operationId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+                this.editOperation(operationId);
+            });
+        });
+        
+        // Écouteurs pour les boutons de suppression
+        document.querySelectorAll('.btn-danger').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const operationId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+                this.deleteOperation(operationId);
+            });
+        });
     }
 
     afficherTotauxVue(data) {
