@@ -1146,7 +1146,7 @@ resetForm() {
     if (saisieForm) {
         saisieForm.reset();
         
-        // CORRECTION : Réinitialiser l'opérateur avec la valeur de l'utilisateur connecté
+        // Réinitialiser l'opérateur avec la valeur de l'utilisateur connecté
         if (this.currentUser && selectOperateur) {
             const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
             if (operateur) {
@@ -1163,9 +1163,6 @@ resetForm() {
     
     this.showMessage('📝 Formulaire réinitialisé', 'info');
 }
-    showManual() {
-        document.getElementById('manualModal').style.display = 'flex';
-    }
 
     closeModal(modal) {
         if (modal) {
@@ -1727,6 +1724,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
