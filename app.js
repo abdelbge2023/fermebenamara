@@ -496,8 +496,7 @@ class GestionFermeApp {
     const soldeNet = totalRevenus - totalDepenses;
     
     const htmlTotaux = `
-        <div class="vue-header">
-            <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
+getNomVue(this.currentView)}"</h3>
             <div class="totals-container">
                 <div class="total-item">
                     <span class="total-label">💰 Revenus</span>
@@ -533,6 +532,19 @@ class GestionFermeApp {
     });
 }
 
+getNomVue(vue) {
+    const noms = {
+        'global': 'Toutes les opérations',
+        'zaitoun': 'Zaitoun',
+        '3commain': '3 Commain', 
+        'abdel': 'Abdel',
+        'omar': 'Omar',
+        'hicham': 'Hicham',
+        'transferts': 'Transferts',
+        'les_deux_groupes': 'Les Deux Groupes'
+    };
+    return noms[vue] || vue;
+}
     setupCheckboxListeners() {
         const selectAll = document.getElementById('selectAll');
         if (selectAll) {
@@ -1790,6 +1802,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
