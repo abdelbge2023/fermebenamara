@@ -618,8 +618,8 @@ class GestionFermeApp {
             
             // CORRECTION : Ignorer les opérations de répartition secondaires
             const isRepartitionSecondaire = operation.repartition === true || 
-                                          operation.description?.includes('Part ') ||
-                                          operation.description?.includes('part ');
+                              (operation.description && operation.description.includes('Part ')) ||
+                              (operation.description && operation.description.includes('part '));
             
             if (isRepartitionSecondaire) {
                 console.log('🔀 Opération de répartition ignorée dans les soldes:', {
@@ -1328,3 +1328,4 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
