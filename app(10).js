@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -10,7 +10,6 @@ class GestionFermeApp {
         this.selectedOperations = new Set();
         this.currentUser = null;
         this.userPermissions = {};
-        this.currentEditModal = null;
         
         this.initEventListeners();
         this.setupAuthHandlers();
@@ -328,15 +327,19 @@ class GestionFermeApp {
                 dataToShow = [...this.operations, ...this.transferts];
                 break;
             case 'zaitoun':
+                // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun + opérations des deux groupes
                 dataToShow = this.operations.filter(op => 
                     op.caisse === 'zaitoun_caisse' || 
-                    op.groupe === 'zaitoun'
+                    op.groupe === 'zaitoun' || 
+                    op.groupe === 'les_deux_groupes'
                 );
                 break;
             case '3commain':
+                // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain + opérations des deux groupes
                 dataToShow = this.operations.filter(op => 
                     op.caisse === '3commain_caisse' || 
-                    op.groupe === '3commain'
+                    op.groupe === '3commain' || 
+                    op.groupe === 'les_deux_groupes'
                 );
                 break;
             case 'abdel':
@@ -358,6 +361,7 @@ class GestionFermeApp {
                 dataToShow = this.transferts;
                 break;
             case 'les_deux_groupes':
+                // Vue spéciale pour les opérations des deux groupes
                 dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
                 break;
         }
@@ -375,11 +379,6 @@ class GestionFermeApp {
     }
 
     renderDataTable(data, container) {
-        if (!container) {
-            console.error('❌ Container non trouvé pour l\'affichage des données');
-            return;
-        }
-
         if (data.length === 0) {
             container.innerHTML = '<div class="empty-message">Aucune donnée à afficher</div>';
             return;
@@ -405,48 +404,18 @@ class GestionFermeApp {
         `;
         
         data.forEach(item => {
-            const isOperation = item && item.hasOwnProperty('typeOperation');
-            const canEdit = this.currentUser && window.firebaseAuthFunctions && 
-                           window.firebaseAuthFunctions.canModifyOperation ? 
-                           window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser) : false;
+            const isOperation = item.hasOwnProperty('typeOperation');
+            const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
             
-            // Utiliser l'ID Firebase comme identifiant - CORRECTION : vérifier si item existe
-            const itemId = item && item.id ? item.id : 'unknown';
-            
-            // CORRECTION : Vérifier que toutes les propriétés existent avant de les utiliser
-            const operateur = item && item.operateur ? item.operateur : 'N/A';
-            const typeOperation = item && item.typeOperation ? item.typeOperation : 'Transfert';
-            const groupe = item && item.groupe ? item.groupe : 'N/A';
-            const typeTransaction = item && item.typeTransaction ? item.typeTransaction : 'transfert';
-            const caisse = item && item.caisse ? item.caisse : 
-                          (item && item.caisseSource && item.caisseDestination ? 
-                           `${item.caisseSource} → ${item.caisseDestination}` : 'N/A');
-            
-            // CORRECTION : Gérer les montants de manière sécurisée
-            let montantValue = 0;
-            let montantText = 'N/A';
-            
-            if (item) {
-                if (item.montant !== undefined && item.montant !== null) {
-                    montantValue = parseFloat(item.montant) || 0;
-                    montantText = `${Math.abs(montantValue).toFixed(2)} DH`;
-                } else if (item.montantTransfert !== undefined && item.montantTransfert !== null) {
-                    montantValue = parseFloat(item.montantTransfert) || 0;
-                    montantText = `${montantValue.toFixed(2)} DH`;
-                }
-            }
-            
-            const description = item && (item.description || item.descriptionTransfert) ? 
-                              (item.description || item.descriptionTransfert) : '';
-            
-            const date = item && item.timestamp ? 
-                        new Date(item.timestamp).toLocaleDateString('fr-FR') : 'Date inconnue';
+            // Utiliser l'ID Firebase comme identifiant
+            const itemId = item.id;
             
             console.log('🔐 Permission pour item:', {
                 id: itemId,
-                operateur: operateur,
+                operateur: item.operateur,
                 canEdit: canEdit,
-                currentUser: this.currentUser ? this.currentUser.email : 'null'
+                currentUser: this.currentUser ? this.currentUser.email : 'null',
+                operateurConnecte: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser?.email)
             });
             
             html += `
@@ -459,18 +428,18 @@ class GestionFermeApp {
                             }
                         </td>
                     ` : ''}
-                    <td>${date}</td>
-                    <td>${operateur}</td>
-                    <td>${typeOperation}</td>
-                    <td>${groupe}</td>
-                    <td class="type-${typeTransaction}">
-                        ${isOperation ? (typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
+                    <td>${new Date(item.timestamp).toLocaleDateString('fr-FR')}</td>
+                    <td>${item.operateur || 'N/A'}</td>
+                    <td>${item.typeOperation || 'Transfert'}</td>
+                    <td>${item.groupe || 'N/A'}</td>
+                    <td class="type-${item.typeTransaction || 'transfert'}">
+                        ${isOperation ? (item.typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
                     </td>
-                    <td>${caisse}</td>
-                    <td style="font-weight: bold; color: ${(typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
-                        ${montantText}
+                    <td>${item.caisse || `${item.caisseSource} → ${item.caisseDestination}`}</td>
+                    <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
+                        ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
                     </td>
-                    <td>${description}</td>
+                    <td>${item.description || item.descriptionTransfert || ''}</td>
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
@@ -494,37 +463,24 @@ class GestionFermeApp {
 
     afficherTotauxVue(data) {
         const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay || !data || data.length === 0) return;
+        if (!dataDisplay || data.length === 0) return;
         
-        // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
+        // Calculer les totaux
         let totalRevenus = 0;
         let totalDepenses = 0;
         let totalTransferts = 0;
         
         data.forEach(item => {
-            if (!item) return; // CORRECTION : Ignorer les items null
-                
             if (item.hasOwnProperty('typeOperation')) {
+                // C'est une opération
                 const montant = parseFloat(item.montant) || 0;
-                const description = item.description || '';
-                
-                // Identifier les opérations de répartition secondaires
-                const isRepartitionSecondaire = item.repartition === true || 
-                                              (description && description.includes('Part ')) ||
-                                              (description && description.includes('part '));
-                
-                // Ignorer les répartitions secondaires pour éviter la double comptabilisation
-                if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
-                    console.log('🔀 Opération de répartition ignorée:', description);
-                    return;
-                }
-                
                 if (item.typeTransaction === 'revenu') {
-                    totalRevenus += Math.abs(montant);
-                } else if (item.typeTransaction === 'frais') {
-                    totalDepenses += Math.abs(montant);
+                    totalRevenus += montant;
+                } else {
+                    totalDepenses += montant;
                 }
             } else {
+                // C'est un transfert
                 totalTransferts += parseFloat(item.montantTransfert) || 0;
             }
         });
@@ -555,14 +511,8 @@ class GestionFermeApp {
             </div>
         `;
         
+        // Insérer les totaux avant le tableau
         dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
-        
-        console.log('📊 Totaux calculés:', {
-            revenus: totalRevenus,
-            depenses: totalDepenses,
-            transferts: totalTransferts,
-            solde: soldeNet
-        });
     }
 
     getNomVue(vue) {
@@ -573,8 +523,7 @@ class GestionFermeApp {
             'abdel': 'Abdel',
             'omar': 'Omar',
             'hicham': 'Hicham',
-            'transferts': 'Transferts',
-            'les_deux_groupes': 'Les Deux Groupes'
+            'transferts': 'Transferts'
         };
         return noms[vue] || vue;
     }
@@ -649,56 +598,65 @@ class GestionFermeApp {
             transferts: this.transferts.length
         });
 
-        // 1. Calculer les soldes basés sur les opérations - CORRECTION
+        // 1. Calculer les soldes basés sur les opérations
         this.operations.forEach(operation => {
-            if (!operation) return; // CORRECTION : Ignorer les opérations null
-            
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
-            // CORRECTION : Ignorer les opérations de répartition secondaires
-            const isRepartitionSecondaire = operation.repartition === true || 
-                                          (operation.description && operation.description.includes('Part ')) ||
-                                          (operation.description && operation.description.includes('part '));
-            
-            if (isRepartitionSecondaire) {
-                console.log('🔀 Opération de répartition ignorée dans les soldes:', {
-                    caisse: caisse,
-                    description: operation.description,
-                    montant: montant
-                });
-                return; // Ignorer cette opération
-            }
+            console.log('📝 Opération:', {
+                caisse: caisse,
+                type: operation.typeTransaction,
+                montant: montant,
+                description: operation.description,
+                hasRepartition: !!operation.repartition
+            });
             
             if (caisse && soldes[caisse] !== undefined) {
                 if (operation.typeTransaction === 'revenu') {
                     // Revenu : ajouter au solde
-                    soldes[caisse] += Math.abs(montant);
-                    console.log(`➕ ${caisse} (REVENU): +${Math.abs(montant)} = ${soldes[caisse]}`);
+                    soldes[caisse] += montant;
+                    console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
                 } else if (operation.typeTransaction === 'frais') {
                     // Frais : soustraire du solde
-                    soldes[caisse] -= Math.abs(montant);
-                    console.log(`➖ ${caisse} (FRAIS): -${Math.abs(montant)} = ${soldes[caisse]}`);
+                    
+                    // CORRECTION : Si c'est un travailleur_global, répartir le coût
+                    if (operation.typeOperation === 'travailleur_global' && operation.repartition) {
+                        const repartition = operation.repartition;
+                        console.log('🔀 Répartition détectée:', repartition);
+                        
+                        // La caisse qui paie perd le montant total
+                        soldes[caisse] -= montant;
+                        console.log(`➖ ${caisse} (paie total): -${montant} = ${soldes[caisse]}`);
+                        
+                    } else {
+                        // Frais normal : soustraire du solde
+                        soldes[caisse] -= montant;
+                        console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
+                    }
                 }
             }
         });
 
         // 2. Gérer les transferts entre caisses
         this.transferts.forEach(transfert => {
-            if (!transfert) return; // CORRECTION : Ignorer les transferts null
-            
             const montant = parseFloat(transfert.montantTransfert) || 0;
+            
+            console.log('🔄 Transfert:', {
+                source: transfert.caisseSource,
+                destination: transfert.caisseDestination,
+                montant: montant
+            });
             
             // Soustraire de la caisse source
             if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
                 soldes[transfert.caisseSource] -= montant;
-                console.log(`➖ ${transfert.caisseSource} (TRANSFERT): -${montant} = ${soldes[transfert.caisseSource]}`);
+                console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
             }
             
             // Ajouter à la caisse destination
             if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
                 soldes[transfert.caisseDestination] += montant;
-                console.log(`➕ ${transfert.caisseDestination} (TRANSFERT): +${montant} = ${soldes[transfert.caisseDestination]}`);
+                console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
             }
         });
 
@@ -743,16 +701,16 @@ class GestionFermeApp {
         console.log('📊 Détails de la caisse:', caisse);
         
         // Filtrer les opérations pour cette caisse
-        const operationsCaisse = this.operations.filter(op => op && op.caisse === caisse);
-        const transfertsSource = this.transferts.filter(t => t && t.caisseSource === caisse);
-        const transfertsDestination = this.transferts.filter(t => t && t.caisseDestination === caisse);
+        const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+        const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
+        const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
         
         let totalRevenus = operationsCaisse
-            .filter(op => op && op.typeTransaction === 'revenu')
+            .filter(op => op.typeTransaction === 'revenu')
             .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
             
         let totalDepenses = operationsCaisse
-            .filter(op => op && op.typeTransaction === 'frais')
+            .filter(op => op.typeTransaction === 'frais')
             .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
         
         let totalSortants = transfertsSource
@@ -776,14 +734,7 @@ class GestionFermeApp {
     }
 
     showCaisseDetailsModal(caisse, details) {
-        // Vérifier si une modale existe déjà et la supprimer
-        const existingModal = document.querySelector('.caisse-details-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
         const modal = document.createElement('div');
-        modal.className = 'caisse-details-modal';
         modal.style.cssText = `
             position: fixed;
             top: 0;
@@ -798,41 +749,26 @@ class GestionFermeApp {
         `;
         
         modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h3 style="margin-top: 0; color: #2c3e50;">📊 Détails de ${this.getNomCaisse(caisse)}</h3>
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h3>📊 Détails de ${this.getNomCaisse(caisse)}</h3>
                 <div style="margin: 15px 0;">
-                    <div style="margin-bottom: 8px;"><strong>📝 Opérations:</strong> ${details.operations}</div>
-                    <div style="margin-bottom: 8px;"><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+                    <div><strong>📝 Opérations:</strong> ${details.operations}</div>
+                    <div><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                    <div><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                    <div><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                    <div><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
                 </div>
                 <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                    <div style="margin-bottom: 8px;"><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                    <div><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
                     <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
                 </div>
-                <button onclick="gestionFermeApp.closeCaisseDetailsModal()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                <button onclick="this.closest('div[style]').remove()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
                     Fermer
                 </button>
             </div>
         `;
         
         document.body.appendChild(modal);
-        
-        // Empêcher le clic sur la modale de fermer le contenu
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.closeCaisseDetailsModal();
-            }
-        });
-    }
-
-    closeCaisseDetailsModal() {
-        const modal = document.querySelector('.caisse-details-modal');
-        if (modal) {
-            modal.remove();
-        }
-        console.log('✅ Modale des détails de caisse fermée');
     }
 
     getNomCaisse(caisse) {
@@ -847,29 +783,21 @@ class GestionFermeApp {
     }
 
     updateRepartition() {
-        const typeOperation = document.getElementById('typeOperation');
-        const groupe = document.getElementById('groupe');
-        const montant = document.getElementById('montant');
-        
-        if (!typeOperation || !groupe || !montant) return;
-        
-        const typeOpValue = typeOperation.value;
-        const groupeValue = groupe.value;
-        const montantValue = parseFloat(montant.value) || 0;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
         
         const repartitionInfo = document.getElementById('repartitionInfo');
         const repartitionDetails = document.getElementById('repartitionDetails');
         
-        if (!repartitionInfo || !repartitionDetails) return;
-        
         // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
-        if (typeOpValue === 'travailleur_global' && groupeValue === 'les_deux_groupes' && montantValue > 0) {
+        if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
             let zaitounPart = 0;
             let commainPart = 0;
             
             // Calcul des parts
-            zaitounPart = parseFloat((montantValue * (1/3)).toFixed(2));
-            commainPart = parseFloat((montantValue * (2/3)).toFixed(2));
+            zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
+            commainPart = parseFloat((montant * (2/3)).toFixed(2));
             
             repartitionDetails.innerHTML = `
                 <div class="repartition-details">
@@ -887,7 +815,7 @@ class GestionFermeApp {
                     </div>
                     <div class="repartition-total">
                         <strong>💰 Total payé</strong><br>
-                        ${montantValue.toFixed(2)} DH
+                        ${montant.toFixed(2)} DH
                     </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
@@ -909,27 +837,13 @@ class GestionFermeApp {
             return;
         }
         
-        const operateur = document.getElementById('operateur');
-        const typeOperation = document.getElementById('typeOperation');
-        const groupe = document.getElementById('groupe');
-        const typeTransaction = document.getElementById('typeTransaction');
-        const caisse = document.getElementById('caisse');
-        const montant = document.getElementById('montant');
-        const description = document.getElementById('description');
-        
-        // CORRECTION : Vérifier que tous les éléments existent
-        if (!operateur || !typeOperation || !groupe || !typeTransaction || !caisse || !montant || !description) {
-            this.showMessage('❌ Erreur: Formulaire incomplet', 'error');
-            return;
-        }
-        
-        const operateurValue = operateur.value;
-        const typeOperationValue = typeOperation.value;
-        const groupeValue = groupe.value;
-        const typeTransactionValue = typeTransaction.value;
-        const caisseValue = caisse.value;
-        const montantTotal = parseFloat(montant.value);
-        const descriptionValue = description.value.trim();
+        const operateur = document.getElementById('operateur').value;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisse = document.getElementById('caisse').value;
+        const montantTotal = parseFloat(document.getElementById('montant').value);
+        const description = document.getElementById('description').value.trim();
         
         // Validation
         if (!montantTotal || montantTotal <= 0) {
@@ -937,7 +851,7 @@ class GestionFermeApp {
             return;
         }
         
-        if (!descriptionValue) {
+        if (!description) {
             this.showMessage('❌ Veuillez saisir une description', 'error');
             return;
         }
@@ -945,30 +859,30 @@ class GestionFermeApp {
         try {
             if (window.firebaseSync) {
                 // CAS FRAIS (pour TOUS les types d'opérations)
-                if (typeTransactionValue === 'frais') {
+                if (typeTransaction === 'frais') {
                     
                     // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperationValue === 'travailleur_global' && groupeValue === 'les_deux_groupes') {
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
                         // Calcul des parts 1/3 et 2/3
                         const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
                         const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
                         
                         console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
                             total: montantTotal,
-                            caisse_principale: caisseValue,
+                            caisse_principale: caisse,
                             zaitoun: montantZaitoun,
                             commain: montantCommain
                         });
 
                         // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                         const operationCaissePrincipale = {
-                            operateur: operateurValue,
+                            operateur: operateur,
                             groupe: 'les_deux_groupes',
                             typeOperation: 'travailleur_global',
                             typeTransaction: 'frais',
-                            caisse: caisseValue,
+                            caisse: caisse,
                             montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${descriptionValue} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
+                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -976,13 +890,13 @@ class GestionFermeApp {
 
                         // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
                         const operationZaitoun = {
-                            operateur: operateurValue,
+                            operateur: operateur,
                             groupe: 'zaitoun',
                             typeOperation: 'zaitoun',
                             typeTransaction: 'frais',
                             caisse: 'zaitoun_caisse',
                             montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
-                            description: `${descriptionValue} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
+                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -991,13 +905,13 @@ class GestionFermeApp {
 
                         // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
                         const operationCommain = {
-                            operateur: operateurValue,
+                            operateur: operateur,
                             groupe: '3commain',
                             typeOperation: '3commain',
                             typeTransaction: 'frais',
                             caisse: '3commain_caisse',
                             montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
-                            description: `${descriptionValue} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -1015,26 +929,26 @@ class GestionFermeApp {
                         await window.firebaseSync.addDocument('operations', operationZaitoun);
                         await window.firebaseSync.addDocument('operations', operationCommain);
                         
-                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisseValue} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
 
                     } 
                     // CAS FRAIS NORMAL (pour un seul groupe)
                     else {
                         console.log('💰 FRAIS NORMAL:', {
                             total: montantTotal,
-                            caisse_principale: caisseValue,
-                            groupe: groupeValue
+                            caisse_principale: caisse,
+                            groupe: groupe
                         });
 
                         // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
                         const operationCaissePrincipale = {
-                            operateur: operateurValue,
-                            groupe: groupeValue,
-                            typeOperation: typeOperationValue,
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
                             typeTransaction: 'frais',
-                            caisse: caisseValue,
+                            caisse: caisse,
                             montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${descriptionValue} - Frais payé par ${caisseValue}`,
+                            description: `${description} - Frais payé par ${caisse}`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -1043,28 +957,28 @@ class GestionFermeApp {
                         // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
                         let operationGroupe = null;
                         
-                        if (groupeValue === 'zaitoun') {
+                        if (groupe === 'zaitoun') {
                             operationGroupe = {
-                                operateur: operateurValue,
-                                groupe: groupeValue,
-                                typeOperation: typeOperationValue,
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
                                 typeTransaction: 'frais',
                                 caisse: 'zaitoun_caisse',
                                 montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${descriptionValue} - Frais pour Zaitoun`,
+                                description: `${description} - Frais pour Zaitoun`,
                                 timestamp: new Date().toISOString(),
                                 userId: this.currentUser.uid,
                                 userEmail: this.currentUser.email
                             };
-                        } else if (groupeValue === '3commain') {
+                        } else if (groupe === '3commain') {
                             operationGroupe = {
-                                operateur: operateurValue,
-                                groupe: groupeValue,
-                                typeOperation: typeOperationValue,
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
                                 typeTransaction: 'frais',
                                 caisse: '3commain_caisse',
                                 montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${descriptionValue} - Frais pour 3 Commain`,
+                                description: `${description} - Frais pour 3 Commain`,
                                 timestamp: new Date().toISOString(),
                                 userId: this.currentUser.uid,
                                 userEmail: this.currentUser.email
@@ -1082,24 +996,24 @@ class GestionFermeApp {
                             await window.firebaseSync.addDocument('operations', operationGroupe);
                         }
                         
-                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisseValue} a payé ${montantTotal} DH pour ${groupeValue}`, 'success');
+                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
                     }
 
                 } 
                 // CAS REVENU (pour TOUS les types d'opérations)
-                else if (typeTransactionValue === 'revenu') {
+                else if (typeTransaction === 'revenu') {
                     
                     // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperationValue === 'travailleur_global' && groupeValue === 'les_deux_groupes') {
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
                         // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                         const operation = {
-                            operateur: operateurValue,
+                            operateur: operateur,
                             groupe: 'les_deux_groupes',
                             typeOperation: 'travailleur_global',
                             typeTransaction: 'revenu',
-                            caisse: caisseValue,
+                            caisse: caisse,
                             montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: `${descriptionValue} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
+                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -1108,20 +1022,20 @@ class GestionFermeApp {
                         console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
                         
                         await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisseValue} pour les deux groupes`, 'success');
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
 
                     } 
                     // CAS REVENU NORMAL (pour un seul groupe)
                     else {
                         // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
                         const operation = {
-                            operateur: operateurValue,
-                            groupe: groupeValue,
-                            typeOperation: typeOperationValue,
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
                             typeTransaction: 'revenu',
-                            caisse: caisseValue,
+                            caisse: caisse,
                             montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: descriptionValue,
+                            description: description,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
@@ -1130,7 +1044,7 @@ class GestionFermeApp {
                         console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
                         
                         await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisseValue} pour ${groupeValue}`, 'success');
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
                     }
                 }
                 
@@ -1158,25 +1072,17 @@ class GestionFermeApp {
             return;
         }
         
-        const caisseSource = document.getElementById('caisseSource');
-        const caisseDestination = document.getElementById('caisseDestination');
+        const caisseSource = document.getElementById('caisseSource').value;
+        const caisseDestination = document.getElementById('caisseDestination').value;
         
-        if (!caisseSource || !caisseDestination) {
-            this.showMessage('❌ Erreur: Champs de transfert manquants', 'error');
-            return;
-        }
-        
-        const caisseSourceValue = caisseSource.value;
-        const caisseDestinationValue = caisseDestination.value;
-        
-        if (caisseSourceValue === caisseDestinationValue) {
+        if (caisseSource === caisseDestination) {
             this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
             return;
         }
         
         const transfert = {
-            caisseSource: caisseSourceValue,
-            caisseDestination: caisseDestinationValue,
+            caisseSource: caisseSource,
+            caisseDestination: caisseDestination,
             montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
             descriptionTransfert: document.getElementById('descriptionTransfert').value,
             operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
@@ -1257,270 +1163,6 @@ class GestionFermeApp {
         }
     }
 
-    // MÉTHODES DE SUPPRESSION ET MODIFICATION AJOUTÉES
-    async deleteOperation(operationId) {
-        console.log('🗑️ Suppression opération:', operationId);
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Trouver l'opération
-        const operation = this.operations.find(op => op && op.id === operationId);
-        if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
-            return;
-        }
-        
-        // Vérifier les permissions
-        const canDelete = window.firebaseAuthFunctions && 
-                         window.firebaseAuthFunctions.canModifyOperation ? 
-                         window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser) : false;
-        
-        if (!canDelete) {
-            this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
-            return;
-        }
-        
-        // Confirmation
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-            return;
-        }
-        
-        try {
-            await window.firebaseSync.deleteDocument('operations', operationId);
-            this.showMessage('✅ Opération supprimée avec succès', 'success');
-            this.loadInitialData();
-        } catch (error) {
-            console.error('❌ Erreur suppression:', error);
-            this.showMessage('❌ Erreur lors de la suppression', 'error');
-        }
-    }
-
-    async editOperation(operationId) {
-        console.log('✏️ Modification opération:', operationId);
-        
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Trouver l'opération
-        const operation = this.operations.find(op => op && op.id === operationId);
-        if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
-            return;
-        }
-        
-        // Vérifier les permissions
-        const canEdit = window.firebaseAuthFunctions && 
-                       window.firebaseAuthFunctions.canModifyOperation ? 
-                       window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser) : false;
-        
-        if (!canEdit) {
-            this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
-            return;
-        }
-        
-        // Afficher le formulaire de modification
-        this.showEditForm(operation);
-    }
-
-    showEditForm(operation) {
-        // Créer une modale de modification
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
-                <form id="editForm">
-                    <input type="hidden" id="editId" value="${operation.id}">
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Opérateur:</label>
-                        <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Type d'opération:</label>
-                        <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
-                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Groupe:</label>
-                        <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
-                            <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Type de transaction:</label>
-                        <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
-                            <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Caisse:</label>
-                        <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
-                            <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
-                            <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>Caisse Hicham</option>
-                            <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>Caisse Zaitoun</option>
-                            <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>Caisse 3 Commain</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <label>Montant (DH):</label>
-                        <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
-                    </div>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <label>Description:</label>
-                        <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            💾 Enregistrer
-                        </button>
-                        <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            ❌ Annuler
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Gérer la soumission du formulaire
-        const editForm = document.getElementById('editForm');
-        if (editForm) {
-            editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
-        }
-        
-        this.currentEditModal = modal;
-    }
-
-    async handleEditSubmit(e) {
-        e.preventDefault();
-        
-        const operationId = document.getElementById('editId').value;
-        const typeOperation = document.getElementById('editTypeOperation').value;
-        const groupe = document.getElementById('editGroupe').value;
-        const typeTransaction = document.getElementById('editTypeTransaction').value;
-        const caisse = document.getElementById('editCaisse').value;
-        const montant = parseFloat(document.getElementById('editMontant').value);
-        const description = document.getElementById('editDescription').value.trim();
-        
-        if (!montant || montant <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
-            return;
-        }
-        
-        if (!description) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
-            return;
-        }
-        
-        try {
-            const updatedOperation = {
-                typeOperation: typeOperation,
-                groupe: groupe,
-                typeTransaction: typeTransaction,
-                caisse: caisse,
-                montant: typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant),
-                description: description,
-                timestamp: new Date().toISOString(),
-                userId: this.currentUser.uid,
-                userEmail: this.currentUser.email
-            };
-            
-            await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-            this.showMessage('✅ Opération modifiée avec succès', 'success');
-            this.closeEditModal();
-            this.loadInitialData();
-            
-        } catch (error) {
-            console.error('❌ Erreur modification:', error);
-            this.showMessage('❌ Erreur lors de la modification', 'error');
-        }
-    }
-
-    closeEditModal() {
-        if (this.currentEditModal) {
-            this.currentEditModal.remove();
-            this.currentEditModal = null;
-        }
-    }
-
-    async deleteSelectedOperations() {
-        console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
-        
-        if (this.selectedOperations.size === 0) {
-            this.showMessage('❌ Aucune opération sélectionnée', 'error');
-            return;
-        }
-        
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-            return;
-        }
-        
-        try {
-            let successCount = 0;
-            let errorCount = 0;
-            
-        for (const operationId of this.selectedOperations) {
-                try {
-                    const operation = this.operations.find(op => op && op.id === operationId);
-                    if (operation && window.firebaseAuthFunctions && 
-                        window.firebaseAuthFunctions.canModifyOperation &&
-                        window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
-                        await window.firebaseSync.deleteDocument('operations', operationId);
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    console.error(`❌ Erreur suppression ${operationId}:`, error);
-                    errorCount++;
-                }
-            }
-            
-            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
-            this.selectedOperations.clear();
-            this.cancelEditMode();
-            this.loadInitialData();
-            
-        } catch (error) {
-            console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
-        }
-    }
-
     showMessage(message, type = 'info') {
         const messageDiv = document.createElement('div');
         messageDiv.className = `auth-message auth-${type}`;
@@ -1581,13 +1223,7 @@ class GestionFermeApp {
         }
     }
 
-    cancelEditMode() {
-        this.editMode = false;
-        this.selectedOperations.clear();
-        this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
-    }
-
+    // FONCTIONS D'EXPORT
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
         try {
@@ -1646,25 +1282,484 @@ class GestionFermeApp {
         }
     }
 
-    // Méthodes d'export supplémentaires (à implémenter si besoin)
     exportVueActuelle() {
-        this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
+        console.log('📋 Export vue actuelle...');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            // Obtenir les données de la vue actuelle
+            let dataToExport = [];
+            let sheetName = '';
+            
+            switch (this.currentView) {
+                case 'global':
+                    dataToExport = [...this.operations, ...this.transferts];
+                    sheetName = 'Toutes_les_donnees';
+                    break;
+                case 'zaitoun':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
+                    );
+                    sheetName = 'Zaitoun';
+                    break;
+                case '3commain':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === '3commain_caisse' || op.groupe === '3commain'
+                    );
+                    sheetName = '3_Commain';
+                    break;
+                case 'abdel':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
+                    );
+                    sheetName = 'Abdel';
+                    break;
+                case 'omar':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'omar_caisse' || op.operateur === 'omar'
+                    );
+                    sheetName = 'Omar';
+                    break;
+                case 'hicham':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
+                    );
+                    sheetName = 'Hicham';
+                    break;
+                case 'transferts':
+                    dataToExport = this.transferts;
+                    sheetName = 'Transferts';
+                    break;
+            }
+            
+            // Préparer les données
+            const exportData = dataToExport.map(item => {
+                if (item.hasOwnProperty('typeOperation')) {
+                    // C'est une opération
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
+                        'Opérateur': item.operateur,
+                        'Type': item.typeOperation,
+                        'Groupe': item.groupe,
+                        'Transaction': item.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                        'Caisse': item.caisse,
+                        'Montant (DH)': parseFloat(item.montant),
+                        'Description': item.description
+                    };
+                } else {
+                    // C'est un transfert
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
+                        'Opérateur': item.operateur,
+                        'Type': 'Transfert',
+                        'Caisse Source': item.caisseSource,
+                        'Caisse Destination': item.caisseDestination,
+                        'Montant (DH)': parseFloat(item.montantTransfert),
+                        'Description': item.descriptionTransfert
+                    };
+                }
+            });
+            
+            if (exportData.length === 0) {
+                this.showMessage('❌ Aucune donnée à exporter pour cette vue', 'warning');
+                return;
+            }
+            
+            // Créer et télécharger le fichier
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            
+            const fileName = `gestion_ferme_${sheetName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage(`✅ Export ${sheetName} réussi!`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur export vue:', error);
+            this.showMessage('❌ Erreur lors de l\'export', 'error');
+        }
     }
 
     exportRapportComplet() {
-        this.showMessage('📈 Export rapport complet - À implémenter', 'info');
+        console.log('📈 Rapport complet...');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            // 1. Feuille de synthèse
+            const soldes = this.calculerSoldes();
+            const syntheseData = Object.keys(soldes).map(caisse => ({
+                'Caisse': this.getNomCaisse(caisse),
+                'Solde (DH)': soldes[caisse],
+                'Statut': soldes[caisse] >= 0 ? 'Positif' : 'Négatif'
+            }));
+            
+            const wsSynthese = XLSX.utils.json_to_sheet(syntheseData);
+            XLSX.utils.book_append_sheet(wb, wsSynthese, 'Synthèse');
+            
+            // 2. Statistiques détaillées
+            const statsData = this.calculerStatistiquesDetaillees();
+            const wsStats = XLSX.utils.json_to_sheet(statsData);
+            XLSX.utils.book_append_sheet(wb, wsStats, 'Statistiques');
+            
+            // 3. Toutes les opérations
+            const allOperations = [...this.operations, ...this.transferts]
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+            const operationsData = allOperations.map(item => {
+                const base = {
+                    'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                    'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
+                    'Opérateur': item.operateur
+                };
+                
+                if (item.hasOwnProperty('typeOperation')) {
+                    return {
+                        ...base,
+                        'Type': 'Opération',
+                        'Sous-type': item.typeOperation,
+                        'Groupe': item.groupe,
+                        'Transaction': item.typeTransaction,
+                        'Caisse': item.caisse,
+                        'Montant (DH)': parseFloat(item.montant),
+                        'Description': item.description
+                    };
+                } else {
+                    return {
+                        ...base,
+                        'Type': 'Transfert',
+                        'Caisse Source': item.caisseSource,
+                        'Caisse Destination': item.caisseDestination,
+                        'Montant (DH)': parseFloat(item.montantTransfert),
+                        'Description': item.descriptionTransfert
+                    };
+                }
+            });
+            
+            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
+            XLSX.utils.book_append_sheet(wb, wsOperations, 'Toutes_Operations');
+            
+            // Télécharger le fichier
+            const fileName = `rapport_complet_ferme_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage('✅ Rapport complet généré avec succès!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur rapport complet:', error);
+            this.showMessage('❌ Erreur lors de la génération du rapport', 'error');
+        }
     }
 
+    calculerSoldes() {
+        const soldes = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0,
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
+
+        // Opérations
+        this.operations.forEach(op => {
+            const montant = parseFloat(op.montant) || 0;
+            if (op.caisse && soldes[op.caisse] !== undefined) {
+                if (op.typeTransaction === 'revenu') {
+                    soldes[op.caisse] += montant;
+                } else {
+                    soldes[op.caisse] -= montant;
+                }
+            }
+        });
+
+        // Transferts
+        this.transferts.forEach(tr => {
+            const montant = parseFloat(tr.montantTransfert) || 0;
+            if (tr.caisseSource && soldes[tr.caisseSource] !== undefined) {
+                soldes[tr.caisseSource] -= montant;
+            }
+            if (tr.caisseDestination && soldes[tr.caisseDestination] !== undefined) {
+                soldes[tr.caisseDestination] += montant;
+            }
+        });
+
+        return soldes;
+    }
+
+    calculerStatistiquesDetaillees() {
+        const stats = [];
+        
+        // Par caisse
+        const caisses = ['abdel_caisse', 'omar_caisse', 'hicham_caisse', 'zaitoun_caisse', '3commain_caisse'];
+        
+        caisses.forEach(caisse => {
+            const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
+            const revenus = operationsCaisse.filter(op => op.typeTransaction === 'revenu')
+                .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+            const depenses = operationsCaisse.filter(op => op.typeTransaction === 'frais')
+                .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+                
+            stats.push({
+                'Catégorie': 'Par Caisse',
+                'Détail': this.getNomCaisse(caisse),
+                'Nombre Opérations': operationsCaisse.length,
+                'Total Revenus (DH)': revenus,
+                'Total Dépenses (DH)': depenses,
+                'Solde (DH)': revenus - depenses
+            });
+        });
+        
+        // Par opérateur
+        const operateurs = ['abdel', 'omar', 'hicham'];
+        operateurs.forEach(operateur => {
+            const operationsOperateur = this.operations.filter(op => op.operateur === operateur);
+            const count = operationsOperateur.length;
+            const total = operationsOperateur.reduce((sum, op) => {
+                const montant = parseFloat(op.montant) || 0;
+                return op.typeTransaction === 'revenu' ? sum + montant : sum - montant;
+            }, 0);
+            
+            stats.push({
+                'Catégorie': 'Par Opérateur',
+                'Détail': operateur.charAt(0).toUpperCase() + operateur.slice(1),
+                'Nombre Opérations': count,
+                'Impact Total (DH)': total
+            });
+        });
+        
+        return stats;
+    }
+
+    // FONCTIONS DE RÉINITIALISATION
     resetLocalData() {
-        this.showMessage('🗑️ Réinitialisation données locales - À implémenter', 'info');
+        if (confirm('Êtes-vous sûr de vouloir vider les données locales? Les données Firebase ne seront pas affectées.')) {
+            console.log('🗑️ Reset données locales...');
+            
+            // Vider les données locales
+            this.operations = [];
+            this.transferts = [];
+            this.selectedOperations.clear();
+            
+            // Mettre à jour l'affichage
+            this.updateAffichage();
+            this.updateStats();
+            
+            this.showMessage('✅ Données locales vidées avec succès', 'success');
+        }
     }
 
-    resetFirebaseData() {
-        this.showMessage('🔥 Réinitialisation Firebase - À implémenter', 'info');
+    async resetFirebaseData() {
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        if (!window.firebaseAuthFunctions.canResetFirebase(this.currentUser)) {
+            this.showMessage('❌ Seul l\'administrateur peut réinitialiser Firebase', 'error');
+            return;
+        }
+        
+        if (confirm('🚨 ATTENTION! Cette action supprimera TOUTES les données Firebase. Cette action est irréversible. Êtes-vous ABSOLUMENT sûr?')) {
+            try {
+                console.log('🚨 Reset Firebase en cours...');
+                this.showMessage('🔄 Suppression des données Firebase...', 'info');
+                
+                // Supprimer toutes les opérations
+                const operationsSnapshot = await window.firebaseDb.collection('operations').get();
+                const deleteOperations = operationsSnapshot.docs.map(doc => 
+                    window.firebaseSync.deleteDocument('operations', doc.id)
+                );
+                
+                // Supprimer tous les transferts
+                const transfertsSnapshot = await window.firebaseDb.collection('transferts').get();
+                const deleteTransferts = transfertsSnapshot.docs.map(doc => 
+                    window.firebaseSync.deleteDocument('transferts', doc.id)
+                );
+                
+                // Attendre que toutes les suppressions soient terminées
+                await Promise.all([...deleteOperations, ...deleteTransferts]);
+                
+                // Vider aussi les données locales
+                this.operations = [];
+                this.transferts = [];
+                this.selectedOperations.clear();
+                
+                // Mettre à jour l'affichage
+                this.updateAffichage();
+                this.updateStats();
+                
+                this.showMessage('✅ Toutes les données ont été réinitialisées avec succès', 'success');
+                
+            } catch (error) {
+                console.error('❌ Erreur réinitialisation Firebase:', error);
+                this.showMessage('❌ Erreur lors de la réinitialisation', 'error');
+            }
+        }
     }
 
-    showManual() {
-        this.showMessage('📖 Manuel utilisateur - À implémenter', 'info');
+    // FONCTIONS D'ÉDITION
+    editOperation(id) {
+        console.log('✏️ Édition opération:', id);
+        
+        // Trouver l'opération
+        const operation = this.operations.find(op => op.id === id);
+        const transfert = this.transferts.find(tr => tr.id === id);
+        
+        if (!operation && !transfert) {
+            this.showMessage('❌ Opération non trouvée', 'error');
+            return;
+        }
+        
+        if (operation) {
+            this.showEditOperationModal(operation);
+        } else if (transfert) {
+            this.showEditTransfertModal(transfert);
+        }
+    }
+
+    showEditOperationModal(operation) {
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+        
+        if (!modal || !form) {
+            this.showMessage('❌ Modal d\'édition non trouvé', 'error');
+            return;
+        }
+        
+        // Remplir le formulaire avec les données de l'opération
+        document.getElementById('editId').value = operation.id;
+        document.getElementById('editOperateur').value = operation.operateur;
+        document.getElementById('editGroupe').value = operation.groupe;
+        document.getElementById('editTypeOperation').value = operation.typeOperation;
+        document.getElementById('editTypeTransaction').value = operation.typeTransaction;
+        document.getElementById('editCaisse').value = operation.caisse;
+        document.getElementById('editMontant').value = operation.montant;
+        document.getElementById('editDescription').value = operation.description;
+        
+        // Afficher le modal
+        modal.style.display = 'flex';
+        
+        // Gérer la soumission du formulaire
+        form.onsubmit = (e) => this.handleEditOperation(e, operation.id);
+    }
+
+    async handleEditOperation(e, id) {
+        e.preventDefault();
+        
+        const updatedOperation = {
+            operateur: document.getElementById('editOperateur').value,
+            groupe: document.getElementById('editGroupe').value,
+            typeOperation: document.getElementById('editTypeOperation').value,
+            typeTransaction: document.getElementById('editTypeTransaction').value,
+            caisse: document.getElementById('editCaisse').value,
+            montant: parseFloat(document.getElementById('editMontant').value),
+            description: document.getElementById('editDescription').value,
+            timestamp: new Date().toISOString(), // Mettre à jour le timestamp
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
+        };
+        
+        try {
+            await window.firebaseSync.updateDocument('operations', id, updatedOperation);
+            this.showMessage('✅ Opération modifiée avec succès', 'success');
+            this.closeModal(document.getElementById('editModal'));
+            this.loadInitialData();
+        } catch (error) {
+            console.error('❌ Erreur modification opération:', error);
+            this.showMessage('❌ Erreur lors de la modification', 'error');
+        }
+    }
+
+    showEditTransfertModal(transfert) {
+        // Pour l'instant, on utilise une alerte simple
+        alert(`Édition des transferts sera implémentée dans une prochaine version.\n\nTransfert: ${transfert.montantTransfert} DH de ${transfert.caisseSource} vers ${transfert.caisseDestination}`);
+    }
+
+    deleteOperation(id) {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération?')) {
+            return;
+        }
+        
+        console.log('🗑️ Suppression opération:', id);
+        
+        const operation = this.operations.find(op => op.id === id);
+        const transfert = this.transferts.find(tr => tr.id === id);
+        
+        if (operation) {
+            window.firebaseSync.deleteDocument('operations', id)
+                .then(() => {
+                    this.showMessage('✅ Opération supprimée', 'success');
+                    this.loadInitialData();
+                })
+                .catch(error => {
+                    console.error('❌ Erreur suppression:', error);
+                    this.showMessage('❌ Erreur lors de la suppression', 'error');
+                });
+        } else if (transfert) {
+            window.firebaseSync.deleteDocument('transferts', id)
+                .then(() => {
+                    this.showMessage('✅ Transfert supprimé', 'success');
+                    this.loadInitialData();
+                })
+                .catch(error => {
+                    console.error('❌ Erreur suppression:', error);
+                    this.showMessage('❌ Erreur lors de la suppression', 'error');
+                });
+        }
+    }
+
+    deleteSelectedOperations() {
+        if (this.selectedOperations.size === 0) {
+            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+            return;
+        }
+        
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s)?`)) {
+            return;
+        }
+        
+        console.log('🗑️ Suppression de', this.selectedOperations.size, 'opérations...');
+        
+        const promises = [];
+        this.selectedOperations.forEach(id => {
+            const operation = this.operations.find(op => op.id === id);
+            const transfert = this.transferts.find(tr => tr.id === id);
+            
+            if (operation) {
+                promises.push(window.firebaseSync.deleteDocument('operations', id));
+            } else if (transfert) {
+                promises.push(window.firebaseSync.deleteDocument('transferts', id));
+            }
+        });
+        
+        Promise.all(promises)
+            .then(() => {
+                this.showMessage(`✅ ${this.selectedOperations.size} opération(s) supprimée(s)`, 'success');
+                this.selectedOperations.clear();
+                this.loadInitialData();
+                this.toggleEditMode();
+            })
+            .catch(error => {
+                console.error('❌ Erreur suppression multiple:', error);
+                this.showMessage('❌ Erreur lors de la suppression', 'error');
+            });
+    }
+
+    cancelEditMode() {
+        this.editMode = false;
+        this.selectedOperations.clear();
+        this.toggleEditMode();
+        this.showMessage('❌ Mode édition annulé', 'info');
     }
 }
 
