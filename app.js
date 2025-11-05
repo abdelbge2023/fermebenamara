@@ -798,7 +798,7 @@ class GestionFermeApp {
     const typeOperation = document.getElementById('typeOperation').value;
     const groupe = document.getElementById('groupe').value;
     const typeTransaction = document.getElementById('typeTransaction').value;
-    const caisse = document.getElementById('caisse').value; // CAISSE CONCERNÉE
+    const caisse = document.getElementById('caisse').value;
     const montantTotal = parseFloat(document.getElementById('montant').value);
     const description = document.getElementById('description').value.trim();
     
@@ -837,8 +837,8 @@ class GestionFermeApp {
                         groupe: 'les_deux_groupes',
                         typeOperation: 'travailleur_global',
                         typeTransaction: 'frais',
-                        caisse: caisse, // CAISSE QUI PAIE
-                        montant: -montantTotal, // MONTANT TOTAL en négatif
+                        caisse: caisse,
+                        montant: -montantTotal,
                         description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -851,8 +851,8 @@ class GestionFermeApp {
                         groupe: 'zaitoun',
                         typeOperation: 'zaitoun',
                         typeTransaction: 'frais',
-                        caisse: 'zaitoun_caisse', // CAISSE ZAITOUN
-                        montant: -montantZaitoun, // 1/3 en négatif
+                        caisse: 'zaitoun_caisse',
+                        montant: -montantZaitoun,
                         description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -866,8 +866,8 @@ class GestionFermeApp {
                         groupe: '3commain',
                         typeOperation: '3commain',
                         typeTransaction: 'frais',
-                        caisse: '3commain_caisse', // CAISSE 3 COMMAIN
-                        montant: -montantCommain, // 2/3 en négatif
+                        caisse: '3commain_caisse',
+                        montant: -montantCommain,
                         description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -903,8 +903,8 @@ class GestionFermeApp {
                         groupe: groupe,
                         typeOperation: typeOperation,
                         typeTransaction: 'frais',
-                        caisse: caisse, // CAISSE QUI PAIE
-                        montant: -montantTotal, // MONTANT TOTAL en négatif
+                        caisse: caisse,
+                        montant: -montantTotal,
                         description: `${description} - Frais payé par ${caisse}`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -920,8 +920,8 @@ class GestionFermeApp {
                             groupe: groupe,
                             typeOperation: typeOperation,
                             typeTransaction: 'frais',
-                            caisse: 'zaitoun_caisse', // CAISSE DU GROUPE
-                            montant: -montantTotal, // MONTANT TOTAL en négatif
+                            caisse: 'zaitoun_caisse',
+                            montant: -montantTotal,
                             description: `${description} - Frais pour Zaitoun`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
@@ -933,8 +933,8 @@ class GestionFermeApp {
                             groupe: groupe,
                             typeOperation: typeOperation,
                             typeTransaction: 'frais',
-                            caisse: '3commain_caisse', // CAISSE DU GROUPE
-                            montant: -montantTotal, // MONTANT TOTAL en négatif
+                            caisse: '3commain_caisse',
+                            montant: -montantTotal,
                             description: `${description} - Frais pour 3 Commain`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
@@ -968,8 +968,8 @@ class GestionFermeApp {
                         groupe: 'les_deux_groupes',
                         typeOperation: 'travailleur_global',
                         typeTransaction: 'revenu',
-                        caisse: caisse, // SEULEMENT SUR LA CAISSE CONCERNÉE
-                        montant: montantTotal, // MONTANT TOTAL
+                        caisse: caisse,
+                        montant: montantTotal,
                         description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -990,8 +990,8 @@ class GestionFermeApp {
                         groupe: groupe,
                         typeOperation: typeOperation,
                         typeTransaction: 'revenu',
-                        caisse: caisse, // SEULEMENT SUR LA CAISSE CONCERNÉE
-                        montant: montantTotal, // MONTANT TOTAL
+                        caisse: caisse,
+                        montant: montantTotal,
                         description: description,
                         timestamp: new Date().toISOString(),
                         userId: this.currentUser.uid,
@@ -1005,9 +1005,8 @@ class GestionFermeApp {
                 }
             }
             
-            // Réinitialisation du formulaire
-            e.target.reset();
-            document.getElementById('repartitionInfo').style.display = 'none';
+            // CORRECTION : Utiliser resetForm() pour réinitialiser tout en gardant l'opérateur
+            this.resetForm();
             
             // Rechargement des données
             this.loadInitialData();
@@ -1139,12 +1138,31 @@ class GestionFermeApp {
         }
     }
 
-    resetForm() {
-        document.getElementById('saisieForm').reset();
-        document.getElementById('repartitionInfo').style.display = 'none';
-        this.showMessage('📝 Formulaire réinitialisé', 'info');
+resetForm() {
+    const saisieForm = document.getElementById('saisieForm');
+    const repartitionInfo = document.getElementById('repartitionInfo');
+    const selectOperateur = document.getElementById('operateur');
+    
+    if (saisieForm) {
+        saisieForm.reset();
+        
+        // CORRECTION : Réinitialiser l'opérateur avec la valeur de l'utilisateur connecté
+        if (this.currentUser && selectOperateur) {
+            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
+            if (operateur) {
+                selectOperateur.value = operateur;
+                selectOperateur.disabled = true;
+                console.log(`👤 Opérateur réinitialisé: ${operateur}`);
+            }
+        }
     }
-
+    
+    if (repartitionInfo) {
+        repartitionInfo.style.display = 'none';
+    }
+    
+    this.showMessage('📝 Formulaire réinitialisé', 'info');
+}
     showManual() {
         document.getElementById('manualModal').style.display = 'flex';
     }
@@ -1709,6 +1727,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
