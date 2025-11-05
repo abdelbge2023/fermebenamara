@@ -1,6 +1,6 @@
-[file name]: app(10).js
+[file name]: app.js
 [file content begin]
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION CALCULS SIMPLIFIÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -463,15 +463,26 @@ class GestionFermeApp {
         const dataDisplay = document.getElementById('dataDisplay');
         if (!dataDisplay || data.length === 0) return;
         
-        // NOUVEAU SYSTÈME DE CALCUL SIMPLIFIÉ
+        // Calculer les totaux - CORRECTION : Éviter la double comptabilisation
         let totalRevenus = 0;
         let totalDepenses = 0;
         let totalTransferts = 0;
         
         data.forEach(item => {
             if (item.hasOwnProperty('typeOperation')) {
-                // C'EST UNE OPÉRATION
                 const montant = parseFloat(item.montant) || 0;
+                const description = item.description || '';
+                
+                // Identifier les opérations de répartition secondaires
+                const isRepartitionSecondaire = item.repartition === true || 
+                                              (description && description.includes('Part ')) ||
+                                              (description && description.includes('part '));
+                
+                // Ignorer les répartitions secondaires pour éviter la double comptabilisation
+                if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
+                    console.log('🔀 Opération de répartition ignorée:', description);
+                    return;
+                }
                 
                 if (item.typeTransaction === 'revenu') {
                     totalRevenus += Math.abs(montant);
@@ -479,7 +490,6 @@ class GestionFermeApp {
                     totalDepenses += Math.abs(montant);
                 }
             } else {
-                // C'EST UN TRANSFERT
                 totalTransferts += parseFloat(item.montantTransfert) || 0;
             }
         });
@@ -512,7 +522,7 @@ class GestionFermeApp {
         
         dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
         
-        console.log('📊 Totaux calculés (SYSTÈME SIMPLIFIÉ):', {
+        console.log('📊 Totaux calculés:', {
             revenus: totalRevenus,
             depenses: totalDepenses,
             transferts: totalTransferts,
@@ -588,7 +598,7 @@ class GestionFermeApp {
     }
 
     updateStats() {
-        console.log('📊 Calcul des soldes des caisses (SYSTÈME SIMPLIFIÉ)...');
+        console.log('📊 Calcul des soldes des caisses...');
         
         // Réinitialiser les soldes à 0 pour chaque caisse
         const soldes = {
@@ -604,14 +614,15 @@ class GestionFermeApp {
             transferts: this.transferts.length
         });
 
-        // NOUVEAU SYSTÈME DE CALCUL SIMPLIFIÉ
-        // 1. Calculer les soldes basés uniquement sur les opérations principales
+        // 1. Calculer les soldes basés sur les opérations - CORRECTION
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
-            // IGNORER les opérations de répartition secondaires
-            const isRepartitionSecondaire = operation.repartition === true;
+            // CORRECTION : Ignorer les opérations de répartition secondaires
+            const isRepartitionSecondaire = operation.repartition === true || 
+                                          (operation.description && operation.description.includes('Part ')) ||
+                                          (operation.description && operation.description.includes('part '));
             
             if (isRepartitionSecondaire) {
                 console.log('🔀 Opération de répartition ignorée dans les soldes:', {
@@ -623,9 +634,15 @@ class GestionFermeApp {
             }
             
             if (caisse && soldes[caisse] !== undefined) {
-                // TOUTES les opérations principales affectent directement le solde
-                soldes[caisse] += montant;
-                console.log(`📊 ${caisse}: ${montant >= 0 ? '+' : ''}${montant} = ${soldes[caisse]}`);
+                if (operation.typeTransaction === 'revenu') {
+                    // Revenu : ajouter au solde
+                    soldes[caisse] += Math.abs(montant);
+                    console.log(`➕ ${caisse} (REVENU): +${Math.abs(montant)} = ${soldes[caisse]}`);
+                } else if (operation.typeTransaction === 'frais') {
+                    // Frais : soustraire du solde
+                    soldes[caisse] -= Math.abs(montant);
+                    console.log(`➖ ${caisse} (FRAIS): -${Math.abs(montant)} = ${soldes[caisse]}`);
+                }
             }
         });
 
@@ -646,7 +663,7 @@ class GestionFermeApp {
             }
         });
 
-        console.log('📊 Soldes finaux (SYSTÈME SIMPLIFIÉ):', soldes);
+        console.log('📊 Soldes finaux:', soldes);
         
         // Afficher les soldes
         this.renderStats(soldes);
@@ -697,7 +714,7 @@ class GestionFermeApp {
             
         let totalDepenses = operationsCaisse
             .filter(op => op.typeTransaction === 'frais')
-            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+            .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
         
         let totalSortants = transfertsSource
             .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
@@ -705,7 +722,7 @@ class GestionFermeApp {
         let totalEntrants = transfertsDestination
             .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
         
-        const solde = totalRevenus + totalDepenses - totalSortants + totalEntrants;
+        const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
         
         // Afficher dans une modal au lieu d'une alerte
         this.showCaisseDetailsModal(caisse, {
@@ -866,52 +883,214 @@ class GestionFermeApp {
         
         try {
             if (window.firebaseSync) {
-                // NOUVEAU SYSTÈME SIMPLIFIÉ - UNE SEULE OPÉRATION PRINCIPALE
+                // CAS FRAIS (pour TOUS les types d'opérations)
+                if (typeTransaction === 'frais') {
+                    
+                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                        // Calcul des parts 1/3 et 2/3
+                        const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
+                        const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
+                        
+                        console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
+                            total: montantTotal,
+                            caisse_principale: caisse,
+                            zaitoun: montantZaitoun,
+                            commain: montantCommain
+                        });
+
+                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
+                        const operationCaissePrincipale = {
+                            operateur: operateur,
+                            groupe: 'les_deux_groupes',
+                            typeOperation: 'travailleur_global',
+                            typeTransaction: 'frais',
+                            caisse: caisse,
+                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
+                        const operationZaitoun = {
+                            operateur: operateur,
+                            groupe: 'zaitoun',
+                            typeOperation: 'zaitoun',
+                            typeTransaction: 'frais',
+                            caisse: 'zaitoun_caisse',
+                            montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email,
+                            repartition: true
+                        };
+
+                        // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
+                        const operationCommain = {
+                            operateur: operateur,
+                            groupe: '3commain',
+                            typeOperation: '3commain',
+                            typeTransaction: 'frais',
+                            caisse: '3commain_caisse',
+                            montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email,
+                            repartition: true
+                        };
+
+                        console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
+                            principale: operationCaissePrincipale,
+                            zaitoun: operationZaitoun,
+                            commain: operationCommain
+                        });
+
+                        // ENREGISTREMENT DES 3 OPÉRATIONS
+                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                        await window.firebaseSync.addDocument('operations', operationZaitoun);
+                        await window.firebaseSync.addDocument('operations', operationCommain);
+                        
+                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+
+                    } 
+                    // CAS FRAIS NORMAL (pour un seul groupe)
+                    else {
+                        console.log('💰 FRAIS NORMAL:', {
+                            total: montantTotal,
+                            caisse_principale: caisse,
+                            groupe: groupe
+                        });
+
+                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
+                        const operationCaissePrincipale = {
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
+                            typeTransaction: 'frais',
+                            caisse: caisse,
+                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Frais payé par ${caisse}`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
+                        let operationGroupe = null;
+                        
+                        if (groupe === 'zaitoun') {
+                            operationGroupe = {
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
+                                typeTransaction: 'frais',
+                                caisse: 'zaitoun_caisse',
+                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                                description: `${description} - Frais pour Zaitoun`,
+                                timestamp: new Date().toISOString(),
+                                userId: this.currentUser.uid,
+                                userEmail: this.currentUser.email
+                            };
+                        } else if (groupe === '3commain') {
+                            operationGroupe = {
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
+                                typeTransaction: 'frais',
+                                caisse: '3commain_caisse',
+                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                                description: `${description} - Frais pour 3 Commain`,
+                                timestamp: new Date().toISOString(),
+                                userId: this.currentUser.uid,
+                                userEmail: this.currentUser.email
+                            };
+                        }
+
+                        console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
+                            principale: operationCaissePrincipale,
+                            groupe: operationGroupe
+                        });
+
+                        // ENREGISTREMENT DES 2 OPÉRATIONS
+                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                        if (operationGroupe) {
+                            await window.firebaseSync.addDocument('operations', operationGroupe);
+                        }
+                        
+                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
+                    }
+
+                } 
+                // CAS REVENU (pour TOUS les types d'opérations)
+                else if (typeTransaction === 'revenu') {
+                    
+                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
+                        const operation = {
+                            operateur: operateur,
+                            groupe: 'les_deux_groupes',
+                            typeOperation: 'travailleur_global',
+                            typeTransaction: 'revenu',
+                            caisse: caisse,
+                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
+                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
+                        
+                        await window.firebaseSync.addDocument('operations', operation);
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
+
+                    } 
+                    // CAS REVENU NORMAL (pour un seul groupe)
+                    else {
+                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
+                        const operation = {
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
+                            typeTransaction: 'revenu',
+                            caisse: caisse,
+                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
+                            description: description,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
+                        
+                        await window.firebaseSync.addDocument('operations', operation);
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
+                    }
+                }
                 
-                // DÉTERMINER LE MONTANT FINAL (POSITIF pour revenus, NÉGATIF pour frais)
-                const montantFinal = typeTransaction === 'revenu' ? Math.abs(montantTotal) : -Math.abs(montantTotal);
-                
-                // CRÉER UNE SEULE OPÉRATION PRINCIPALE
-                const operationPrincipale = {
-                    operateur: operateur,
-                    typeOperation: typeOperation,
-                    groupe: groupe,
-                    typeTransaction: typeTransaction,
-                    caisse: caisse,
-                    montant: montantFinal, // Montant final avec signe
-                    description: description,
-                    timestamp: new Date().toISOString(),
-                    repartition: false, // Indique que c'est l'opération principale
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email
-                };
-                
-                console.log('📝 Opération principale à créer:', operationPrincipale);
-                
-                // SAUVEGARDER L'OPÉRATION PRINCIPALE
-                await window.firebaseSync.addDocument('operations', operationPrincipale);
-                
-                this.showMessage('✅ Opération enregistrée avec succès', 'success');
-                
-                // Recharger les données
-                await this.loadInitialData();
-                
-                // Réinitialiser le formulaire
+                // Réinitialisation du formulaire
                 this.resetForm();
                 
+                // Rechargement des données
+                this.loadInitialData();
+                
             } else {
-                console.error('❌ FirebaseSync non disponible');
-                this.showMessage('❌ Service temporairement indisponible', 'error');
+                this.showMessage('❌ Erreur de synchronisation', 'error');
             }
         } catch (error) {
-            console.error('❌ Erreur lors de l\'opération:', error);
-            this.showMessage('❌ Erreur lors de l\'enregistrement', 'error');
+            console.error('❌ Erreur enregistrement opération:', error);
+            this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
         }
     }
 
     async handleTransfert(e) {
         e.preventDefault();
-        console.log('🔄 Nouveau transfert en cours...');
+        console.log('🔄 Transfert en cours...');
         
         if (!this.currentUser) {
             this.showMessage('❌ Vous devez être connecté', 'error');
@@ -920,74 +1099,45 @@ class GestionFermeApp {
         
         const caisseSource = document.getElementById('caisseSource').value;
         const caisseDestination = document.getElementById('caisseDestination').value;
-        const montantTransfert = parseFloat(document.getElementById('montantTransfert').value);
-        const descriptionTransfert = document.getElementById('descriptionTransfert').value.trim();
         
-        // Validation
         if (caisseSource === caisseDestination) {
-            this.showMessage('❌ Les caisses source et destination doivent être différentes', 'error');
+            this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
             return;
         }
         
-        if (!montantTransfert || montantTransfert <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
-            return;
-        }
-        
-        if (!descriptionTransfert) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
-            return;
-        }
+        const transfert = {
+            caisseSource: caisseSource,
+            caisseDestination: caisseDestination,
+            montantTransfert: parseFloat(document.getElementById('montantTransfert').value),
+            descriptionTransfert: document.getElementById('descriptionTransfert').value,
+            operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
+            timestamp: new Date().toISOString(),
+            userId: this.currentUser.uid,
+            userEmail: this.currentUser.email
+        };
         
         try {
             if (window.firebaseSync) {
-                const transfertData = {
-                    caisseSource: caisseSource,
-                    caisseDestination: caisseDestination,
-                    montantTransfert: montantTransfert,
-                    descriptionTransfert: descriptionTransfert,
-                    operateur: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email),
-                    timestamp: new Date().toISOString(),
-                    userId: this.currentUser.uid,
-                    userEmail: this.currentUser.email
-                };
-                
-                console.log('🔄 Transfert à créer:', transfertData);
-                
-                await window.firebaseSync.addDocument('transferts', transfertData);
-                
-                this.showMessage('✅ Transfert enregistré avec succès', 'success');
-                
-                // Recharger les données
-                await this.loadInitialData();
-                
-                // Réinitialiser le formulaire de transfert
-                document.getElementById('transfertForm').reset();
-                
-            } else {
-                console.error('❌ FirebaseSync non disponible');
-                this.showMessage('❌ Service temporairement indisponible', 'error');
+                await window.firebaseSync.addDocument('transferts', transfert);
+                this.showMessage('✅ Transfert effectué avec succès', 'success');
+                e.target.reset();
+                this.loadInitialData();
             }
         } catch (error) {
-            console.error('❌ Erreur lors du transfert:', error);
-            this.showMessage('❌ Erreur lors de l\'enregistrement du transfert', 'error');
+            console.error('❌ Erreur enregistrement transfert:', error);
+            this.showMessage('❌ Erreur lors du transfert', 'error');
         }
     }
 
     switchView(view) {
-        console.log('🔄 Changement de vue vers:', view);
-        
+        console.log('🔀 Changement de vue:', view);
         this.currentView = view;
         
-        // Mettre à jour le bouton actif
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.sheet === view);
         });
         
-        // Mettre à jour l'affichage
         this.updateAffichage();
-        
-        console.log('✅ Vue changée:', view);
     }
 
     toggleEditMode() {
@@ -995,73 +1145,50 @@ class GestionFermeApp {
         const btnEditMode = document.getElementById('btnEditMode');
         const btnDeleteSelected = document.getElementById('btnDeleteSelected');
         const btnCancelEdit = document.getElementById('btnCancelEdit');
+        const appContent = document.getElementById('appContent');
         
+        if (btnEditMode) {
+            if (this.editMode) {
+                btnEditMode.textContent = '💾 Quitter Édition';
+                btnEditMode.className = 'btn-success';
+                // Ajouter un indicateur visuel
+                if (appContent) {
+                    appContent.classList.add('edit-mode-active');
+                }
+            } else {
+                btnEditMode.textContent = '✏️ Mode Édition';
+                btnEditMode.className = 'btn-warning';
+                // Retirer l'indicateur visuel
+                if (appContent) {
+                    appContent.classList.remove('edit-mode-active');
+                }
+                this.selectedOperations.clear();
+            }
+        }
+        
+        if (btnDeleteSelected) {
+            btnDeleteSelected.style.display = this.editMode ? 'inline-block' : 'none';
+            if (this.editMode) {
+                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+            }
+        }
+        
+        if (btnCancelEdit) {
+            btnCancelEdit.style.display = this.editMode ? 'inline-block' : 'none';
+        }
+        
+        // Mettre à jour l'affichage
+        this.updateAffichage();
+        
+        // Afficher un message
         if (this.editMode) {
-            btnEditMode.textContent = '💾 Quitter Édition';
-            btnEditMode.className = 'btn-success';
-            btnDeleteSelected.style.display = 'inline-block';
-            btnCancelEdit.style.display = 'inline-block';
-            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à supprimer', 'info');
+            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
         } else {
-            btnEditMode.textContent = '✏️ Mode Édition';
-            btnEditMode.className = 'btn-warning';
-            btnDeleteSelected.style.display = 'none';
-            btnCancelEdit.style.display = 'none';
-            this.selectedOperations.clear();
             this.showMessage('✅ Mode édition désactivé', 'success');
         }
-        
-        // Recharger l'affichage pour montrer/cacher les cases à cocher
-        this.updateAffichage();
     }
 
-    cancelEditMode() {
-        this.editMode = false;
-        this.selectedOperations.clear();
-        this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
-    }
-
-    async deleteSelectedOperations() {
-        if (this.selectedOperations.size === 0) {
-            this.showMessage('❌ Aucune opération sélectionnée', 'error');
-            return;
-        }
-        
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-            return;
-        }
-        
-        try {
-            let successCount = 0;
-            let errorCount = 0;
-            
-            for (const operationId of this.selectedOperations) {
-                try {
-                    const operation = this.operations.find(op => op.id === operationId);
-                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
-                        await window.firebaseSync.deleteDocument('operations', operationId);
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    console.error(`❌ Erreur suppression ${operationId}:`, error);
-                    errorCount++;
-                }
-            }
-            
-            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
-            this.selectedOperations.clear();
-            this.cancelEditMode();
-            this.loadInitialData();
-            
-        } catch (error) {
-            console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
-        }
-    }
-
+    // MÉTHODES DE SUPPRESSION ET MODIFICATION AJOUTÉES
     async deleteOperation(operationId) {
         console.log('🗑️ Suppression opération:', operationId);
         
@@ -1142,9 +1269,6 @@ class GestionFermeApp {
             z-index: 1000;
         `;
         
-        // Convertir le montant en valeur absolue pour l'affichage
-        const montantAbsolu = Math.abs(parseFloat(operation.montant) || 0);
-        
         modal.innerHTML = `
             <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
                 <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
@@ -1195,7 +1319,7 @@ class GestionFermeApp {
                     
                     <div style="margin-bottom: 10px;">
                         <label>Montant (DH):</label>
-                        <input type="number" id="editMontant" value="${montantAbsolu.toFixed(2)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+                        <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
                     </div>
                     
                     <div style="margin-bottom: 15px;">
@@ -1276,6 +1400,67 @@ class GestionFermeApp {
         }
     }
 
+    async deleteSelectedOperations() {
+        console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
+        
+        if (this.selectedOperations.size === 0) {
+            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+            return;
+        }
+        
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
+            return;
+        }
+        
+        try {
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const operationId of this.selectedOperations) {
+                try {
+                    const operation = this.operations.find(op => op.id === operationId);
+                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+                        await window.firebaseSync.deleteDocument('operations', operationId);
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error(`❌ Erreur suppression ${operationId}:`, error);
+                    errorCount++;
+                }
+            }
+            
+            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
+            this.selectedOperations.clear();
+            this.cancelEditMode();
+            this.loadInitialData();
+            
+        } catch (error) {
+            console.error('❌ Erreur suppression multiple:', error);
+            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
+        }
+    }
+
+    showMessage(message, type = 'info') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `auth-message auth-${type}`;
+        messageDiv.textContent = message;
+        
+        const appContent = document.getElementById('appContent');
+        if (appContent) {
+            const header = appContent.querySelector('header');
+            if (header) {
+                header.appendChild(messageDiv);
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 5000);
+            }
+        }
+    }
+
     resetForm() {
         const saisieForm = document.getElementById('saisieForm');
         const repartitionInfo = document.getElementById('repartitionInfo');
@@ -1288,7 +1473,7 @@ class GestionFermeApp {
             // Réinitialiser le formulaire
             saisieForm.reset();
             
-            // Remettre l'opérateur automatiquement
+            // CORRECTION : Remettre l'opérateur automatiquement
             if (this.currentUser) {
                 const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
                 if (operateur && selectOperateur) {
@@ -1311,36 +1496,78 @@ class GestionFermeApp {
         console.log('📝 Formulaire réinitialisé avec opérateur conservé');
     }
 
-    showMessage(message, type = 'info') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `auth-message auth-${type}`;
-        messageDiv.textContent = message;
-        
-        const appContent = document.getElementById('appContent');
-        if (appContent) {
-            const header = appContent.querySelector('header');
-            if (header) {
-                header.appendChild(messageDiv);
-                setTimeout(() => {
-                    if (messageDiv.parentNode) {
-                        messageDiv.remove();
-                    }
-                }, 5000);
-            }
-        }
-    }
-
     closeModal(modal) {
         if (modal) {
             modal.style.display = 'none';
         }
     }
 
-    exportExcelComplet() {
-        console.log('📊 Export Excel complet...');
-        this.showMessage('📊 Export Excel complet - À implémenter', 'info');
+    cancelEditMode() {
+        this.editMode = false;
+        this.selectedOperations.clear();
+        this.toggleEditMode();
+        this.showMessage('❌ Mode édition annulé', 'info');
     }
 
+    exportExcelComplet() {
+        console.log('📊 Export Excel complet...');
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            // Créer un classeur
+            const wb = XLSX.utils.book_new();
+            
+            // Préparer les données pour les opérations
+            const operationsData = this.operations.map(op => ({
+                'Date': new Date(op.timestamp).toLocaleDateString('fr-FR'),
+                'Heure': new Date(op.timestamp).toLocaleTimeString('fr-FR'),
+                'Opérateur': op.operateur,
+                'Type Opération': op.typeOperation,
+                'Groupe': op.groupe,
+                'Transaction': op.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                'Caisse': op.caisse,
+                'Montant (DH)': parseFloat(op.montant),
+                'Description': op.description,
+                'Email Utilisateur': op.userEmail
+            }));
+            
+            // Préparer les données pour les transferts
+            const transfertsData = this.transferts.map(tr => ({
+                'Date': new Date(tr.timestamp).toLocaleDateString('fr-FR'),
+                'Heure': new Date(tr.timestamp).toLocaleTimeString('fr-FR'),
+                'Opérateur': tr.operateur,
+                'Type': 'Transfert',
+                'Caisse Source': tr.caisseSource,
+                'Caisse Destination': tr.caisseDestination,
+                'Montant (DH)': parseFloat(tr.montantTransfert),
+                'Description': tr.descriptionTransfert,
+                'Email Utilisateur': tr.userEmail
+            }));
+            
+            // Créer les feuilles
+            const wsOperations = XLSX.utils.json_to_sheet(operationsData);
+            const wsTransferts = XLSX.utils.json_to_sheet(transfertsData);
+            
+            // Ajouter les feuilles au classeur
+            XLSX.utils.book_append_sheet(wb, wsOperations, 'Opérations');
+            XLSX.utils.book_append_sheet(wb, wsTransferts, 'Transferts');
+            
+            // Générer le fichier et le télécharger
+            const fileName = `gestion_ferme_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage('✅ Export Excel réussi!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur export Excel:', error);
+            this.showMessage('❌ Erreur lors de l\'export Excel', 'error');
+        }
+    }
+
+    // Méthodes d'export supplémentaires (à implémenter si besoin)
     exportVueActuelle() {
         this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
     }
