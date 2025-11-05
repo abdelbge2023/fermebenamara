@@ -244,26 +244,25 @@ class GestionFermeApp {
         }
     }
 
-   setupOperateurAuto() {
-    if (this.currentUser) {
-        const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-        const selectOperateur = document.getElementById('operateur');
-        
-        if (operateur && selectOperateur) {
-            // CORRECTION : S'assurer que l'élément existe et n'est pas null
-            selectOperateur.value = operateur;
-            selectOperateur.disabled = true;
-            console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
-        } else {
-            console.warn('⚠️ Impossible de définir l\'opérateur:', {
-                operateur: operateur,
-                selectOperateur: !!selectOperateur,
-                currentUser: !!this.currentUser
-            });
+    setupOperateurAuto() {
+        if (this.currentUser) {
+            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
+            const selectOperateur = document.getElementById('operateur');
+            
+            if (operateur && selectOperateur) {
+                selectOperateur.value = operateur;
+                selectOperateur.disabled = true;
+                console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
+            } else {
+                console.warn('⚠️ Impossible de définir l\'opérateur:', {
+                    operateur: operateur,
+                    selectOperateur: !!selectOperateur,
+                    currentUser: !!this.currentUser
+                });
+            }
         }
     }
-   }
-}
+
     async loadInitialData() {
         console.log('📥 Chargement des données initiales...');
         
@@ -315,69 +314,69 @@ class GestionFermeApp {
     }
 
     updateAffichage() {
-    console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
-    
-    const dataDisplay = document.getElementById('dataDisplay');
-    if (!dataDisplay) return;
-    
-    // Filtrer les données selon la vue actuelle
-    let dataToShow = [];
-    
-    switch (this.currentView) {
-        case 'global':
-            dataToShow = [...this.operations, ...this.transferts];
-            break;
-        case 'zaitoun':
-            // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun + opérations des deux groupes
-            dataToShow = this.operations.filter(op => 
-                op.caisse === 'zaitoun_caisse' || 
-                op.groupe === 'zaitoun' || 
-                op.groupe === 'les_deux_groupes'
-            );
-            break;
-        case '3commain':
-            // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain + opérations des deux groupes
-            dataToShow = this.operations.filter(op => 
-                op.caisse === '3commain_caisse' || 
-                op.groupe === '3commain' || 
-                op.groupe === 'les_deux_groupes'
-            );
-            break;
-        case 'abdel':
-            dataToShow = this.operations.filter(op => 
-                op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
-            );
-            break;
-        case 'omar':
-            dataToShow = this.operations.filter(op => 
-                op.caisse === 'omar_caisse' || op.operateur === 'omar'
-            );
-            break;
-        case 'hicham':
-            dataToShow = this.operations.filter(op => 
-                op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
-            );
-            break;
-        case 'transferts':
-            dataToShow = this.transferts;
-            break;
-        case 'les_deux_groupes':
-            // Vue spéciale pour les opérations des deux groupes
-            dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
-            break;
+        console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
+        
+        const dataDisplay = document.getElementById('dataDisplay');
+        if (!dataDisplay) return;
+        
+        // Filtrer les données selon la vue actuelle
+        let dataToShow = [];
+        
+        switch (this.currentView) {
+            case 'global':
+                dataToShow = [...this.operations, ...this.transferts];
+                break;
+            case 'zaitoun':
+                // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun + opérations des deux groupes
+                dataToShow = this.operations.filter(op => 
+                    op.caisse === 'zaitoun_caisse' || 
+                    op.groupe === 'zaitoun' || 
+                    op.groupe === 'les_deux_groupes'
+                );
+                break;
+            case '3commain':
+                // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain + opérations des deux groupes
+                dataToShow = this.operations.filter(op => 
+                    op.caisse === '3commain_caisse' || 
+                    op.groupe === '3commain' || 
+                    op.groupe === 'les_deux_groupes'
+                );
+                break;
+            case 'abdel':
+                dataToShow = this.operations.filter(op => 
+                    op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
+                );
+                break;
+            case 'omar':
+                dataToShow = this.operations.filter(op => 
+                    op.caisse === 'omar_caisse' || op.operateur === 'omar'
+                );
+                break;
+            case 'hicham':
+                dataToShow = this.operations.filter(op => 
+                    op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
+                );
+                break;
+            case 'transferts':
+                dataToShow = this.transferts;
+                break;
+            case 'les_deux_groupes':
+                // Vue spéciale pour les opérations des deux groupes
+                dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
+                break;
+        }
+        
+        console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
+        
+        // Trier par date (plus récent en premier)
+        dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Afficher les données
+        this.renderDataTable(dataToShow, dataDisplay);
+        
+        // Afficher aussi les totaux pour cette vue
+        this.afficherTotauxVue(dataToShow);
     }
-    
-    console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
-    
-    // Trier par date (plus récent en premier)
-    dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Afficher les données
-    this.renderDataTable(dataToShow, dataDisplay);
-    
-    // Afficher aussi les totaux pour cette vue
-    this.afficherTotauxVue(dataToShow);
-}
 
     renderDataTable(data, container) {
         if (data.length === 0) {
@@ -582,176 +581,90 @@ class GestionFermeApp {
         }
     }
 
-   updateStats() {
-    console.log('📊 Calcul des soldes des caisses...');
-    
-    // Réinitialiser les soldes à 0 pour chaque caisse
-    const soldes = {
-        'abdel_caisse': 0,
-        'omar_caisse': 0, 
-        'hicham_caisse': 0,
-        'zaitoun_caisse': 0,
-        '3commain_caisse': 0
-    };
+    updateStats() {
+        console.log('📊 Calcul des soldes des caisses...');
+        
+        // Réinitialiser les soldes à 0 pour chaque caisse
+        const soldes = {
+            'abdel_caisse': 0,
+            'omar_caisse': 0, 
+            'hicham_caisse': 0,
+            'zaitoun_caisse': 0,
+            '3commain_caisse': 0
+        };
 
-    console.log('💰 Calcul basé sur:', {
-        operations: this.operations.length,
-        transferts: this.transferts.length
-    });
-// Ajoutez cette méthode dans la classe, après la méthode updateStats()
-showDetailsCaisse(caisse) {
-    console.log('📊 Détails de la caisse:', caisse);
-    
-    // Filtrer les opérations pour cette caisse
-    const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
-    const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
-    const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
-    
-    let totalRevenus = operationsCaisse
-        .filter(op => op.typeTransaction === 'revenu')
-        .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
-        
-    let totalDepenses = operationsCaisse
-        .filter(op => op.typeTransaction === 'frais')
-        .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
-    
-    let totalSortants = transfertsSource
-        .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
-        
-    let totalEntrants = transfertsDestination
-        .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
-    
-    const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
-    
-    let message = `📊 Détails de ${this.getNomCaisse(caisse)}:\n\n`;
-    message += `📝 Opérations: ${operationsCaisse.length}\n`;
-    message += `💰 Revenus: ${totalRevenus.toFixed(2)} DH\n`;
-    message += `💸 Dépenses: ${totalDepenses.toFixed(2)} DH\n`;
-    message += `🔄 Transferts sortants: ${transfertsSource.length} (${totalSortants.toFixed(2)} DH)\n`;
-    message += `🔄 Transferts entrants: ${transfertsDestination.length} (${totalEntrants.toFixed(2)} DH)\n\n`;
-    message += `⚖️ Solde calculé: ${solde.toFixed(2)} DH\n`;
-    message += `📋 Total mouvements: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
-    
-    // Afficher dans une modal au lieu d'une alerte
-    this.showCaisseDetailsModal(caisse, {
-        operations: operationsCaisse.length,
-        revenus: totalRevenus,
-        depenses: totalDepenses,
-        transfertsSortants: totalSortants,
-        transfertsEntrants: totalEntrants,
-        solde: solde,
-        totalMouvements: operationsCaisse.length + transfertsSource.length + transfertsDestination.length
-    });
-}
-
-showCaisseDetailsModal(caisse, details) {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3>📊 Détails de ${this.getNomCaisse(caisse)}</h3>
-            <div style="margin: 15px 0;">
-                <div><strong>📝 Opérations:</strong> ${details.operations}</div>
-                <div><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                <div><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                <div><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                <div><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
-            </div>
-            <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                <div><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
-                <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
-            </div>
-            <button onclick="this.closest('div[style]').remove()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                Fermer
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-    // 1. Calculer les soldes basés sur les opérations
-    this.operations.forEach(operation => {
-        const montant = parseFloat(operation.montant) || 0;
-        const caisse = operation.caisse;
-        
-        console.log('📝 Opération:', {
-            caisse: caisse,
-            type: operation.typeTransaction,
-            montant: montant,
-            description: operation.description,
-            hasRepartition: !!operation.repartition
+        console.log('💰 Calcul basé sur:', {
+            operations: this.operations.length,
+            transferts: this.transferts.length
         });
-        
-        if (caisse && soldes[caisse] !== undefined) {
-            if (operation.typeTransaction === 'revenu') {
-                // Revenu : ajouter au solde
-                soldes[caisse] += montant;
-                console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
-            } else if (operation.typeTransaction === 'frais') {
-                // Frais : soustraire du solde
-                
-                // CORRECTION : Si c'est un travailleur_global, répartir le coût
-                if (operation.typeOperation === 'travailleur_global' && operation.repartition) {
-                    const repartition = operation.repartition;
-                    console.log('🔀 Répartition détectée:', repartition);
+
+        // 1. Calculer les soldes basés sur les opérations
+        this.operations.forEach(operation => {
+            const montant = parseFloat(operation.montant) || 0;
+            const caisse = operation.caisse;
+            
+            console.log('📝 Opération:', {
+                caisse: caisse,
+                type: operation.typeTransaction,
+                montant: montant,
+                description: operation.description,
+                hasRepartition: !!operation.repartition
+            });
+            
+            if (caisse && soldes[caisse] !== undefined) {
+                if (operation.typeTransaction === 'revenu') {
+                    // Revenu : ajouter au solde
+                    soldes[caisse] += montant;
+                    console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
+                } else if (operation.typeTransaction === 'frais') {
+                    // Frais : soustraire du solde
                     
-                    // La caisse qui paie perd le montant total
-                    soldes[caisse] -= montant;
-                    console.log(`➖ ${caisse} (paie total): -${montant} = ${soldes[caisse]}`);
-                    
-                    // Mais on répartit le coût entre Zaitoun et 3 Commain
-                    // Pour l'affichage des soldes, on considère que chaque caisse supporte sa part
-                    // Note: Ceci est pour l'information comptable, l'argent réel reste sur la caisse qui a payé
-                    
-                } else {
-                    // Frais normal : soustraire du solde
-                    soldes[caisse] -= montant;
-                    console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
+                    // CORRECTION : Si c'est un travailleur_global, répartir le coût
+                    if (operation.typeOperation === 'travailleur_global' && operation.repartition) {
+                        const repartition = operation.repartition;
+                        console.log('🔀 Répartition détectée:', repartition);
+                        
+                        // La caisse qui paie perd le montant total
+                        soldes[caisse] -= montant;
+                        console.log(`➖ ${caisse} (paie total): -${montant} = ${soldes[caisse]}`);
+                        
+                    } else {
+                        // Frais normal : soustraire du solde
+                        soldes[caisse] -= montant;
+                        console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
+                    }
                 }
             }
-        }
-    });
-
-    // 2. Gérer les transferts entre caisses
-    this.transferts.forEach(transfert => {
-        const montant = parseFloat(transfert.montantTransfert) || 0;
-        
-        console.log('🔄 Transfert:', {
-            source: transfert.caisseSource,
-            destination: transfert.caisseDestination,
-            montant: montant
         });
-        
-        // Soustraire de la caisse source
-        if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
-            soldes[transfert.caisseSource] -= montant;
-            console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
-        }
-        
-        // Ajouter à la caisse destination
-        if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
-            soldes[transfert.caisseDestination] += montant;
-            console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
-        }
-    });
 
-    console.log('📊 Soldes finaux:', soldes);
-    
-    // Afficher les soldes
-    this.renderStats(soldes);
-}
+        // 2. Gérer les transferts entre caisses
+        this.transferts.forEach(transfert => {
+            const montant = parseFloat(transfert.montantTransfert) || 0;
+            
+            console.log('🔄 Transfert:', {
+                source: transfert.caisseSource,
+                destination: transfert.caisseDestination,
+                montant: montant
+            });
+            
+            // Soustraire de la caisse source
+            if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
+                soldes[transfert.caisseSource] -= montant;
+                console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
+            }
+            
+            // Ajouter à la caisse destination
+            if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
+                soldes[transfert.caisseDestination] += montant;
+                console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
+            }
+        });
+
+        console.log('📊 Soldes finaux:', soldes);
+        
+        // Afficher les soldes
+        this.renderStats(soldes);
+    }
 
     renderStats(soldes) {
         const statsContainer = document.getElementById('statsContainer');
@@ -785,6 +698,9 @@ showCaisseDetailsModal(caisse, details) {
     }
 
     showDetailsCaisse(caisse) {
+        console.log('📊 Détails de la caisse:', caisse);
+        
+        // Filtrer les opérations pour cette caisse
         const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
         const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
         const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
@@ -795,7 +711,7 @@ showCaisseDetailsModal(caisse, details) {
             
         let totalDepenses = operationsCaisse
             .filter(op => op.typeTransaction === 'frais')
-            .reduce((sum, op) => sum + (parseFloat(op.montant) || 0), 0);
+            .reduce((sum, op) => sum + Math.abs(parseFloat(op.montant) || 0), 0);
         
         let totalSortants = transfertsSource
             .reduce((sum, t) => sum + (parseFloat(t.montantTransfert) || 0), 0);
@@ -805,16 +721,54 @@ showCaisseDetailsModal(caisse, details) {
         
         const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
         
-        let message = `📊 Détails de ${this.getNomCaisse(caisse)}:\n\n`;
-        message += `📝 Opérations: ${operationsCaisse.length}\n`;
-        message += `💰 Revenus: ${totalRevenus.toFixed(2)} DH\n`;
-        message += `💸 Dépenses: ${totalDepenses.toFixed(2)} DH\n`;
-        message += `🔄 Transferts sortants: ${transfertsSource.length} (${totalSortants.toFixed(2)} DH)\n`;
-        message += `🔄 Transferts entrants: ${transfertsDestination.length} (${totalEntrants.toFixed(2)} DH)\n\n`;
-        message += `⚖️ Solde calculé: ${solde.toFixed(2)} DH\n`;
-        message += `📋 Total mouvements: ${operationsCaisse.length + transfertsSource.length + transfertsDestination.length}`;
+        // Afficher dans une modal au lieu d'une alerte
+        this.showCaisseDetailsModal(caisse, {
+            operations: operationsCaisse.length,
+            revenus: totalRevenus,
+            depenses: totalDepenses,
+            transfertsSortants: totalSortants,
+            transfertsEntrants: totalEntrants,
+            solde: solde,
+            totalMouvements: operationsCaisse.length + transfertsSource.length + transfertsDestination.length
+        });
+    }
+
+    showCaisseDetailsModal(caisse, details) {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        `;
         
-        alert(message);
+        modal.innerHTML = `
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h3>📊 Détails de ${this.getNomCaisse(caisse)}</h3>
+                <div style="margin: 15px 0;">
+                    <div><strong>📝 Opérations:</strong> ${details.operations}</div>
+                    <div><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                    <div><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                    <div><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                    <div><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+                </div>
+                <div style="border-top: 1px solid #ccc; padding-top: 10px;">
+                    <div><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                    <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
+                </div>
+                <button onclick="this.closest('div[style]').remove()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    Fermer
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
     }
 
     getNomCaisse(caisse) {
@@ -828,286 +782,287 @@ showCaisseDetailsModal(caisse, details) {
         return noms[caisse] || caisse;
     }
 
-   updateRepartition() {
-    const typeOperation = document.getElementById('typeOperation').value;
-    const groupe = document.getElementById('groupe').value;
-    const montant = parseFloat(document.getElementById('montant').value) || 0;
-    
-    const repartitionInfo = document.getElementById('repartitionInfo');
-    const repartitionDetails = document.getElementById('repartitionDetails');
-    
-    // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
-    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
-        let zaitounPart = 0;
-        let commainPart = 0;
+    updateRepartition() {
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const montant = parseFloat(document.getElementById('montant').value) || 0;
         
-        // Calcul des parts
-        zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
-        commainPart = parseFloat((montant * (2/3)).toFixed(2));
+        const repartitionInfo = document.getElementById('repartitionInfo');
+        const repartitionDetails = document.getElementById('repartitionDetails');
         
-        repartitionDetails.innerHTML = `
-            <div class="repartition-details">
-                <div class="repartition-item zaitoun">
-                    <strong>🫒 Zaitoun</strong><br>
-                    Part: 1/3<br>
-                    ${zaitounPart.toFixed(2)} DH<br>
-                    <small>33.3%</small>
+        // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
+        if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
+            let zaitounPart = 0;
+            let commainPart = 0;
+            
+            // Calcul des parts
+            zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
+            commainPart = parseFloat((montant * (2/3)).toFixed(2));
+            
+            repartitionDetails.innerHTML = `
+                <div class="repartition-details">
+                    <div class="repartition-item zaitoun">
+                        <strong>🫒 Zaitoun</strong><br>
+                        Part: 1/3<br>
+                        ${zaitounPart.toFixed(2)} DH<br>
+                        <small>33.3%</small>
+                    </div>
+                    <div class="repartition-item commain">
+                        <strong>🔧 3 Commain</strong><br>
+                        Part: 2/3<br>
+                        ${commainPart.toFixed(2)} DH<br>
+                        <small>66.7%</small>
+                    </div>
+                    <div class="repartition-total">
+                        <strong>💰 Total payé</strong><br>
+                        ${montant.toFixed(2)} DH
+                    </div>
                 </div>
-                <div class="repartition-item commain">
-                    <strong>🔧 3 Commain</strong><br>
-                    Part: 2/3<br>
-                    ${commainPart.toFixed(2)} DH<br>
-                    <small>66.7%</small>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes
                 </div>
-                <div class="repartition-total">
-                    <strong>💰 Total payé</strong><br>
-                    ${montant.toFixed(2)} DH
-                </div>
-            </div>
-            <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                <strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes
-            </div>
-        `;
-        repartitionInfo.style.display = 'block';
-    } else {
-        repartitionInfo.style.display = 'none';
+            `;
+            repartitionInfo.style.display = 'block';
+        } else {
+            repartitionInfo.style.display = 'none';
+        }
     }
-}
 
-  async handleNouvelleOperation(e) {
-    e.preventDefault();
-    console.log('➕ Nouvelle opération en cours...');
-    
-    if (!this.currentUser) {
-        this.showMessage('❌ Vous devez être connecté', 'error');
-        return;
-    }
-    
-    const operateur = document.getElementById('operateur').value;
-    const typeOperation = document.getElementById('typeOperation').value;
-    const groupe = document.getElementById('groupe').value;
-    const typeTransaction = document.getElementById('typeTransaction').value;
-    const caisse = document.getElementById('caisse').value;
-    const montantTotal = parseFloat(document.getElementById('montant').value);
-    const description = document.getElementById('description').value.trim();
-    
-    // Validation
-    if (!montantTotal || montantTotal <= 0) {
-        this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
-        return;
-    }
-    
-    if (!description) {
-        this.showMessage('❌ Veuillez saisir une description', 'error');
-        return;
-    }
-    
-    try {
-        if (window.firebaseSync) {
-            // CAS FRAIS (pour TOUS les types d'opérations)
-            if (typeTransaction === 'frais') {
-                
-                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                    // Calcul des parts 1/3 et 2/3
-                    const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
-                    const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
+    async handleNouvelleOperation(e) {
+        e.preventDefault();
+        console.log('➕ Nouvelle opération en cours...');
+        
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        const operateur = document.getElementById('operateur').value;
+        const typeOperation = document.getElementById('typeOperation').value;
+        const groupe = document.getElementById('groupe').value;
+        const typeTransaction = document.getElementById('typeTransaction').value;
+        const caisse = document.getElementById('caisse').value;
+        const montantTotal = parseFloat(document.getElementById('montant').value);
+        const description = document.getElementById('description').value.trim();
+        
+        // Validation
+        if (!montantTotal || montantTotal <= 0) {
+            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+            return;
+        }
+        
+        if (!description) {
+            this.showMessage('❌ Veuillez saisir une description', 'error');
+            return;
+        }
+        
+        try {
+            if (window.firebaseSync) {
+                // CAS FRAIS (pour TOUS les types d'opérations)
+                if (typeTransaction === 'frais') {
                     
-                    console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
-                        total: montantTotal,
-                        caisse_principale: caisse,
-                        zaitoun: montantZaitoun,
-                        commain: montantCommain
-                    });
+                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                        // Calcul des parts 1/3 et 2/3
+                        const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
+                        const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
+                        
+                        console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
+                            total: montantTotal,
+                            caisse_principale: caisse,
+                            zaitoun: montantZaitoun,
+                            commain: montantCommain
+                        });
 
-                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                    const operationCaissePrincipale = {
-                        operateur: operateur,
-                        groupe: 'les_deux_groupes',
-                        typeOperation: 'travailleur_global',
-                        typeTransaction: 'frais',
-                        caisse: caisse,
-                        montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                        description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email
-                    };
-
-                    // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
-                    const operationZaitoun = {
-                        operateur: operateur,
-                        groupe: 'zaitoun',
-                        typeOperation: 'zaitoun',
-                        typeTransaction: 'frais',
-                        caisse: 'zaitoun_caisse',
-                        montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
-                        description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email,
-                        repartition: true
-                    };
-
-                    // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
-                    const operationCommain = {
-                        operateur: operateur,
-                        groupe: '3commain',
-                        typeOperation: '3commain',
-                        typeTransaction: 'frais',
-                        caisse: '3commain_caisse',
-                        montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
-                        description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email,
-                        repartition: true
-                    };
-
-                    console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
-                        principale: operationCaissePrincipale,
-                        zaitoun: operationZaitoun,
-                        commain: operationCommain
-                    });
-
-                    // ENREGISTREMENT DES 3 OPÉRATIONS
-                    await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                    await window.firebaseSync.addDocument('operations', operationZaitoun);
-                    await window.firebaseSync.addDocument('operations', operationCommain);
-                    
-                    this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
-
-                } 
-                // CAS FRAIS NORMAL (pour un seul groupe)
-                else {
-                    console.log('💰 FRAIS NORMAL:', {
-                        total: montantTotal,
-                        caisse_principale: caisse,
-                        groupe: groupe
-                    });
-
-                    // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                    const operationCaissePrincipale = {
-                        operateur: operateur,
-                        groupe: groupe,
-                        typeOperation: typeOperation,
-                        typeTransaction: 'frais',
-                        caisse: caisse,
-                        montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                        description: `${description} - Frais payé par ${caisse}`,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email
-                    };
-
-                    // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
-                    let operationGroupe = null;
-                    
-                    if (groupe === 'zaitoun') {
-                        operationGroupe = {
+                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
+                        const operationCaissePrincipale = {
                             operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
+                            groupe: 'les_deux_groupes',
+                            typeOperation: 'travailleur_global',
+                            typeTransaction: 'frais',
+                            caisse: caisse,
+                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
+                        const operationZaitoun = {
+                            operateur: operateur,
+                            groupe: 'zaitoun',
+                            typeOperation: 'zaitoun',
                             typeTransaction: 'frais',
                             caisse: 'zaitoun_caisse',
-                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais pour Zaitoun`,
+                            montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
+                            userEmail: this.currentUser.email,
+                            repartition: true
                         };
-                    } else if (groupe === '3commain') {
-                        operationGroupe = {
+
+                        // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
+                        const operationCommain = {
+                            operateur: operateur,
+                            groupe: '3commain',
+                            typeOperation: '3commain',
+                            typeTransaction: 'frais',
+                            caisse: '3commain_caisse',
+                            montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
+                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email,
+                            repartition: true
+                        };
+
+                        console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
+                            principale: operationCaissePrincipale,
+                            zaitoun: operationZaitoun,
+                            commain: operationCommain
+                        });
+
+                        // ENREGISTREMENT DES 3 OPÉRATIONS
+                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                        await window.firebaseSync.addDocument('operations', operationZaitoun);
+                        await window.firebaseSync.addDocument('operations', operationCommain);
+                        
+                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
+
+                    } 
+                    // CAS FRAIS NORMAL (pour un seul groupe)
+                    else {
+                        console.log('💰 FRAIS NORMAL:', {
+                            total: montantTotal,
+                            caisse_principale: caisse,
+                            groupe: groupe
+                        });
+
+                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
+                        const operationCaissePrincipale = {
                             operateur: operateur,
                             groupe: groupe,
                             typeOperation: typeOperation,
                             typeTransaction: 'frais',
-                            caisse: '3commain_caisse',
+                            caisse: caisse,
                             montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais pour 3 Commain`,
+                            description: `${description} - Frais payé par ${caisse}`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email
                         };
+
+                        // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
+                        let operationGroupe = null;
+                        
+                        if (groupe === 'zaitoun') {
+                            operationGroupe = {
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
+                                typeTransaction: 'frais',
+                                caisse: 'zaitoun_caisse',
+                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                                description: `${description} - Frais pour Zaitoun`,
+                                timestamp: new Date().toISOString(),
+                                userId: this.currentUser.uid,
+                                userEmail: this.currentUser.email
+                            };
+                        } else if (groupe === '3commain') {
+                            operationGroupe = {
+                                operateur: operateur,
+                                groupe: groupe,
+                                typeOperation: typeOperation,
+                                typeTransaction: 'frais',
+                                caisse: '3commain_caisse',
+                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
+                                description: `${description} - Frais pour 3 Commain`,
+                                timestamp: new Date().toISOString(),
+                                userId: this.currentUser.uid,
+                                userEmail: this.currentUser.email
+                            };
+                        }
+
+                        console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
+                            principale: operationCaissePrincipale,
+                            groupe: operationGroupe
+                        });
+
+                        // ENREGISTREMENT DES 2 OPÉRATIONS
+                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
+                        if (operationGroupe) {
+                            await window.firebaseSync.addDocument('operations', operationGroupe);
+                        }
+                        
+                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
                     }
-
-                    console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
-                        principale: operationCaissePrincipale,
-                        groupe: operationGroupe
-                    });
-
-                    // ENREGISTREMENT DES 2 OPÉRATIONS
-                    await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                    if (operationGroupe) {
-                        await window.firebaseSync.addDocument('operations', operationGroupe);
-                    }
-                    
-                    this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
-                }
-
-            } 
-            // CAS REVENU (pour TOUS les types d'opérations)
-            else if (typeTransaction === 'revenu') {
-                
-                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                    // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                    const operation = {
-                        operateur: operateur,
-                        groupe: 'les_deux_groupes',
-                        typeOperation: 'travailleur_global',
-                        typeTransaction: 'revenu',
-                        caisse: caisse,
-                        montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                        description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email
-                    };
-
-                    console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
-                    
-                    await window.firebaseSync.addDocument('operations', operation);
-                    this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
 
                 } 
-                // CAS REVENU NORMAL (pour un seul groupe)
-                else {
-                    // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                    const operation = {
-                        operateur: operateur,
-                        groupe: groupe,
-                        typeOperation: typeOperation,
-                        typeTransaction: 'revenu',
-                        caisse: caisse,
-                        montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                        description: description,
-                        timestamp: new Date().toISOString(),
-                        userId: this.currentUser.uid,
-                        userEmail: this.currentUser.email
-                    };
-
-                    console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
+                // CAS REVENU (pour TOUS les types d'opérations)
+                else if (typeTransaction === 'revenu') {
                     
-                    await window.firebaseSync.addDocument('operations', operation);
-                    this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
+                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
+                        const operation = {
+                            operateur: operateur,
+                            groupe: 'les_deux_groupes',
+                            typeOperation: 'travailleur_global',
+                            typeTransaction: 'revenu',
+                            caisse: caisse,
+                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
+                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
+                        
+                        await window.firebaseSync.addDocument('operations', operation);
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
+
+                    } 
+                    // CAS REVENU NORMAL (pour un seul groupe)
+                    else {
+                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
+                        const operation = {
+                            operateur: operateur,
+                            groupe: groupe,
+                            typeOperation: typeOperation,
+                            typeTransaction: 'revenu',
+                            caisse: caisse,
+                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
+                            description: description,
+                            timestamp: new Date().toISOString(),
+                            userId: this.currentUser.uid,
+                            userEmail: this.currentUser.email
+                        };
+
+                        console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
+                        
+                        await window.firebaseSync.addDocument('operations', operation);
+                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
+                    }
                 }
+                
+                // Réinitialisation du formulaire
+                this.resetForm();
+                
+                // Rechargement des données
+                this.loadInitialData();
+                
+            } else {
+                this.showMessage('❌ Erreur de synchronisation', 'error');
             }
-            
-            // Réinitialisation du formulaire
-            this.resetForm();
-            
-            // Rechargement des données
-            this.loadInitialData();
-            
-        } else {
-            this.showMessage('❌ Erreur de synchronisation', 'error');
+        } catch (error) {
+            console.error('❌ Erreur enregistrement opération:', error);
+            this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
         }
-    } catch (error) {
-        console.error('❌ Erreur enregistrement opération:', error);
-        this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
     }
-}
+
     async handleTransfert(e) {
         e.preventDefault();
         console.log('🔄 Transfert en cours...');
@@ -1226,40 +1181,41 @@ showCaisseDetailsModal(caisse, details) {
             }
         }
     }
-resetForm() {
-    const saisieForm = document.getElementById('saisieForm');
-    const repartitionInfo = document.getElementById('repartitionInfo');
-    
-    if (saisieForm) {
-        // Sauvegarder la valeur de l'opérateur actuel
-        const selectOperateur = document.getElementById('operateur');
-        const operateurActuel = selectOperateur ? selectOperateur.value : '';
+
+    resetForm() {
+        const saisieForm = document.getElementById('saisieForm');
+        const repartitionInfo = document.getElementById('repartitionInfo');
         
-        // Réinitialiser le formulaire
-        saisieForm.reset();
-        
-        // CORRECTION : Remettre l'opérateur automatiquement
-        if (this.currentUser) {
-            const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-            if (operateur && selectOperateur) {
-                selectOperateur.value = operateur;
-                selectOperateur.disabled = true;
-                console.log(`👤 Opérateur réinitialisé: ${operateur}`);
-            }
-        } else {
-            // Si pas d'utilisateur connecté, remettre l'ancienne valeur
-            if (selectOperateur && operateurActuel) {
-                selectOperateur.value = operateurActuel;
+        if (saisieForm) {
+            // Sauvegarder la valeur de l'opérateur actuel
+            const selectOperateur = document.getElementById('operateur');
+            const operateurActuel = selectOperateur ? selectOperateur.value : '';
+            
+            // Réinitialiser le formulaire
+            saisieForm.reset();
+            
+            // CORRECTION : Remettre l'opérateur automatiquement
+            if (this.currentUser) {
+                const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
+                if (operateur && selectOperateur) {
+                    selectOperateur.value = operateur;
+                    selectOperateur.disabled = true;
+                    console.log(`👤 Opérateur réinitialisé: ${operateur}`);
+                }
+            } else {
+                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
+                if (selectOperateur && operateurActuel) {
+                    selectOperateur.value = operateurActuel;
+                }
             }
         }
+        
+        if (repartitionInfo) {
+            repartitionInfo.style.display = 'none';
+        }
+        
+        console.log('📝 Formulaire réinitialisé avec opérateur conservé');
     }
-    
-    if (repartitionInfo) {
-        repartitionInfo.style.display = 'none';
-    }
-    
-    console.log('📝 Formulaire réinitialisé avec opérateur conservé');
-}
 
     closeModal(modal) {
         if (modal) {
@@ -1821,19 +1777,3 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
