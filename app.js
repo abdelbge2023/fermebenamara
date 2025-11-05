@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE AVEC MANUEL
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -595,6 +595,7 @@ class GestionFermeApp {
         }
     }
 
+    // NOUVELLE MÉTHODE DE CALCUL DES SOLDES (corrigée)
     updateStats() {
         console.log('📊 Calcul des soldes des caisses...');
         
@@ -612,7 +613,7 @@ class GestionFermeApp {
             transferts: this.transferts.length
         });
 
-        // 1. Calculer les soldes basés sur les opérations - CORRECTION
+        // 1. Calculer les soldes basés sur les opérations
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
@@ -632,15 +633,8 @@ class GestionFermeApp {
             }
             
             if (caisse && soldes[caisse] !== undefined) {
-                if (operation.typeTransaction === 'revenu') {
-                    // Revenu : ajouter au solde
-                    soldes[caisse] += Math.abs(montant);
-                    console.log(`➕ ${caisse} (REVENU): +${Math.abs(montant)} = ${soldes[caisse]}`);
-                } else if (operation.typeTransaction === 'frais') {
-                    // Frais : soustraire du solde
-                    soldes[caisse] -= Math.abs(montant);
-                    console.log(`➖ ${caisse} (FRAIS): -${Math.abs(montant)} = ${soldes[caisse]}`);
-                }
+                soldes[caisse] += montant;
+                console.log(`📊 ${caisse}: ${montant >= 0 ? '+' : ''}${montant} = ${soldes[caisse]}`);
             }
         });
 
@@ -851,6 +845,7 @@ class GestionFermeApp {
         }
     }
 
+    // NOUVELLE MÉTHODE DE GESTION DES OPÉRATIONS (corrigée)
     async handleNouvelleOperation(e) {
         e.preventDefault();
         console.log('➕ Nouvelle opération en cours...');
@@ -881,196 +876,82 @@ class GestionFermeApp {
         
         try {
             if (window.firebaseSync) {
-                // CAS FRAIS (pour TOUS les types d'opérations)
-                if (typeTransaction === 'frais') {
+                let operationsACreer = [];
+
+                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
+                if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
+                    // Calcul des parts 1/3 et 2/3
+                    const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
+                    const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
                     
-                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                        // Calcul des parts 1/3 et 2/3
-                        const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
-                        const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
-                        
-                        console.log('💰 FRAIS RÉPARTITION 1/3 - 2/3:', {
-                            total: montantTotal,
-                            caisse_principale: caisse,
-                            zaitoun: montantZaitoun,
-                            commain: montantCommain
-                        });
+                    console.log('💰 RÉPARTITION 1/3 - 2/3:', {
+                        total: montantTotal,
+                        caisse_principale: caisse,
+                        zaitoun: montantZaitoun,
+                        commain: montantCommain
+                    });
 
-                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                        const operationCaissePrincipale = {
-                            operateur: operateur,
-                            groupe: 'les_deux_groupes',
-                            typeOperation: 'travailleur_global',
-                            typeTransaction: 'frais',
-                            caisse: caisse,
-                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais pour les deux groupes (Total: ${montantTotal} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        // 2. RÉPARTITION POUR ZAITOUN (1/3) - CORRECTION : montant NÉGATIF
-                        const operationZaitoun = {
+                    operationsACreer = [
+                        {
                             operateur: operateur,
                             groupe: 'zaitoun',
                             typeOperation: 'zaitoun',
-                            typeTransaction: 'frais',
-                            caisse: 'zaitoun_caisse',
-                            montant: -Math.abs(montantZaitoun), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part Zaitoun (1/3 = ${montantZaitoun} DH)`,
+                            typeTransaction: typeTransaction,
+                            caisse: caisse,
+                            montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
+                            description: `${description} (Part Zaitoun - 1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
                             repartition: true
-                        };
-
-                        // 3. RÉPARTITION POUR 3 COMMAIN (2/3) - CORRECTION : montant NÉGATIF
-                        const operationCommain = {
+                        },
+                        {
                             operateur: operateur,
                             groupe: '3commain',
                             typeOperation: '3commain',
-                            typeTransaction: 'frais',
-                            caisse: '3commain_caisse',
-                            montant: -Math.abs(montantCommain), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Part 3 Commain (2/3 = ${montantCommain} DH)`,
+                            typeTransaction: typeTransaction,
+                            caisse: caisse,
+                            montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
+                            description: `${description} (Part 3 Commain - 2/3 = ${montantCommain} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
                             repartition: true
-                        };
-
-                        console.log('📝 FRAIS - 3 OPÉRATIONS (NÉGATIVES):', {
-                            principale: operationCaissePrincipale,
-                            zaitoun: operationZaitoun,
-                            commain: operationCommain
-                        });
-
-                        // ENREGISTREMENT DES 3 OPÉRATIONS
-                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                        await window.firebaseSync.addDocument('operations', operationZaitoun);
-                        await window.firebaseSync.addDocument('operations', operationCommain);
-                        
-                        this.showMessage(`✅ FRAIS RÉPARTIS! ${caisse} a payé ${montantTotal} DH total → Zaitoun: ${montantZaitoun} DH (1/3) + 3 Commain: ${montantCommain} DH (2/3)`, 'success');
-
-                    } 
-                    // CAS FRAIS NORMAL (pour un seul groupe)
-                    else {
-                        console.log('💰 FRAIS NORMAL:', {
-                            total: montantTotal,
-                            caisse_principale: caisse,
-                            groupe: groupe
-                        });
-
-                        // 1. FRAIS POUR LA CAISSE QUI PAIE (montant total) - CORRECTION : montant NÉGATIF
-                        const operationCaissePrincipale = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
-                            typeTransaction: 'frais',
-                            caisse: caisse,
-                            montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                            description: `${description} - Frais payé par ${caisse}`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        // 2. FRAIS POUR LA CAISSE DU GROUPE - CORRECTION : montant NÉGATIF
-                        let operationGroupe = null;
-                        
-                        if (groupe === 'zaitoun') {
-                            operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
-                                typeTransaction: 'frais',
-                                caisse: 'zaitoun_caisse',
-                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour Zaitoun`,
-                                timestamp: new Date().toISOString(),
-                                userId: this.currentUser.uid,
-                                userEmail: this.currentUser.email
-                            };
-                        } else if (groupe === '3commain') {
-                            operationGroupe = {
-                                operateur: operateur,
-                                groupe: groupe,
-                                typeOperation: typeOperation,
-                                typeTransaction: 'frais',
-                                caisse: '3commain_caisse',
-                                montant: -Math.abs(montantTotal), // CORRECTION : FORCER NÉGATIF
-                                description: `${description} - Frais pour 3 Commain`,
-                                timestamp: new Date().toISOString(),
-                                userId: this.currentUser.uid,
-                                userEmail: this.currentUser.email
-                            };
                         }
+                    ];
 
-                        console.log('📝 FRAIS NORMAL - 2 OPÉRATIONS (NÉGATIVES):', {
-                            principale: operationCaissePrincipale,
-                            groupe: operationGroupe
-                        });
-
-                        // ENREGISTREMENT DES 2 OPÉRATIONS
-                        await window.firebaseSync.addDocument('operations', operationCaissePrincipale);
-                        if (operationGroupe) {
-                            await window.firebaseSync.addDocument('operations', operationGroupe);
-                        }
-                        
-                        this.showMessage(`✅ FRAIS ENREGISTRÉ! ${caisse} a payé ${montantTotal} DH pour ${groupe}`, 'success');
-                    }
-
-                } 
-                // CAS REVENU (pour TOUS les types d'opérations)
-                else if (typeTransaction === 'revenu') {
+                    console.log('📝 2 OPÉRATIONS DE RÉPARTITION:', operationsACreer);
                     
-                    // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
-                    if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                        const operation = {
-                            operateur: operateur,
-                            groupe: 'les_deux_groupes',
-                            typeOperation: 'travailleur_global',
-                            typeTransaction: 'revenu',
-                            caisse: caisse,
-                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: `${description} - Revenu pour les deux groupes (Total: ${montantTotal} DH)`,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
+                } else {
+                    // CAS NORMAL (un seul groupe)
+                    operationsACreer = [{
+                        operateur: operateur,
+                        groupe: groupe,
+                        typeOperation: typeOperation,
+                        typeTransaction: typeTransaction,
+                        caisse: caisse,
+                        montant: typeTransaction === 'frais' ? -montantTotal : montantTotal,
+                        description: description,
+                        timestamp: new Date().toISOString(),
+                        userId: this.currentUser.uid,
+                        userEmail: this.currentUser.email,
+                        repartition: false
+                    }];
 
-                        console.log('📝 REVENU - 1 OPÉRATION (POSITIVE):', operation);
-                        
-                        await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour les deux groupes`, 'success');
+                    console.log('📝 1 OPÉRATION NORMALE:', operationsACreer);
+                }
 
-                    } 
-                    // CAS REVENU NORMAL (pour un seul groupe)
-                    else {
-                        // REVENU : Seulement sur la caisse concernée - CORRECTION : montant POSITIF
-                        const operation = {
-                            operateur: operateur,
-                            groupe: groupe,
-                            typeOperation: typeOperation,
-                            typeTransaction: 'revenu',
-                            caisse: caisse,
-                            montant: Math.abs(montantTotal), // CORRECTION : FORCER POSITIF
-                            description: description,
-                            timestamp: new Date().toISOString(),
-                            userId: this.currentUser.uid,
-                            userEmail: this.currentUser.email
-                        };
-
-                        console.log('📝 REVENU NORMAL - 1 OPÉRATION (POSITIVE):', operation);
-                        
-                        await window.firebaseSync.addDocument('operations', operation);
-                        this.showMessage(`✅ REVENU ENREGISTRÉ! ${montantTotal} DH sur ${caisse} pour ${groupe}`, 'success');
-                    }
+                // ENREGISTREMENT DES OPÉRATIONS
+                for (const operation of operationsACreer) {
+                    await window.firebaseSync.addDocument('operations', operation);
                 }
                 
+                if (operationsACreer.length === 2) {
+                    this.showMessage(`✅ OPÉRATION RÉPARTIE! ${caisse} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`, 'success');
+                } else {
+                    this.showMessage(`✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`, 'success');
+                }
+
                 // Réinitialisation du formulaire
                 this.resetForm();
                 
@@ -1186,7 +1067,7 @@ class GestionFermeApp {
         }
     }
 
-    // MÉTHODES DE SUPPRESSION ET MODIFICATION AJOUTÉES
+    // MÉTHODES DE SUPPRESSION ET MODIFICATION
     async deleteOperation(operationId) {
         console.log('🗑️ Suppression opération:', operationId);
         
@@ -1440,6 +1321,156 @@ class GestionFermeApp {
         }
     }
 
+    // NOUVELLE MÉTHODE : MANUEL DES CALCULS
+    showManual() {
+        console.log('📖 Affichage du manuel des calculs');
+        
+        const manualModal = document.createElement('div');
+        manualModal.className = 'modal';
+        manualModal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        `;
+        
+        manualModal.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
+                    <h2 style="margin: 0; color: #2c3e50;">📊 MANUEL DES CALCULS - GESTION FERME</h2>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #e74c3c; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer;">×</button>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #3498db; border-left: 4px solid #3498db; padding-left: 10px;">🏦 SYSTÈME DE CAISSES</h3>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <h4 style="margin-top: 0;">Caisses Personnelles :</h4>
+                        <ul style="margin: 0;">
+                            <li><strong>👨‍💼 Caisse Abdel</strong> (abdel_caisse)</li>
+                            <li><strong>👨‍💻 Caisse Omar</strong> (omar_caisse)</li>
+                            <li><strong>👨‍🔧 Caisse Hicham</strong> (hicham_caisse)</li>
+                        </ul>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <h4 style="margin-top: 0;">Caisses de Groupes :</h4>
+                        <ul style="margin: 0;">
+                            <li><strong>🫒 Caisse Zaitoun</strong> (zaitoun_caisse)</li>
+                            <li><strong>🔧 Caisse 3 Commain</strong> (3commain_caisse)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #27ae60; border-left: 4px solid #27ae60; padding-left: 10px;">💰 TYPES D'OPÉRATIONS</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px;">
+                            <h4 style="margin-top: 0; color: #27ae60;">💎 REVENUS</h4>
+                            <p><strong>Formule :</strong> SOLDE = SOLDE + MONTANT</p>
+                            <p><strong>Exemple :</strong> Caisse Abdel reçoit 1000 DH → +1000 DH</p>
+                        </div>
+                        <div style="background: #fde8e8; padding: 15px; border-radius: 8px;">
+                            <h4 style="margin-top: 0; color: #e74c3c;">💸 FRAIS</h4>
+                            <p><strong>Formule :</strong> SOLDE = SOLDE - MONTANT</p>
+                            <p><strong>Exemple :</strong> Caisse Omar paye 200 DH → -200 DH</p>
+                        </div>
+                    </div>
+                    <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <h4 style="margin-top: 0; color: #3498db;">🔄 TRANSFERTS</h4>
+                        <p><strong>Formule :</strong></p>
+                        <ul>
+                            <li><strong>Source :</strong> SOLDE = SOLDE - MONTANT</li>
+                            <li><strong>Destination :</strong> SOLDE = SOLDE + MONTANT</li>
+                        </ul>
+                        <p><strong>Exemple :</strong> Transfert 300 DH Abdel → Omar</p>
+                        <p>→ Abdel: -300 DH, Omar: +300 DH</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #9b59b6; border-left: 4px solid #9b59b6; padding-left: 10px;">🔀 SYSTÈME DE RÉPARTITION</h3>
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #9b59b6;">CAS 1 : FRAIS POUR UN SEUL GROUPE</h4>
+                        <p><strong>Exemple :</strong> Frais de 600 DH pour Zaitoun payé par Caisse Abdel</p>
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9b59b6;">
+                            <p><strong>Calcul :</strong></p>
+                            <p>1. Caisse Abdel (payeur) : <span style="color: #e74c3c;">-600 DH</span></p>
+                            <p>2. Caisse Zaitoun (bénéficiaire) : <span style="color: #e74c3c;">-600 DH</span></p>
+                            <p><strong>Résultat :</strong> Abdel: -600 DH, Zaitoun: -600 DH</p>
+                        </div>
+                    </div>
+
+                    <div style="background: #f4ecf7; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #9b59b6;">CAS 2 : FRAIS POUR LES DEUX GROUPES (RÉPARTITION 1/3 - 2/3)</h4>
+                        <p><strong>Exemple :</strong> Frais de 900 DH pour les deux groupes payé par Caisse Omar</p>
+                        <div style="background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #9b59b6;">
+                            <p><strong>Calcul des parts :</strong></p>
+                            <p>ZAITOUN (1/3) = 900 × 1/3 = <strong>300 DH</strong></p>
+                            <p>3 COMMAIN (2/3) = 900 × 2/3 = <strong>600 DH</strong></p>
+                            <p><strong>Opérations créées :</strong></p>
+                            <p>1. Caisse Omar : <span style="color: #e74c3c;">-900 DH</span> (total payé)</p>
+                            <p>2. Caisse Zaitoun : <span style="color: #e74c3c;">-300 DH</span> (part Zaitoun)</p>
+                            <p>3. Caisse 3 Commain : <span style="color: #e74c3c;">-600 DH</span> (part 3 Commain)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #e67e22; border-left: 4px solid #e67e22; padding-left: 10px;">📈 FORMULES DE CALCUL</h3>
+                    <div style="background: #fef5e7; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #e67e22;">Pour chaque caisse :</h4>
+                        <div style="background: white; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 16px; border: 1px solid #e67e22;">
+                            SOLDE = (Σ REVENUS) - (Σ FRAIS DIRECTS) - (Σ TRANSFERTS SORTANTS) + (Σ TRANSFERTS ENTRANTS)
+                        </div>
+                        
+                        <h5 style="margin-top: 20px; color: #e67e22;">Exemple concret :</h5>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                            <p><strong>Caisse Abdel :</strong></p>
+                            <p>Revenus : 5000 DH | Frais directs : 2000 DH</p>
+                            <p>Transferts sortants : 1000 DH | Transferts entrants : 500 DH</p>
+                            <p><strong>SOLDE = 5000 - 2000 - 1000 + 500 = 2500 DH</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <h3 style="color: #e74c3c; border-left: 4px solid #e74c3c; padding-left: 10px;">⚠️ IMPORTANT</h3>
+                    <div style="background: #fde8e8; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                        <h4 style="margin-top: 0; color: #e74c3c;">Pourquoi les totaux semblent élevés ?</h4>
+                        <p>Le système enregistre <strong>chaque impact financier</strong> :</p>
+                        <ul>
+                            <li>Frais payé par une caisse → impact sur la caisse payeuse</li>
+                            <li>Frais pour un groupe → impact sur la caisse du groupe</li>
+                            <li>Répartition → impacts multiples mais réels</li>
+                        </ul>
+                        <p><strong>C'est normal car le système reflète la réalité économique !</strong></p>
+                    </div>
+                </div>
+
+                <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center; margin-top: 20px;">
+                    <h4 style="margin: 0;">💡 BONNES PRATIQUES</h4>
+                    <p style="margin: 10px 0 0 0;">Vérifiez les soldes avant chaque opération importante • Documentez précisément • Équilibrez les transferts</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(manualModal);
+        
+        // Fermer la modale en cliquant à l'extérieur
+        manualModal.addEventListener('click', (e) => {
+            if (e.target === manualModal) {
+                manualModal.remove();
+            }
+        });
+    }
+
     showMessage(message, type = 'info') {
         const messageDiv = document.createElement('div');
         messageDiv.className = `auth-message auth-${type}`;
@@ -1565,7 +1596,7 @@ class GestionFermeApp {
         }
     }
 
-    // Méthodes d'export supplémentaires (à implémenter si besoin)
+    // Méthodes d'export supplémentaires
     exportVueActuelle() {
         this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
     }
@@ -1580,10 +1611,6 @@ class GestionFermeApp {
 
     resetFirebaseData() {
         this.showMessage('🔥 Réinitialisation Firebase - À implémenter', 'info');
-    }
-
-    showManual() {
-        this.showMessage('📖 Manuel utilisateur - À implémenter', 'info');
     }
 }
 
