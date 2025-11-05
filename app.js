@@ -10,6 +10,7 @@ class GestionFermeApp {
         this.selectedOperations = new Set();
         this.currentUser = null;
         this.userPermissions = {};
+        this.currentEditModal = null;
         
         this.initEventListeners();
         this.setupAuthHandlers();
@@ -262,260 +263,7 @@ class GestionFermeApp {
             }
         }
     }
-// AJOUTER CES MÉTHODES DANS LA CLASSE GestionFermeApp
 
-async deleteOperation(operationId) {
-    console.log('🗑️ Suppression opération:', operationId);
-    
-    if (!this.currentUser) {
-        this.showMessage('❌ Vous devez être connecté', 'error');
-        return;
-    }
-    
-    // Trouver l'opération
-    const operation = this.operations.find(op => op.id === operationId);
-    if (!operation) {
-        this.showMessage('❌ Opération non trouvée', 'error');
-        return;
-    }
-    
-    // Vérifier les permissions
-    const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-    if (!canDelete) {
-        this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
-        return;
-    }
-    
-    // Confirmation
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
-        return;
-    }
-    
-    try {
-        await window.firebaseSync.deleteDocument('operations', operationId);
-        this.showMessage('✅ Opération supprimée avec succès', 'success');
-        this.loadInitialData(); // Recharger les données
-    } catch (error) {
-        console.error('❌ Erreur suppression:', error);
-        this.showMessage('❌ Erreur lors de la suppression', 'error');
-    }
-}
-
-async editOperation(operationId) {
-    console.log('✏️ Modification opération:', operationId);
-    
-    if (!this.currentUser) {
-        this.showMessage('❌ Vous devez être connecté', 'error');
-        return;
-    }
-    
-    // Trouver l'opération
-    const operation = this.operations.find(op => op.id === operationId);
-    if (!operation) {
-        this.showMessage('❌ Opération non trouvée', 'error');
-        return;
-    }
-    
-    // Vérifier les permissions
-    const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
-    if (!canEdit) {
-        this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
-        return;
-    }
-    
-    // Afficher le formulaire de modification
-    this.showEditForm(operation);
-}
-
-showEditForm(operation) {
-    // Créer une modale de modification
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
-    
-    modal.innerHTML = `
-        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-            <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
-            <form id="editForm">
-                <input type="hidden" id="editId" value="${operation.id}">
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Opérateur:</label>
-                    <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
-                </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Type d'opération:</label>
-                    <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
-                        <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                        <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Groupe:</label>
-                    <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
-                        <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                        <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Type de transaction:</label>
-                    <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
-                        <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Caisse:</label>
-                    <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
-                        <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
-                        <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>Caisse Hicham</option>
-                        <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>Caisse Zaitoun</option>
-                        <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>Caisse 3 Commain</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 10px;">
-                    <label>Montant (DH):</label>
-                    <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
-                </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label>Description:</label>
-                    <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        💾 Enregistrer
-                    </button>
-                    <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    ❌ Annuler
-                    </button>
-                </div>
-            </form>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Gérer la soumission du formulaire
-    const editForm = document.getElementById('editForm');
-    editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
-    
-    this.currentEditModal = modal;
-}
-
-async handleEditSubmit(e) {
-    e.preventDefault();
-    
-    const operationId = document.getElementById('editId').value;
-    const typeOperation = document.getElementById('editTypeOperation').value;
-    const groupe = document.getElementById('editGroupe').value;
-    const typeTransaction = document.getElementById('editTypeTransaction').value;
-    const caisse = document.getElementById('editCaisse').value;
-    const montant = parseFloat(document.getElementById('editMontant').value);
-    const description = document.getElementById('editDescription').value.trim();
-    
-    if (!montant || montant <= 0) {
-        this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
-        return;
-    }
-    
-    if (!description) {
-        this.showMessage('❌ Veuillez saisir une description', 'error');
-        return;
-    }
-    
-    try {
-        const updatedOperation = {
-            typeOperation: typeOperation,
-            groupe: groupe,
-            typeTransaction: typeTransaction,
-            caisse: caisse,
-            montant: typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant),
-            description: description,
-            timestamp: new Date().toISOString(), // Mettre à jour la date de modification
-            userId: this.currentUser.uid,
-            userEmail: this.currentUser.email
-        };
-        
-        await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-        this.showMessage('✅ Opération modifiée avec succès', 'success');
-        this.closeEditModal();
-        this.loadInitialData();
-        
-    } catch (error) {
-        console.error('❌ Erreur modification:', error);
-        this.showMessage('❌ Erreur lors de la modification', 'error');
-    }
-}
-
-closeEditModal() {
-    if (this.currentEditModal) {
-        this.currentEditModal.remove();
-        this.currentEditModal = null;
-    }
-}
-
-async deleteSelectedOperations() {
-    console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
-    
-    if (this.selectedOperations.size === 0) {
-        this.showMessage('❌ Aucune opération sélectionnée', 'error');
-        return;
-    }
-    
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
-        return;
-    }
-    
-    try {
-        let successCount = 0;
-        let errorCount = 0;
-        
-        for (const operationId of this.selectedOperations) {
-            try {
-                const operation = this.operations.find(op => op.id === operationId);
-                if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
-                    await window.firebaseSync.deleteDocument('operations', operationId);
-                    successCount++;
-                } else {
-                    errorCount++;
-                }
-            } catch (error) {
-                console.error(`❌ Erreur suppression ${operationId}:`, error);
-                errorCount++;
-            }
-        }
-        
-        this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
-        this.selectedOperations.clear();
-        this.cancelEditMode();
-        this.loadInitialData();
-        
-    } catch (error) {
-        console.error('❌ Erreur suppression multiple:', error);
-        this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
-    }
-}
     async loadInitialData() {
         console.log('📥 Chargement des données initiales...');
         
@@ -725,8 +473,8 @@ async deleteSelectedOperations() {
                 
                 // Identifier les opérations de répartition secondaires
                 const isRepartitionSecondaire = item.repartition === true || 
-                                              description.includes('Part ') ||
-                                              description.includes('part ');
+                                              (description && description.includes('Part ')) ||
+                                              (description && description.includes('part '));
                 
                 // Ignorer les répartitions secondaires pour éviter la double comptabilisation
                 if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
@@ -871,8 +619,8 @@ async deleteSelectedOperations() {
             
             // CORRECTION : Ignorer les opérations de répartition secondaires
             const isRepartitionSecondaire = operation.repartition === true || 
-                              (operation.description && operation.description.includes('Part ')) ||
-                              (operation.description && operation.description.includes('part '));
+                                          (operation.description && operation.description.includes('Part ')) ||
+                                          (operation.description && operation.description.includes('part '));
             
             if (isRepartitionSecondaire) {
                 console.log('🔀 Opération de répartition ignorée dans les soldes:', {
@@ -1438,6 +1186,260 @@ async deleteSelectedOperations() {
         }
     }
 
+    // MÉTHODES DE SUPPRESSION ET MODIFICATION AJOUTÉES
+    async deleteOperation(operationId) {
+        console.log('🗑️ Suppression opération:', operationId);
+        
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        // Trouver l'opération
+        const operation = this.operations.find(op => op.id === operationId);
+        if (!operation) {
+            this.showMessage('❌ Opération non trouvée', 'error');
+            return;
+        }
+        
+        // Vérifier les permissions
+        const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
+        if (!canDelete) {
+            this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
+            return;
+        }
+        
+        // Confirmation
+        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+            return;
+        }
+        
+        try {
+            await window.firebaseSync.deleteDocument('operations', operationId);
+            this.showMessage('✅ Opération supprimée avec succès', 'success');
+            this.loadInitialData();
+        } catch (error) {
+            console.error('❌ Erreur suppression:', error);
+            this.showMessage('❌ Erreur lors de la suppression', 'error');
+        }
+    }
+
+    async editOperation(operationId) {
+        console.log('✏️ Modification opération:', operationId);
+        
+        if (!this.currentUser) {
+            this.showMessage('❌ Vous devez être connecté', 'error');
+            return;
+        }
+        
+        // Trouver l'opération
+        const operation = this.operations.find(op => op.id === operationId);
+        if (!operation) {
+            this.showMessage('❌ Opération non trouvée', 'error');
+            return;
+        }
+        
+        // Vérifier les permissions
+        const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
+        if (!canEdit) {
+            this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
+            return;
+        }
+        
+        // Afficher le formulaire de modification
+        this.showEditForm(operation);
+    }
+
+    showEditForm(operation) {
+        // Créer une modale de modification
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
+                <form id="editForm">
+                    <input type="hidden" id="editId" value="${operation.id}">
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Opérateur:</label>
+                        <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Type d'opération:</label>
+                        <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
+                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
+                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Groupe:</label>
+                        <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
+                            <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
+                            <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Type de transaction:</label>
+                        <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
+                            <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Caisse:</label>
+                        <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
+                            <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
+                            <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>Caisse Hicham</option>
+                            <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>Caisse Zaitoun</option>
+                            <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>Caisse 3 Commain</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label>Montant (DH):</label>
+                        <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label>Description:</label>
+                        <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            💾 Enregistrer
+                        </button>
+                        <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            ❌ Annuler
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Gérer la soumission du formulaire
+        const editForm = document.getElementById('editForm');
+        editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
+        
+        this.currentEditModal = modal;
+    }
+
+    async handleEditSubmit(e) {
+        e.preventDefault();
+        
+        const operationId = document.getElementById('editId').value;
+        const typeOperation = document.getElementById('editTypeOperation').value;
+        const groupe = document.getElementById('editGroupe').value;
+        const typeTransaction = document.getElementById('editTypeTransaction').value;
+        const caisse = document.getElementById('editCaisse').value;
+        const montant = parseFloat(document.getElementById('editMontant').value);
+        const description = document.getElementById('editDescription').value.trim();
+        
+        if (!montant || montant <= 0) {
+            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+            return;
+        }
+        
+        if (!description) {
+            this.showMessage('❌ Veuillez saisir une description', 'error');
+            return;
+        }
+        
+        try {
+            const updatedOperation = {
+                typeOperation: typeOperation,
+                groupe: groupe,
+                typeTransaction: typeTransaction,
+                caisse: caisse,
+                montant: typeTransaction === 'revenu' ? Math.abs(montant) : -Math.abs(montant),
+                description: description,
+                timestamp: new Date().toISOString(),
+                userId: this.currentUser.uid,
+                userEmail: this.currentUser.email
+            };
+            
+            await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
+            this.showMessage('✅ Opération modifiée avec succès', 'success');
+            this.closeEditModal();
+            this.loadInitialData();
+            
+        } catch (error) {
+            console.error('❌ Erreur modification:', error);
+            this.showMessage('❌ Erreur lors de la modification', 'error');
+        }
+    }
+
+    closeEditModal() {
+        if (this.currentEditModal) {
+            this.currentEditModal.remove();
+            this.currentEditModal = null;
+        }
+    }
+
+    async deleteSelectedOperations() {
+        console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
+        
+        if (this.selectedOperations.size === 0) {
+            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+            return;
+        }
+        
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
+            return;
+        }
+        
+        try {
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const operationId of this.selectedOperations) {
+                try {
+                    const operation = this.operations.find(op => op.id === operationId);
+                    if (operation && window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser)) {
+                        await window.firebaseSync.deleteDocument('operations', operationId);
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error(`❌ Erreur suppression ${operationId}:`, error);
+                    errorCount++;
+                }
+            }
+            
+            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
+            this.selectedOperations.clear();
+            this.cancelEditMode();
+            this.loadInitialData();
+            
+        } catch (error) {
+            console.error('❌ Erreur suppression multiple:', error);
+            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
+        }
+    }
+
     showMessage(message, type = 'info') {
         const messageDiv = document.createElement('div');
         messageDiv.className = `auth-message auth-${type}`;
@@ -1498,7 +1500,13 @@ async deleteSelectedOperations() {
         }
     }
 
-    // Les autres méthodes (export, reset, etc.) restent identiques...
+    cancelEditMode() {
+        this.editMode = false;
+        this.selectedOperations.clear();
+        this.toggleEditMode();
+        this.showMessage('❌ Mode édition annulé', 'info');
+    }
+
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
         try {
@@ -1557,13 +1565,25 @@ async deleteSelectedOperations() {
         }
     }
 
-    // ... autres méthodes d'export et de gestion
+    // Méthodes d'export supplémentaires (à implémenter si besoin)
+    exportVueActuelle() {
+        this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
+    }
 
-    cancelEditMode() {
-        this.editMode = false;
-        this.selectedOperations.clear();
-        this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
+    exportRapportComplet() {
+        this.showMessage('📈 Export rapport complet - À implémenter', 'info');
+    }
+
+    resetLocalData() {
+        this.showMessage('🗑️ Réinitialisation données locales - À implémenter', 'info');
+    }
+
+    resetFirebaseData() {
+        this.showMessage('🔥 Réinitialisation Firebase - À implémenter', 'info');
+    }
+
+    showManual() {
+        this.showMessage('📖 Manuel utilisateur - À implémenter', 'info');
     }
 }
 
@@ -1581,5 +1601,3 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
-
-
