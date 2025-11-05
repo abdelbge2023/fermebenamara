@@ -470,21 +470,23 @@ class GestionFermeApp {
     let totalDepenses = 0;
     let totalTransferts = 0;
     
-    // Pour éviter la double comptabilisation des frais répartis
+    // Pour suivre les opérations déjà comptabilisées
     const operationsTraitees = new Set();
     
     data.forEach(item => {
         if (item.hasOwnProperty('typeOperation')) {
             // C'est une opération
             const montant = parseFloat(item.montant) || 0;
-            
-            // CORRECTION : Identifier les opérations de répartition
-            const isRepartition = item.repartition === true;
             const description = item.description || '';
             
-            // Pour les frais répartis, ne compter que l'opération principale
-            if (isRepartition && item.typeTransaction === 'frais') {
-                console.log('🔀 Opération de répartition ignorée dans les totaux:', {
+            // CORRECTION : Identifier et gérer les opérations de répartition
+            const isRepartitionSecondaire = item.repartition === true || 
+                                          description.includes('Part ') ||
+                                          description.includes('part ');
+            
+            // Pour les frais répartis, ne compter que l'opération PRINCIPALE
+            if (isRepartitionSecondaire && item.typeTransaction === 'frais') {
+                console.log('🔀 Opération de répartition SECONDAIRE ignorée:', {
                     id: item.id,
                     description: description,
                     montant: montant
@@ -492,23 +494,13 @@ class GestionFermeApp {
                 return; // Ignorer cette opération dans les totaux
             }
             
-            // Vérifier si c'est une opération principale de frais répartis
-            if (item.typeTransaction === 'frais' && description.includes('Frais pour les deux groupes')) {
-                console.log('💰 Opération principale de frais répartis:', {
-                    id: item.id,
-                    description: description,
-                    montant: montant
-                });
-                // C'est l'opération principale, on la compte normalement
-                totalDepenses += Math.abs(montant);
-                operationsTraitees.add(item.id);
-            }
-            else if (item.typeTransaction === 'revenu') {
-                totalRevenus += montant;
-            } else if (item.typeTransaction === 'frais' && !operationsTraitees.has(item.id)) {
-                // Frais normal (non réparti)
+            // Compter les opérations normales
+            if (item.typeTransaction === 'revenu') {
+                totalRevenus += Math.abs(montant);
+            } else if (item.typeTransaction === 'frais') {
                 totalDepenses += Math.abs(montant);
             }
+            
         } else {
             // C'est un transfert
             totalTransferts += parseFloat(item.montantTransfert) || 0;
@@ -548,7 +540,8 @@ class GestionFermeApp {
         revenus: totalRevenus,
         depenses: totalDepenses,
         transferts: totalTransferts,
-        solde: soldeNet
+        solde: soldeNet,
+        operationsTotal: data.length
     });
 }
 
@@ -757,44 +750,66 @@ class GestionFermeApp {
         });
     }
 
-    showCaisseDetailsModal(caisse, details) {
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        `;
-        
-        modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                <h3>📊 Détails de ${this.getNomCaisse(caisse)}</h3>
-                <div style="margin: 15px 0;">
-                    <div><strong>📝 Opérations:</strong> ${details.operations}</div>
-                    <div><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                    <div><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                    <div><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                    <div><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
-                </div>
-                <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                    <div><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
-                    <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
-                </div>
-                <button onclick="this.closest('div[style]').remove()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Fermer
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
+   showCaisseDetailsModal(caisse, details) {
+    // Vérifier si une modale existe déjà et la supprimer
+    const existingModal = document.querySelector('.caisse-details-modal');
+    if (existingModal) {
+        existingModal.remove();
     }
+    
+    const modal = document.createElement('div');
+    modal.className = 'caisse-details-modal'; // Ajouter une classe pour identification
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h3 style="margin-top: 0; color: #2c3e50;">📊 Détails de ${this.getNomCaisse(caisse)}</h3>
+            <div style="margin: 15px 0;">
+                <div style="margin-bottom: 8px;"><strong>📝 Opérations:</strong> ${details.operations}</div>
+                <div style="margin-bottom: 8px;"><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                <div style="margin-bottom: 8px;"><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                <div style="margin-bottom: 8px;"><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                <div style="margin-bottom: 8px;"><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+            </div>
+            <div style="border-top: 1px solid #ccc; padding-top: 10px;">
+                <div style="margin-bottom: 8px;"><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
+            </div>
+            <button onclick="gestionFermeApp.closeCaisseDetailsModal()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                Fermer
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Empêcher le clic sur la modale de fermer le contenu
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            this.closeCaisseDetailsModal();
+        }
+    });
+}
 
+// NOUVELLE MÉTHODE pour fermer la modale
+closeCaisseDetailsModal() {
+    const modal = document.querySelector('.caisse-details-modal');
+    if (modal) {
+        modal.remove();
+    }
+    console.log('✅ Modale des détails de caisse fermée');
+}
     getNomCaisse(caisse) {
         const noms = {
             'abdel_caisse': 'Caisse Abdel',
@@ -1801,5 +1816,6 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
