@@ -314,69 +314,66 @@ class GestionFermeApp {
     }
 
     updateAffichage() {
-        console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
-        
-        const dataDisplay = document.getElementById('dataDisplay');
-        if (!dataDisplay) return;
-        
-        // Filtrer les données selon la vue actuelle
-        let dataToShow = [];
-        
-        switch (this.currentView) {
-            case 'global':
-                dataToShow = [...this.operations, ...this.transferts];
-                break;
-            case 'zaitoun':
-                // Toutes les opérations de la caisse zaitoun + opérations du groupe zaitoun + opérations des deux groupes
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'zaitoun_caisse' || 
-                    op.groupe === 'zaitoun' || 
-                    op.groupe === 'les_deux_groupes'
-                );
-                break;
-            case '3commain':
-                // Toutes les opérations de la caisse 3commain + opérations du groupe 3commain + opérations des deux groupes
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === '3commain_caisse' || 
-                    op.groupe === '3commain' || 
-                    op.groupe === 'les_deux_groupes'
-                );
-                break;
-            case 'abdel':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
-                );
-                break;
-            case 'omar':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'omar_caisse' || op.operateur === 'omar'
-                );
-                break;
-            case 'hicham':
-                dataToShow = this.operations.filter(op => 
-                    op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
-                );
-                break;
-            case 'transferts':
-                dataToShow = this.transferts;
-                break;
-            case 'les_deux_groupes':
-                // Vue spéciale pour les opérations des deux groupes
-                dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
-                break;
-        }
-        
-        console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
-        
-        // Trier par date (plus récent en premier)
-        dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        // Afficher les données
-        this.renderDataTable(dataToShow, dataDisplay);
-        
-        // Afficher aussi les totaux pour cette vue
-        this.afficherTotauxVue(dataToShow);
+    console.log('🔄 Mise à jour affichage pour la vue:', this.currentView);
+    
+    const dataDisplay = document.getElementById('dataDisplay');
+    if (!dataDisplay) return;
+    
+    // Filtrer les données selon la vue actuelle
+    let dataToShow = [];
+    
+    switch (this.currentView) {
+        case 'global':
+            dataToShow = [...this.operations, ...this.transferts];
+            break;
+        case 'zaitoun':
+            // CORRECTION : Afficher seulement les opérations liées à Zaitoun
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'zaitoun_caisse' || 
+                op.groupe === 'zaitoun'
+            );
+            break;
+        case '3commain':
+            // CORRECTION : Afficher seulement les opérations liées à 3 Commain
+            dataToShow = this.operations.filter(op => 
+                op.caisse === '3commain_caisse' || 
+                op.groupe === '3commain'
+            );
+            break;
+        case 'abdel':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
+            );
+            break;
+        case 'omar':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'omar_caisse' || op.operateur === 'omar'
+            );
+            break;
+        case 'hicham':
+            dataToShow = this.operations.filter(op => 
+                op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
+            );
+            break;
+        case 'transferts':
+            dataToShow = this.transferts;
+            break;
+        case 'les_deux_groupes':
+            dataToShow = this.operations.filter(op => op.groupe === 'les_deux_groupes');
+            break;
     }
+    
+    console.log(`📊 Données à afficher pour ${this.currentView}:`, dataToShow.length);
+    
+    // Trier par date (plus récent en premier)
+    dataToShow.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Afficher les données
+    this.renderDataTable(dataToShow, dataDisplay);
+    
+    // Afficher aussi les totaux pour cette vue
+    this.afficherTotauxVue(dataToShow);
+}
 
     renderDataTable(data, container) {
         if (data.length === 0) {
@@ -599,90 +596,76 @@ class GestionFermeApp {
     }
 
     updateStats() {
-        console.log('📊 Calcul des soldes des caisses...');
+    console.log('📊 Calcul des soldes des caisses...');
+    
+    // Réinitialiser les soldes à 0 pour chaque caisse
+    const soldes = {
+        'abdel_caisse': 0,
+        'omar_caisse': 0, 
+        'hicham_caisse': 0,
+        'zaitoun_caisse': 0,
+        '3commain_caisse': 0
+    };
+
+    console.log('💰 Calcul basé sur:', {
+        operations: this.operations.length,
+        transferts: this.transferts.length
+    });
+
+    // 1. Calculer les soldes basés sur les opérations - CORRECTION
+    this.operations.forEach(operation => {
+        const montant = parseFloat(operation.montant) || 0;
+        const caisse = operation.caisse;
         
-        // Réinitialiser les soldes à 0 pour chaque caisse
-        const soldes = {
-            'abdel_caisse': 0,
-            'omar_caisse': 0, 
-            'hicham_caisse': 0,
-            'zaitoun_caisse': 0,
-            '3commain_caisse': 0
-        };
-
-        console.log('💰 Calcul basé sur:', {
-            operations: this.operations.length,
-            transferts: this.transferts.length
-        });
-
-        // 1. Calculer les soldes basés sur les opérations
-        this.operations.forEach(operation => {
-            const montant = parseFloat(operation.montant) || 0;
-            const caisse = operation.caisse;
-            
-            console.log('📝 Opération:', {
+        // CORRECTION : Ignorer les opérations de répartition secondaires
+        const isRepartitionSecondaire = operation.repartition === true || 
+                                      operation.description?.includes('Part ') ||
+                                      operation.description?.includes('part ');
+        
+        if (isRepartitionSecondaire) {
+            console.log('🔀 Opération de répartition ignorée dans les soldes:', {
                 caisse: caisse,
-                type: operation.typeTransaction,
-                montant: montant,
                 description: operation.description,
-                hasRepartition: !!operation.repartition
-            });
-            
-            if (caisse && soldes[caisse] !== undefined) {
-                if (operation.typeTransaction === 'revenu') {
-                    // Revenu : ajouter au solde
-                    soldes[caisse] += montant;
-                    console.log(`➕ ${caisse}: +${montant} = ${soldes[caisse]}`);
-                } else if (operation.typeTransaction === 'frais') {
-                    // Frais : soustraire du solde
-                    
-                    // CORRECTION : Si c'est un travailleur_global, répartir le coût
-                    if (operation.typeOperation === 'travailleur_global' && operation.repartition) {
-                        const repartition = operation.repartition;
-                        console.log('🔀 Répartition détectée:', repartition);
-                        
-                        // La caisse qui paie perd le montant total
-                        soldes[caisse] -= montant;
-                        console.log(`➖ ${caisse} (paie total): -${montant} = ${soldes[caisse]}`);
-                        
-                    } else {
-                        // Frais normal : soustraire du solde
-                        soldes[caisse] -= montant;
-                        console.log(`➖ ${caisse}: -${montant} = ${soldes[caisse]}`);
-                    }
-                }
-            }
-        });
-
-        // 2. Gérer les transferts entre caisses
-        this.transferts.forEach(transfert => {
-            const montant = parseFloat(transfert.montantTransfert) || 0;
-            
-            console.log('🔄 Transfert:', {
-                source: transfert.caisseSource,
-                destination: transfert.caisseDestination,
                 montant: montant
             });
-            
-            // Soustraire de la caisse source
-            if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
-                soldes[transfert.caisseSource] -= montant;
-                console.log(`➖ ${transfert.caisseSource}: -${montant} = ${soldes[transfert.caisseSource]}`);
-            }
-            
-            // Ajouter à la caisse destination
-            if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
-                soldes[transfert.caisseDestination] += montant;
-                console.log(`➕ ${transfert.caisseDestination}: +${montant} = ${soldes[transfert.caisseDestination]}`);
-            }
-        });
-
-        console.log('📊 Soldes finaux:', soldes);
+            return; // Ignorer cette opération
+        }
         
-        // Afficher les soldes
-        this.renderStats(soldes);
-    }
+        if (caisse && soldes[caisse] !== undefined) {
+            if (operation.typeTransaction === 'revenu') {
+                // Revenu : ajouter au solde
+                soldes[caisse] += Math.abs(montant);
+                console.log(`➕ ${caisse} (REVENU): +${Math.abs(montant)} = ${soldes[caisse]}`);
+            } else if (operation.typeTransaction === 'frais') {
+                // Frais : soustraire du solde
+                soldes[caisse] -= Math.abs(montant);
+                console.log(`➖ ${caisse} (FRAIS): -${Math.abs(montant)} = ${soldes[caisse]}`);
+            }
+        }
+    });
 
+    // 2. Gérer les transferts entre caisses
+    this.transferts.forEach(transfert => {
+        const montant = parseFloat(transfert.montantTransfert) || 0;
+        
+        // Soustraire de la caisse source
+        if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
+            soldes[transfert.caisseSource] -= montant;
+            console.log(`➖ ${transfert.caisseSource} (TRANSFERT): -${montant} = ${soldes[transfert.caisseSource]}`);
+        }
+        
+        // Ajouter à la caisse destination
+        if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
+            soldes[transfert.caisseDestination] += montant;
+            console.log(`➕ ${transfert.caisseDestination} (TRANSFERT): +${montant} = ${soldes[transfert.caisseDestination]}`);
+        }
+    });
+
+    console.log('📊 Soldes finaux:', soldes);
+    
+    // Afficher les soldes
+    this.renderStats(soldes);
+}
     renderStats(soldes) {
         const statsContainer = document.getElementById('statsContainer');
         if (!statsContainer) return;
@@ -1816,6 +1799,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
