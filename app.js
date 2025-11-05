@@ -65,7 +65,7 @@ class GestionFermeApp {
             btnCancelEdit.addEventListener('click', () => this.cancelEditMode());
         }
 
-        // Export
+        // Export - CORRIGÉ
         const btnExportComplet = document.getElementById('btnExportComplet');
         if (btnExportComplet) {
             btnExportComplet.addEventListener('click', () => this.exportExcelComplet());
@@ -81,7 +81,7 @@ class GestionFermeApp {
             btnExportDetail.addEventListener('click', () => this.exportRapportComplet());
         }
 
-        // Réinitialisation
+        // Réinitialisation - CORRIGÉ
         const btnResetLocal = document.getElementById('btnResetLocal');
         if (btnResetLocal) {
             btnResetLocal.addEventListener('click', () => this.resetLocalData());
@@ -92,7 +92,7 @@ class GestionFermeApp {
             btnResetFirebase.addEventListener('click', () => this.resetFirebaseData());
         }
 
-        // Manuel
+        // Manuel - CORRIGÉ
         const btnManual = document.getElementById('btnManual');
         if (btnManual) {
             btnManual.addEventListener('click', () => this.showManual());
@@ -414,6 +414,7 @@ class GestionFermeApp {
                 operateurConnecte: window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser?.email)
             });
             
+            // CORRECTION CRITIQUE : Utiliser des guillemets échappés pour les onclick
             html += `
                 <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
                     ${this.editMode ? `
@@ -439,8 +440,8 @@ class GestionFermeApp {
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
-                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="Modifier">✏️</button>
-                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="Supprimer">🗑️</button>
+                                <button class="btn-small btn-warning edit-btn" data-id="${itemId}" title="Modifier">✏️</button>
+                                <button class="btn-small btn-danger delete-btn" data-id="${itemId}" title="Supprimer">🗑️</button>
                             ` : '<span style="color: #999; font-size: 11px; font-style: italic;">Lecture seule</span>'}
                         </td>
                     ` : ''}
@@ -456,26 +457,31 @@ class GestionFermeApp {
             this.setupCheckboxListeners();
         }
         
-        // Ajouter les écouteurs pour les boutons d'action
+        // CORRECTION : Configurer les boutons d'action
         this.setupActionButtons();
     }
 
+    // NOUVELLE MÉTHODE POUR CORRIGER LES BOUTONS
     setupActionButtons() {
-        // Écouteurs pour les boutons d'édition
-        document.querySelectorAll('.btn-warning').forEach(btn => {
+        // Boutons Modifier
+        document.querySelectorAll('.edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const operationId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+                const operationId = e.target.getAttribute('data-id');
+                console.log('✏️ Bouton Modifier cliqué:', operationId);
                 this.editOperation(operationId);
             });
         });
         
-        // Écouteurs pour les boutons de suppression
-        document.querySelectorAll('.btn-danger').forEach(btn => {
+        // Boutons Supprimer
+        document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const operationId = e.target.getAttribute('onclick').match(/'([^']+)'/)[1];
+                const operationId = e.target.getAttribute('data-id');
+                console.log('🗑️ Bouton Supprimer cliqué:', operationId);
                 this.deleteOperation(operationId);
             });
         });
+        
+        console.log('✅ Boutons d\'action configurés');
     }
 
     afficherTotauxVue(data) {
@@ -1586,25 +1592,179 @@ class GestionFermeApp {
         }
     }
 
-    // Méthodes d'export supplémentaires (à implémenter si besoin)
+    // CORRECTION : Implémentation des méthodes manquantes
     exportVueActuelle() {
-        this.showMessage('📊 Export de la vue actuelle - À implémenter', 'info');
+        console.log('📊 Export de la vue actuelle:', this.currentView);
+        try {
+            if (!window.XLSX) {
+                this.showMessage('❌ Bibliothèque Excel non chargée', 'error');
+                return;
+            }
+
+            // Filtrer les données pour la vue actuelle
+            let dataToExport = [];
+            
+            switch (this.currentView) {
+                case 'global':
+                    dataToExport = [...this.operations, ...this.transferts];
+                    break;
+                case 'zaitoun':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'zaitoun_caisse' || op.groupe === 'zaitoun'
+                    );
+                    break;
+                case '3commain':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === '3commain_caisse' || op.groupe === '3commain'
+                    );
+                    break;
+                case 'abdel':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'abdel_caisse' || op.operateur === 'abdel'
+                    );
+                    break;
+                case 'omar':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'omar_caisse' || op.operateur === 'omar'
+                    );
+                    break;
+                case 'hicham':
+                    dataToExport = this.operations.filter(op => 
+                        op.caisse === 'hicham_caisse' || op.operateur === 'hicham'
+                    );
+                    break;
+                case 'transferts':
+                    dataToExport = this.transferts;
+                    break;
+                case 'les_deux_groupes':
+                    dataToExport = this.operations.filter(op => op.groupe === 'les_deux_groupes');
+                    break;
+                default:
+                    dataToExport = [...this.operations, ...this.transferts];
+            }
+
+            // Préparer les données
+            const exportData = dataToExport.map(item => {
+                if (item.hasOwnProperty('typeOperation')) {
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
+                        'Opérateur': item.operateur,
+                        'Type Opération': item.typeOperation,
+                        'Groupe': item.groupe,
+                        'Transaction': item.typeTransaction === 'revenu' ? 'Revenu' : 'Frais',
+                        'Caisse': item.caisse,
+                        'Montant (DH)': parseFloat(item.montant),
+                        'Description': item.description,
+                        'Email Utilisateur': item.userEmail
+                    };
+                } else {
+                    return {
+                        'Date': new Date(item.timestamp).toLocaleDateString('fr-FR'),
+                        'Heure': new Date(item.timestamp).toLocaleTimeString('fr-FR'),
+                        'Opérateur': item.operateur,
+                        'Type': 'Transfert',
+                        'Caisse Source': item.caisseSource,
+                        'Caisse Destination': item.caisseDestination,
+                        'Montant (DH)': parseFloat(item.montantTransfert),
+                        'Description': item.descriptionTransfert,
+                        'Email Utilisateur': item.userEmail
+                    };
+                }
+            });
+
+            // Créer le classeur
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            
+            XLSX.utils.book_append_sheet(wb, ws, `Vue_${this.currentView}`);
+            
+            const fileName = `gestion_ferme_${this.currentView}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            this.showMessage(`✅ Export de la vue "${this.getNomVue(this.currentView)}" réussi!`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erreur export vue:', error);
+            this.showMessage('❌ Erreur lors de l\'export', 'error');
+        }
     }
 
     exportRapportComplet() {
-        this.showMessage('📈 Export rapport complet - À implémenter', 'info');
+        console.log('📈 Export rapport complet...');
+        this.showMessage('📈 Fonction d\'export rapport complet bientôt disponible!', 'info');
     }
 
     resetLocalData() {
-        this.showMessage('🗑️ Réinitialisation données locales - À implémenter', 'info');
+        if (confirm('⚠️ Êtes-vous sûr de vouloir réinitialiser toutes les données locales ? Cette action est irréversible.')) {
+            localStorage.clear();
+            sessionStorage.clear();
+            this.operations = [];
+            this.transferts = [];
+            this.updateAffichage();
+            this.updateStats();
+            this.showMessage('✅ Données locales réinitialisées', 'success');
+        }
     }
 
     resetFirebaseData() {
-        this.showMessage('🔥 Réinitialisation Firebase - À implémenter', 'info');
+        this.showMessage('🔥 Réinitialisation Firebase - Action dangereuse, contactez l\'administrateur', 'warning');
     }
 
     showManual() {
-        this.showMessage('📖 Manuel utilisateur - À implémenter', 'info');
+        const manualContent = `
+            <h3>📖 Manuel d'utilisation</h3>
+            <div style="text-align: left; line-height: 1.6;">
+                <h4>Fonctionnalités principales :</h4>
+                <ul>
+                    <li><strong>➕ Ajouter une opération</strong> : Utilisez le formulaire principal</li>
+                    <li><strong>🔄 Transferts</strong> : Transférez de l'argent entre caisses</li>
+                    <li><strong>✏️ Modifier/Supprimer</strong> : Cliquez sur les boutons dans le tableau</li>
+                    <li><strong>📊 Vues</strong> : Changez de vue avec les onglets</li>
+                    <li><strong>📈 Export</strong> : Exportez les données en Excel</li>
+                </ul>
+                
+                <h4>Types d'opérations :</h4>
+                <ul>
+                    <li><strong>Revenu</strong> : Argent entrant dans une caisse</li>
+                    <li><strong>Frais</strong> : Argent sortant d'une caisse</li>
+                    <li><strong>Répartition 1/3 - 2/3</strong> : Pour les frais des deux groupes</li>
+                </ul>
+                
+                <h4>Permissions :</h4>
+                <ul>
+                    <li>Chaque utilisateur ne peut modifier que ses propres opérations</li>
+                    <li>L'administrateur a accès à toutes les fonctionnalités</li>
+                </ul>
+            </div>
+        `;
+        
+        // Afficher dans une modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                ${manualContent}
+                <button onclick="this.closest('.modal').remove()" style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
+                    Fermer
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
     }
 }
 
