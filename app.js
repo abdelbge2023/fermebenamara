@@ -263,6 +263,7 @@ class GestionFermeApp {
         }
     }
    }
+}
     async loadInitialData() {
         console.log('📥 Chargement des données initiales...');
         
@@ -1820,6 +1821,7 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function(e) {
     console.error('💥 Promise rejetée non gérée:', e.reason);
 });
+
 
 
 
