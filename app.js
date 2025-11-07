@@ -12,29 +12,54 @@ class GestionFermeApp {
         this.userPermissions = {};
         this.currentEditModal = null;
         
-        // CORRECTION : Forcer l'affichage de l'écran de connexion au démarrage
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appContent').style.display = 'none';
+        // CORRECTION CRITIQUE : S'assurer que l'écran de connexion est visible au démarrage
+        this.forceLoginScreenDisplay();
         
         this.initEventListeners();
         this.setupAuthHandlers();
     }
 
+    // NOUVELLE MÉTHODE : Forcer l'affichage de l'écran de connexion
+    forceLoginScreenDisplay() {
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        
+        if (loginScreen) {
+            loginScreen.style.display = 'flex';
+            console.log('✅ Écran de connexion affiché');
+        } else {
+            console.error('❌ Élément loginScreen non trouvé');
+        }
+        
+        if (appContent) {
+            appContent.style.display = 'none';
+            console.log('✅ Application masquée');
+        } else {
+            console.error('❌ Élément appContent non trouvé');
+        }
+    }
+
     initEventListeners() {
+        console.log('🔧 Initialisation des écouteurs d\'événements...');
+        
         // Écouteurs d'authentification
         window.addEventListener('userAuthenticated', (e) => this.handleUserAuthenticated(e.detail.user));
         window.addEventListener('userSignedOut', () => this.handleUserSignedOut());
 
-        // Formulaire de connexion
+        // Formulaire de connexion - CORRECTION : Vérifier si l'élément existe
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            console.log('✅ Écouteur loginForm ajouté');
+        } else {
+            console.error('❌ Formulaire de connexion non trouvé');
         }
         
         // Déconnexion
         const btnLogout = document.getElementById('btnLogout');
         if (btnLogout) {
             btnLogout.addEventListener('click', () => this.handleLogout());
+            console.log('✅ Écouteur btnLogout ajouté');
         }
         
         // Formulaire principal
@@ -53,7 +78,7 @@ class GestionFermeApp {
             btn.addEventListener('click', (e) => this.switchView(e.target.dataset.sheet));
         });
 
-        // Gestion édition - CORRECTION DES BOUTONS
+        // Gestion édition
         const btnEditMode = document.getElementById('btnEditMode');
         if (btnEditMode) {
             btnEditMode.addEventListener('click', () => this.toggleEditMode());
@@ -85,7 +110,7 @@ class GestionFermeApp {
             btnExportDetail.addEventListener('click', () => this.exportRapportComplet());
         }
 
-        // Réinitialisation - CORRECTION DES BOUTONS
+        // Réinitialisation
         const btnResetLocal = document.getElementById('btnResetLocal');
         if (btnResetLocal) {
             btnResetLocal.addEventListener('click', () => this.resetLocalData());
@@ -127,22 +152,52 @@ class GestionFermeApp {
         if (montant) {
             montant.addEventListener('input', () => this.updateRepartition());
         }
+
+        console.log('✅ Tous les écouteurs d\'événements initialisés');
     }
 
     setupAuthHandlers() {
         console.log('🔐 Configuration des gestionnaires d\'authentification...');
+        
+        // Vérifier l'état d'authentification au démarrage
+        setTimeout(() => {
+            if (window.firebaseAuthFunctions) {
+                const currentUser = window.firebaseAuthFunctions.getCurrentUser();
+                if (currentUser) {
+                    console.log('👤 Utilisateur déjà connecté:', currentUser.email);
+                    this.handleUserAuthenticated(currentUser);
+                } else {
+                    console.log('👤 Aucun utilisateur connecté - Affichage écran connexion');
+                    this.forceLoginScreenDisplay();
+                }
+            }
+        }, 1000);
     }
 
     async handleLogin(e) {
         e.preventDefault();
+        console.log('🔐 Tentative de connexion...');
         
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
+        
+        if (!email || !password) {
+            this.showMessage('❌ Veuillez saisir email et mot de passe', 'error');
+            return;
+        }
         
         // Afficher message de chargement
         const authMessage = document.createElement('div');
         authMessage.className = 'auth-message auth-loading';
         authMessage.textContent = '🔐 Connexion en cours...';
+        authMessage.style.cssText = `
+            padding: 10px;
+            margin: 10px 0;
+            background: #3498db;
+            color: white;
+            border-radius: 5px;
+            text-align: center;
+        `;
         
         const loginForm = document.getElementById('loginForm');
         if (loginForm.nextSibling) {
@@ -158,10 +213,18 @@ class GestionFermeApp {
             if (result.success) {
                 authMessage.className = 'auth-message auth-info';
                 authMessage.textContent = '✅ Connexion réussie! Redirection...';
+                authMessage.style.background = '#27ae60';
                 console.log('✅ Utilisateur connecté:', result.user.email);
+                
+                // Petit délai pour voir le message de succès
+                setTimeout(() => {
+                    this.handleUserAuthenticated(result.user);
+                }, 1000);
+                
             } else {
                 authMessage.className = 'auth-message auth-error';
                 authMessage.textContent = `❌ Erreur: ${result.error}`;
+                authMessage.style.background = '#e74c3c';
                 console.error('❌ Erreur connexion:', result.error);
                 
                 if (result.code === 'auth/user-not-found') {
@@ -175,6 +238,7 @@ class GestionFermeApp {
         } catch (error) {
             authMessage.className = 'auth-message auth-error';
             authMessage.textContent = '❌ Erreur de connexion inattendue';
+            authMessage.style.background = '#e74c3c';
             console.error('❌ Erreur connexion:', error);
         }
 
@@ -196,8 +260,13 @@ class GestionFermeApp {
         console.log('🔐 Permissions calculées:', this.userPermissions);
         
         // CORRECTION : Masquer écran connexion, afficher application
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContent').style.display = 'block';
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        
+        if (loginScreen) loginScreen.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
+        
+        console.log('✅ Interface mise à jour - Application affichée');
         
         // Mettre à jour l'interface utilisateur
         this.updateUserInterface();
@@ -215,11 +284,17 @@ class GestionFermeApp {
         this.userPermissions = {};
         
         // CORRECTION : Masquer application, afficher écran connexion
-        document.getElementById('appContent').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
+        const loginScreen = document.getElementById('loginScreen');
+        const appContent = document.getElementById('appContent');
+        
+        if (loginScreen) loginScreen.style.display = 'flex';
+        if (appContent) appContent.style.display = 'none';
+        
+        console.log('✅ Interface mise à jour - Écran connexion affiché');
         
         // Réinitialiser formulaire connexion
-        document.getElementById('loginForm').reset();
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) loginForm.reset();
     }
 
     async handleLogout() {
@@ -307,14 +382,11 @@ class GestionFermeApp {
         console.log('- Mode édition:', this.editMode);
         console.log('- Permissions:', this.userPermissions);
         
-        // Afficher les IDs des premières opérations
         if (this.operations.length > 0) {
             console.log('- Exemple ID opération:', this.operations[0].id);
-            console.log('- Données opération:', this.operations[0]);
         }
         if (this.transferts.length > 0) {
             console.log('- Exemple ID transfert:', this.transferts[0].id);
-            console.log('- Données transfert:', this.transferts[0]);
         }
     }
 
@@ -407,7 +479,6 @@ class GestionFermeApp {
             const isOperation = item.hasOwnProperty('typeOperation');
             const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
             
-            // Utiliser l'ID Firebase comme identifiant
             const itemId = item.id;
             
             html += `
@@ -447,7 +518,6 @@ class GestionFermeApp {
         html += '</tbody></table>';
         container.innerHTML = html;
         
-        // Ajouter les écouteurs d'événements pour les cases à cocher
         if (this.editMode) {
             this.setupCheckboxListeners();
         }
@@ -457,7 +527,6 @@ class GestionFermeApp {
         const dataDisplay = document.getElementById('dataDisplay');
         if (!dataDisplay || data.length === 0) return;
         
-        // CORRECTION DÉFINITIVE : Calculer les totaux SANS ignorer les opérations de répartition
         let totalRevenus = 0;
         let totalDepenses = 0;
         let totalTransferts = 0;
@@ -465,9 +534,6 @@ class GestionFermeApp {
         data.forEach(item => {
             if (item.hasOwnProperty('typeOperation')) {
                 const montant = parseFloat(item.montant) || 0;
-                
-                // CORRECTION : NE JAMAIS ignorer les opérations dans les totaux de vue
-                // Toutes les opérations affichées doivent être comptabilisées
                 if (item.typeTransaction === 'revenu') {
                     totalRevenus += Math.abs(montant);
                 } else if (item.typeTransaction === 'frais') {
@@ -505,13 +571,6 @@ class GestionFermeApp {
         `;
         
         dataDisplay.innerHTML = htmlTotaux + dataDisplay.innerHTML;
-        
-        // DEBUG: Afficher le calcul détaillé dans la console
-        console.log('🧮 CALCUL DÉTAILLÉ DES TOTAUX:');
-        console.log('- Total Revenus:', totalRevenus);
-        console.log('- Total Dépenses:', totalDepenses);
-        console.log('- Total Transferts:', totalTransferts);
-        console.log('- Solde Net:', soldeNet);
     }
 
     getNomVue(vue) {
@@ -534,7 +593,6 @@ class GestionFermeApp {
             selectAll.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
         }
         
-        // Ajouter les écouteurs pour les cases à cocher individuelles
         document.querySelectorAll('.operation-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
                 const operationId = e.target.value;
@@ -545,7 +603,6 @@ class GestionFermeApp {
                 }
                 this.updateSelectedCount();
                 
-                // Désélectionner "Tout sélectionner" si une case est décochée
                 if (selectAll && !e.target.checked) {
                     selectAll.checked = false;
                 }
@@ -565,7 +622,6 @@ class GestionFermeApp {
             }
         });
         
-        // Mettre à jour le bouton de suppression
         this.updateSelectedCount();
     }
 
@@ -579,7 +635,6 @@ class GestionFermeApp {
     updateStats() {
         console.log('📊 Calcul des soldes des caisses...');
         
-        // Réinitialiser les soldes à 0 pour chaque caisse
         const soldes = {
             'abdel_caisse': 0,
             'omar_caisse': 0, 
@@ -588,34 +643,27 @@ class GestionFermeApp {
             '3commain_caisse': 0
         };
 
-        // 1. Calculer les soldes basés sur les opérations
         this.operations.forEach(operation => {
             const montant = parseFloat(operation.montant) || 0;
             const caisse = operation.caisse;
             
-            // CORRECTION : Ne pas ignorer les opérations de répartition pour les stats des caisses
-            // Toutes les opérations doivent être comptabilisées pour le solde des caisses
             if (caisse && soldes[caisse] !== undefined) {
                 soldes[caisse] += montant;
             }
         });
 
-        // 2. Gérer les transferts entre caisses
         this.transferts.forEach(transfert => {
             const montant = parseFloat(transfert.montantTransfert) || 0;
             
-            // Soustraire de la caisse source
             if (transfert.caisseSource && soldes[transfert.caisseSource] !== undefined) {
                 soldes[transfert.caisseSource] -= montant;
             }
             
-            // Ajouter à la caisse destination
             if (transfert.caisseDestination && soldes[transfert.caisseDestination] !== undefined) {
                 soldes[transfert.caisseDestination] += montant;
             }
         });
 
-        // Afficher les soldes
         this.renderStats(soldes);
     }
 
@@ -653,7 +701,6 @@ class GestionFermeApp {
     showDetailsCaisse(caisse) {
         console.log('📊 Détails de la caisse:', caisse);
         
-        // Filtrer les opérations pour cette caisse
         const operationsCaisse = this.operations.filter(op => op.caisse === caisse);
         const transfertsSource = this.transferts.filter(t => t.caisseSource === caisse);
         const transfertsDestination = this.transferts.filter(t => t.caisseDestination === caisse);
@@ -674,7 +721,6 @@ class GestionFermeApp {
         
         const solde = totalRevenus - totalDepenses - totalSortants + totalEntrants;
         
-        // Afficher dans une modal au lieu d'une alerte
         this.showCaisseDetailsModal(caisse, {
             operations: operationsCaisse.length,
             revenus: totalRevenus,
@@ -687,7 +733,6 @@ class GestionFermeApp {
     }
 
     showCaisseDetailsModal(caisse, details) {
-        // Vérifier si une modale existe déjà et la supprimer
         const existingModal = document.querySelector('.caisse-details-modal');
         if (existingModal) {
             existingModal.remove();
@@ -730,7 +775,6 @@ class GestionFermeApp {
         
         document.body.appendChild(modal);
         
-        // Empêcher le clic sur la modale de fermer le contenu
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 this.closeCaisseDetailsModal();
@@ -764,12 +808,10 @@ class GestionFermeApp {
         const repartitionInfo = document.getElementById('repartitionInfo');
         const repartitionDetails = document.getElementById('repartitionDetails');
         
-        // Afficher la répartition seulement pour "travailleur_global" et "les_deux_groupes"
         if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes' && montant > 0) {
             let zaitounPart = 0;
             let commainPart = 0;
             
-            // Calcul des parts
             zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
             commainPart = parseFloat((montant * (2/3)).toFixed(2));
             
@@ -819,7 +861,6 @@ class GestionFermeApp {
         const montantTotal = parseFloat(document.getElementById('montant').value);
         const description = document.getElementById('description').value.trim();
         
-        // Validation
         if (!montantTotal || montantTotal <= 0) {
             this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
             return;
@@ -834,9 +875,7 @@ class GestionFermeApp {
             if (window.firebaseSync) {
                 let operationsACreer = [];
 
-                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
                 if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
-                    // Calcul des parts 1/3 et 2/3
                     const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
                     const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
                     
@@ -870,7 +909,6 @@ class GestionFermeApp {
                     ];
                     
                 } else {
-                    // CAS NORMAL (un seul groupe)
                     operationsACreer = [{
                         operateur: operateur,
                         groupe: groupe,
@@ -886,7 +924,6 @@ class GestionFermeApp {
                     }];
                 }
 
-                // ENREGISTREMENT DES OPÉRATIONS
                 for (const operation of operationsACreer) {
                     await window.firebaseSync.addDocument('operations', operation);
                 }
@@ -897,10 +934,7 @@ class GestionFermeApp {
                     this.showMessage(`✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`, 'success');
                 }
 
-                // Réinitialisation du formulaire
                 this.resetForm();
-                
-                // Rechargement des données
                 this.loadInitialData();
                 
             } else {
@@ -964,7 +998,6 @@ class GestionFermeApp {
         this.updateAffichage();
     }
 
-    // CORRECTION DE LA MÉTHODE toggleEditMode
     toggleEditMode() {
         this.editMode = !this.editMode;
         
@@ -993,10 +1026,8 @@ class GestionFermeApp {
             btnCancelEdit.style.display = this.editMode ? 'inline-block' : 'none';
         }
         
-        // Mettre à jour l'affichage
         this.updateAffichage();
         
-        // Afficher un message
         if (this.editMode) {
             this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
         } else {
@@ -1004,7 +1035,6 @@ class GestionFermeApp {
         }
     }
 
-    // MÉTHODES DE SUPPRESSION ET MODIFICATION CORRIGÉES
     async deleteOperation(operationId) {
         console.log('🗑️ Suppression opération:', operationId);
         
@@ -1013,21 +1043,18 @@ class GestionFermeApp {
             return;
         }
         
-        // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
             this.showMessage('❌ Opération non trouvée', 'error');
             return;
         }
         
-        // Vérifier les permissions
         const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canDelete) {
             this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
             return;
         }
         
-        // Confirmation
         if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
             return;
         }
@@ -1050,26 +1077,22 @@ class GestionFermeApp {
             return;
         }
         
-        // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
             this.showMessage('❌ Opération non trouvée', 'error');
             return;
         }
         
-        // Vérifier les permissions
         const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canEdit) {
             this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
             return;
         }
         
-        // Afficher le formulaire de modification
         this.showEditForm(operation);
     }
 
     showEditForm(operation) {
-        // Créer une modale de modification
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.cssText = `
@@ -1157,7 +1180,6 @@ class GestionFermeApp {
         
         document.body.appendChild(modal);
         
-        // Gérer la soumission du formulaire
         const editForm = document.getElementById('editForm');
         editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
         
@@ -1258,7 +1280,6 @@ class GestionFermeApp {
         }
     }
 
-    // CORRECTION DES MÉTHODES DE RÉINITIALISATION
     async resetLocalData() {
         if (!confirm('Êtes-vous sûr de vouloir vider les données locales ? Les données Firebase resteront intactes.')) {
             return;
@@ -1267,15 +1288,12 @@ class GestionFermeApp {
         console.log('🗑️ Réinitialisation des données locales...');
         
         try {
-            // Vider le localStorage
             localStorage.removeItem('gestion_ferme_data');
             
-            // Réinitialiser les données locales
             this.operations = [];
             this.transferts = [];
             this.selectedOperations.clear();
             
-            // Mettre à jour l'affichage
             this.updateAffichage();
             this.updateStats();
             
@@ -1300,7 +1318,6 @@ class GestionFermeApp {
         this.showMessage('Réinitialisation en cours...', 'info');
 
         try {
-            // Supprimer toutes les opérations de Firebase
             if (window.firebaseSync) {
                 const operations = await window.firebaseSync.getCollection('operations');
                 for (const op of operations) {
@@ -1313,15 +1330,12 @@ class GestionFermeApp {
                 }
             }
 
-            // Vider le localStorage
             localStorage.removeItem('gestion_ferme_data');
 
-            // Réinitialiser les données locales
             this.operations = [];
             this.transferts = [];
             this.selectedOperations.clear();
 
-            // Mettre à jour l'affichage
             this.updateAffichage();
             this.updateStats();
 
@@ -1342,7 +1356,6 @@ class GestionFermeApp {
     }
 
     showMessage(message, type = 'info') {
-        // Créer un élément de message
         const messageDiv = document.createElement('div');
         messageDiv.className = `message message-${type}`;
         messageDiv.textContent = message;
@@ -1359,7 +1372,6 @@ class GestionFermeApp {
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         `;
         
-        // Couleurs selon le type
         if (type === 'success') {
             messageDiv.style.background = '#27ae60';
         } else if (type === 'error') {
@@ -1372,7 +1384,6 @@ class GestionFermeApp {
         
         document.body.appendChild(messageDiv);
         
-        // Supprimer après 5 secondes
         setTimeout(() => {
             if (messageDiv.parentNode) {
                 messageDiv.remove();
@@ -1385,14 +1396,11 @@ class GestionFermeApp {
         const repartitionInfo = document.getElementById('repartitionInfo');
         
         if (saisieForm) {
-            // Sauvegarder la valeur de l'opérateur actuel
             const selectOperateur = document.getElementById('operateur');
             const operateurActuel = selectOperateur ? selectOperateur.value : '';
             
-            // Réinitialiser le formulaire
             saisieForm.reset();
             
-            // Remettre l'opérateur automatiquement
             if (this.currentUser) {
                 const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
                 if (operateur && selectOperateur) {
@@ -1400,7 +1408,6 @@ class GestionFermeApp {
                     selectOperateur.disabled = true;
                 }
             } else {
-                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
                 if (selectOperateur && operateurActuel) {
                     selectOperateur.value = operateurActuel;
                 }
