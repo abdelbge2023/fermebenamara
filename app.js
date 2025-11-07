@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION AVEC UTILISATEUR INVITÉ
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -11,6 +11,10 @@ class GestionFermeApp {
         this.currentUser = null;
         this.userPermissions = {};
         this.currentEditModal = null;
+        
+        // CORRECTION : Forcer l'affichage de l'écran de connexion au démarrage
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContent').style.display = 'none';
         
         this.initEventListeners();
         this.setupAuthHandlers();
@@ -25,12 +29,6 @@ class GestionFermeApp {
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-        }
-        
-        // Bouton connexion invité
-        const btnGuestLogin = document.getElementById('btnGuestLogin');
-        if (btnGuestLogin) {
-            btnGuestLogin.addEventListener('click', () => this.handleGuestLogin());
         }
         
         // Déconnexion
@@ -187,83 +185,25 @@ class GestionFermeApp {
         }, 5000);
     }
 
-    async handleGuestLogin() {
-        console.log('👤 Connexion en mode invité...');
-        
-        // Afficher message de chargement
-        const authMessage = document.createElement('div');
-        authMessage.className = 'auth-message auth-loading';
-        authMessage.textContent = '🔐 Connexion invité en cours...';
-        
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm.nextSibling) {
-            loginForm.parentNode.insertBefore(authMessage, loginForm.nextSibling);
-        } else {
-            loginForm.parentNode.appendChild(authMessage);
-        }
-
-        try {
-            // Créer un utilisateur invité simulé
-            const guestUser = {
-                uid: 'guest-user',
-                email: 'invite@ferme.com',
-                isAnonymous: true,
-                isGuest: true
-            };
-            
-            // Simuler un délai de connexion
-            setTimeout(() => {
-                authMessage.className = 'auth-message auth-info';
-                authMessage.textContent = '✅ Connexion invité réussie! Redirection...';
-                
-                // Déclencher l'événement d'authentification
-                window.dispatchEvent(new CustomEvent('userAuthenticated', {
-                    detail: { user: guestUser }
-                }));
-                
-                setTimeout(() => {
-                    if (authMessage.parentNode) {
-                        authMessage.remove();
-                    }
-                }, 2000);
-                
-            }, 1000);
-            
-        } catch (error) {
-            authMessage.className = 'auth-message auth-error';
-            authMessage.textContent = '❌ Erreur de connexion invité';
-            console.error('❌ Erreur connexion invité:', error);
-            
-            setTimeout(() => {
-                if (authMessage.parentNode) {
-                    authMessage.remove();
-                }
-            }, 5000);
-        }
-    }
-
     handleUserAuthenticated(user) {
         console.log('👤 Utilisateur authentifié dans l\'app:', user);
         console.log('📧 Email:', user.email);
         console.log('🔑 UID:', user.uid);
-        console.log('🎭 Mode invité:', user.isGuest || user.isAnonymous);
         
         this.currentUser = user;
         this.userPermissions = window.firebaseAuthFunctions.getViewPermissions(user);
         
         console.log('🔐 Permissions calculées:', this.userPermissions);
         
-        // Masquer écran connexion, afficher application
+        // CORRECTION : Masquer écran connexion, afficher application
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appContent').style.display = 'block';
         
         // Mettre à jour l'interface utilisateur
         this.updateUserInterface();
         
-        // Configurer l'opérateur automatiquement (sauf pour invité)
-        if (!user.isGuest && !user.isAnonymous) {
-            this.setupOperateurAuto();
-        }
+        // Configurer l'opérateur automatiquement
+        this.setupOperateurAuto();
         
         // Charger les données
         this.loadInitialData();
@@ -274,7 +214,7 @@ class GestionFermeApp {
         this.currentUser = null;
         this.userPermissions = {};
         
-        // Masquer application, afficher écran connexion
+        // CORRECTION : Masquer application, afficher écran connexion
         document.getElementById('appContent').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
         
@@ -285,14 +225,6 @@ class GestionFermeApp {
     async handleLogout() {
         try {
             console.log('🚪 Déconnexion en cours...');
-            
-            // Si c'est un utilisateur invité, simplement déconnecter localement
-            if (this.currentUser && (this.currentUser.isGuest || this.currentUser.isAnonymous)) {
-                this.handleUserSignedOut();
-                return;
-            }
-            
-            // Sinon, déconnexion Firebase normale
             await window.firebaseAuthFunctions.signOut();
         } catch (error) {
             console.error('❌ Erreur déconnexion:', error);
@@ -303,23 +235,9 @@ class GestionFermeApp {
         if (this.currentUser) {
             const userEmailElement = document.getElementById('userEmail');
             const userOperateurElement = document.getElementById('userOperateur');
-            const userRoleElement = document.getElementById('userRole');
             
             if (userEmailElement) {
                 userEmailElement.textContent = this.currentUser.email;
-            }
-            
-            // Afficher le rôle
-            if (userRoleElement) {
-                if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-                    userRoleElement.textContent = '👀 INVITÉ (Lecture seule)';
-                    userRoleElement.style.color = '#f39c12';
-                    userRoleElement.style.fontWeight = 'bold';
-                } else {
-                    const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
-                    userRoleElement.textContent = operateur ? operateur.toUpperCase() : 'UTILISATEUR';
-                    userRoleElement.style.color = '#27ae60';
-                }
             }
             
             const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
@@ -327,72 +245,12 @@ class GestionFermeApp {
                 userOperateurElement.textContent = operateur.toUpperCase();
             }
             
-            // Masquer/Montrer les éléments selon le rôle
-            this.toggleInterfaceForGuest();
-            
             console.log('👤 Interface utilisateur mise à jour pour:', this.currentUser.email);
         }
     }
 
-    toggleInterfaceForGuest() {
-        const isGuest = this.currentUser && (this.currentUser.isGuest || this.currentUser.isAnonymous);
-        
-        // Masquer les formulaires de saisie pour les invités
-        const saisieForm = document.getElementById('saisieForm');
-        const transfertForm = document.getElementById('transfertForm');
-        const formulaireSection = document.querySelector('.formulaire-section');
-        
-        if (saisieForm) saisieForm.style.display = isGuest ? 'none' : 'block';
-        if (transfertForm) transfertForm.style.display = isGuest ? 'none' : 'block';
-        if (formulaireSection) {
-            formulaireSection.style.display = isGuest ? 'none' : 'block';
-        }
-        
-        // Masquer les boutons d'édition et suppression pour les invités
-        const btnEditMode = document.getElementById('btnEditMode');
-        const btnDeleteSelected = document.getElementById('btnDeleteSelected');
-        const btnCancelEdit = document.getElementById('btnCancelEdit');
-        const btnResetLocal = document.getElementById('btnResetLocal');
-        const btnResetFirebase = document.getElementById('btnResetFirebase');
-        
-        if (btnEditMode) btnEditMode.style.display = isGuest ? 'none' : 'inline-block';
-        if (btnDeleteSelected) btnDeleteSelected.style.display = isGuest ? 'none' : 'inline-block';
-        if (btnCancelEdit) btnCancelEdit.style.display = isGuest ? 'none' : 'inline-block';
-        if (btnResetLocal) btnResetLocal.style.display = isGuest ? 'none' : 'inline-block';
-        if (btnResetFirebase) btnResetFirebase.style.display = isGuest ? 'none' : 'inline-block';
-        
-        // Afficher un message pour les invités
-        const guestMessage = document.getElementById('guestMessage') || this.createGuestMessage();
-        if (isGuest) {
-            guestMessage.style.display = 'block';
-        } else {
-            guestMessage.style.display = 'none';
-        }
-        
-        console.log('🎭 Mode invité activé:', isGuest);
-    }
-
-    createGuestMessage() {
-        const messageDiv = document.createElement('div');
-        messageDiv.id = 'guestMessage';
-        messageDiv.className = 'guest-message';
-        messageDiv.innerHTML = `
-            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 10px 0; text-align: center;">
-                <strong>👀 MODE INVITÉ</strong><br>
-                <small>Vous êtes connecté en mode lecture seule. Pour modifier les données, veuillez vous connecter avec un compte utilisateur.</small>
-            </div>
-        `;
-        
-        const appContent = document.getElementById('appContent');
-        if (appContent) {
-            appContent.insertBefore(messageDiv, appContent.firstChild);
-        }
-        
-        return messageDiv;
-    }
-
     setupOperateurAuto() {
-        if (this.currentUser && !this.currentUser.isGuest && !this.currentUser.isAnonymous) {
+        if (this.currentUser) {
             const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
             const selectOperateur = document.getElementById('operateur');
             
@@ -448,7 +306,6 @@ class GestionFermeApp {
         console.log('- Transferts:', this.transferts.length);
         console.log('- Mode édition:', this.editMode);
         console.log('- Permissions:', this.userPermissions);
-        console.log('- Utilisateur invité:', this.currentUser && (this.currentUser.isGuest || this.currentUser.isAnonymous));
         
         // Afficher les IDs des premières opérations
         if (this.operations.length > 0) {
@@ -527,13 +384,11 @@ class GestionFermeApp {
             return;
         }
         
-        const isGuest = this.currentUser && (this.currentUser.isGuest || this.currentUser.isAnonymous);
-        
         let html = `
             <table class="data-table">
                 <thead>
                     <tr>
-                        ${this.editMode && !isGuest ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
+                        ${this.editMode ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
                         <th>Date</th>
                         <th>Opérateur</th>
                         <th>Type</th>
@@ -542,7 +397,7 @@ class GestionFermeApp {
                         <th>Caisse</th>
                         <th>Montant</th>
                         <th>Description</th>
-                        ${!this.editMode && !isGuest ? '<th>Actions</th>' : ''}
+                        ${!this.editMode ? '<th>Actions</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -550,14 +405,14 @@ class GestionFermeApp {
         
         data.forEach(item => {
             const isOperation = item.hasOwnProperty('typeOperation');
-            const canEdit = !isGuest && this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
+            const canEdit = this.currentUser && window.firebaseAuthFunctions.canModifyOperation(item, this.currentUser);
             
             // Utiliser l'ID Firebase comme identifiant
             const itemId = item.id;
             
             html += `
                 <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
-                    ${this.editMode && !isGuest ? `
+                    ${this.editMode ? `
                         <td style="text-align: center; vertical-align: middle;">
                             ${canEdit ? 
                                 `<input type="checkbox" class="operation-checkbox" value="${itemId}" title="Sélectionner cette opération">` : 
@@ -577,7 +432,7 @@ class GestionFermeApp {
                         ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
                     </td>
                     <td>${item.description || item.descriptionTransfert || ''}</td>
-                    ${!this.editMode && !isGuest ? `
+                    ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
                                 <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="Modifier">✏️</button>
@@ -592,8 +447,8 @@ class GestionFermeApp {
         html += '</tbody></table>';
         container.innerHTML = html;
         
-        // Ajouter les écouteurs d'événements pour les cases à cocher (seulement si pas invité)
-        if (this.editMode && !isGuest) {
+        // Ajouter les écouteurs d'événements pour les cases à cocher
+        if (this.editMode) {
             this.setupCheckboxListeners();
         }
     }
@@ -956,12 +811,6 @@ class GestionFermeApp {
             return;
         }
         
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas modifier les données', 'error');
-            return;
-        }
-        
         const operateur = document.getElementById('operateur').value;
         const typeOperation = document.getElementById('typeOperation').value;
         const groupe = document.getElementById('groupe').value;
@@ -1072,12 +921,6 @@ class GestionFermeApp {
             return;
         }
         
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas effectuer de transferts', 'error');
-            return;
-        }
-        
         const caisseSource = document.getElementById('caisseSource').value;
         const caisseDestination = document.getElementById('caisseDestination').value;
         
@@ -1123,12 +966,6 @@ class GestionFermeApp {
 
     // CORRECTION DE LA MÉTHODE toggleEditMode
     toggleEditMode() {
-        // Empêcher l'édition pour les invités
-        if (this.currentUser && (this.currentUser.isGuest || this.currentUser.isAnonymous)) {
-            this.showMessage('❌ Les invités ne peuvent pas modifier les données', 'error');
-            return;
-        }
-        
         this.editMode = !this.editMode;
         
         const btnEditMode = document.getElementById('btnEditMode');
@@ -1176,12 +1013,6 @@ class GestionFermeApp {
             return;
         }
         
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas supprimer les données', 'error');
-            return;
-        }
-        
         // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
@@ -1216,12 +1047,6 @@ class GestionFermeApp {
         
         if (!this.currentUser) {
             this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas modifier les données', 'error');
             return;
         }
         
@@ -1394,17 +1219,6 @@ class GestionFermeApp {
     async deleteSelectedOperations() {
         console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
         
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas supprimer les données', 'error');
-            return;
-        }
-        
         if (this.selectedOperations.size === 0) {
             this.showMessage('❌ Aucune opération sélectionnée', 'error');
             return;
@@ -1446,17 +1260,6 @@ class GestionFermeApp {
 
     // CORRECTION DES MÉTHODES DE RÉINITIALISATION
     async resetLocalData() {
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas réinitialiser les données', 'error');
-            return;
-        }
-
         if (!confirm('Êtes-vous sûr de vouloir vider les données locales ? Les données Firebase resteront intactes.')) {
             return;
         }
@@ -1485,17 +1288,6 @@ class GestionFermeApp {
     }
 
     async resetFirebaseData() {
-        if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
-            return;
-        }
-        
-        // Vérifier si c'est un invité
-        if (this.currentUser.isGuest || this.currentUser.isAnonymous) {
-            this.showMessage('❌ Les invités ne peuvent pas réinitialiser les données', 'error');
-            return;
-        }
-
         if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
             return;
         }
@@ -1600,15 +1392,15 @@ class GestionFermeApp {
             // Réinitialiser le formulaire
             saisieForm.reset();
             
-            // Remettre l'opérateur automatiquement (sauf pour invité)
-            if (this.currentUser && !this.currentUser.isGuest && !this.currentUser.isAnonymous) {
+            // Remettre l'opérateur automatiquement
+            if (this.currentUser) {
                 const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
                 if (operateur && selectOperateur) {
                     selectOperateur.value = operateur;
                     selectOperateur.disabled = true;
                 }
             } else {
-                // Si pas d'utilisateur connecté ou invité, remettre l'ancienne valeur
+                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
                 if (selectOperateur && operateurActuel) {
                     selectOperateur.value = operateurActuel;
                 }
