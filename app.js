@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE CORRIGÉE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE AVEC TRADUCTION
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -11,15 +11,171 @@ class GestionFermeApp {
         this.currentUser = null;
         this.userPermissions = {};
         this.currentEditModal = null;
+        this.currentLanguage = 'fr'; // 'fr' ou 'ar'
         
-        // CORRECTION CRITIQUE : S'assurer que l'écran de connexion est visible au démarrage
+        // S'assurer que l'écran de connexion est visible au démarrage
         this.forceLoginScreenDisplay();
         
         this.initEventListeners();
         this.setupAuthHandlers();
+        this.initLanguage();
     }
 
-    // NOUVELLE MÉTHODE : Forcer l'affichage de l'écran de connexion
+    // Initialiser la langue
+    initLanguage() {
+        const savedLang = localStorage.getItem('gestion_ferme_lang');
+        if (savedLang) {
+            this.currentLanguage = savedLang;
+        }
+        this.updateLanguage();
+    }
+
+    // Mettre à jour toute l'interface selon la langue
+    updateLanguage() {
+        const translations = this.getTranslations();
+        
+        // Mettre à jour tous les éléments avec data-translate
+        document.querySelectorAll('[data-translate]').forEach(element => {
+            const key = element.getAttribute('data-translate');
+            if (translations[key]) {
+                if (element.tagName === 'INPUT' && element.type !== 'submit' && element.type !== 'button') {
+                    element.placeholder = translations[key];
+                } else if (element.tagName === 'BUTTON' || element.type === 'submit') {
+                    element.textContent = translations[key];
+                } else {
+                    element.textContent = translations[key];
+                }
+            }
+        });
+
+        // Mettre à jour le bouton de langue
+        const btnLang = document.getElementById('btnLang');
+        if (btnLang) {
+            btnLang.textContent = this.currentLanguage === 'fr' ? '🇸🇦 العربية' : '🇫🇷 Français';
+            btnLang.title = this.currentLanguage === 'fr' ? 'Passer en arabe' : 'Switch to French';
+        }
+
+        // Mettre à jour la direction du texte
+        document.body.style.direction = this.currentLanguage === 'ar' ? 'rtl' : 'ltr';
+        document.body.style.textAlign = this.currentLanguage === 'ar' ? 'right' : 'left';
+
+        // Sauvegarder la préférence
+        localStorage.setItem('gestion_ferme_lang', this.currentLanguage);
+        
+        console.log(`🌐 Langue mise à jour: ${this.currentLanguage}`);
+    }
+
+    // Traductions
+    getTranslations() {
+        return {
+            // Titres principaux
+            'app_title': this.currentLanguage === 'fr' ? 'Gestion Ferme Ben Amara' : 'إدارة مزرعة بن عمرة',
+            'login_title': this.currentLanguage === 'fr' ? 'Connexion' : 'تسجيل الدخول',
+            'saisie_title': this.currentLanguage === 'fr' ? 'Nouvelle Opération' : 'عملية جديدة',
+            'transfert_title': this.currentLanguage === 'fr' ? 'Transfert entre Caisses' : 'تحويل بين الصناديق',
+            'stats_title': this.currentLanguage === 'fr' ? 'Statistiques et Soldes' : 'الإحصائيات والأرصدة',
+            'operations_title': this.currentLanguage === 'fr' ? 'Opérations et Transferts' : 'العمليات والتحويلات',
+
+            // Formulaire de connexion
+            'login_email': this.currentLanguage === 'fr' ? 'Adresse Email' : 'البريد الإلكتروني',
+            'login_password': this.currentLanguage === 'fr' ? 'Mot de Passe' : 'كلمة المرور',
+            'login_button': this.currentLanguage === 'fr' ? 'Se Connecter' : 'تسجيل الدخول',
+            'logout_button': this.currentLanguage === 'fr' ? 'Déconnexion' : 'تسجيل الخروج',
+
+            // Formulaire opération
+            'operateur_label': this.currentLanguage === 'fr' ? 'Opérateur' : 'المشغل',
+            'type_operation_label': this.currentLanguage === 'fr' ? 'Type d\'Opération' : 'نوع العملية',
+            'groupe_label': this.currentLanguage === 'fr' ? 'Groupe' : 'المجموعة',
+            'type_transaction_label': this.currentLanguage === 'fr' ? 'Type de Transaction' : 'نوع المعاملة',
+            'caisse_label': this.currentLanguage === 'fr' ? 'Caisse' : 'الصندوق',
+            'montant_label': this.currentLanguage === 'fr' ? 'Montant (DH)' : 'المبلغ (درهم)',
+            'description_label': this.currentLanguage === 'fr' ? 'Description' : 'الوصف',
+            'submit_operation': this.currentLanguage === 'fr' ? 'Enregistrer l\'Opération' : 'تسجيل العملية',
+            'reset_form': this.currentLanguage === 'fr' ? 'Réinitialiser' : 'إعادة تعيين',
+
+            // Formulaire transfert
+            'caisse_source': this.currentLanguage === 'fr' ? 'Caisse Source' : 'الصندوق المصدر',
+            'caisse_destination': this.currentLanguage === 'fr' ? 'Caisse Destination' : 'الصندوق الوجهة',
+            'montant_transfert': this.currentLanguage === 'fr' ? 'Montant du Transfert' : 'مبلغ التحويل',
+            'description_transfert': this.currentLanguage === 'fr' ? 'Description du Transfert' : 'وصف التحويل',
+            'submit_transfert': this.currentLanguage === 'fr' ? 'Effectuer le Transfert' : 'تنفيذ التحويل',
+
+            // Navigation
+            'tab_global': this.currentLanguage === 'fr' ? '🌍 Global' : '🌍 الكل',
+            'tab_zaitoun': this.currentLanguage === 'fr' ? '🫒 Zaitoun' : '🫒 زيتون',
+            'tab_3commain': this.currentLanguage === 'fr' ? '🔧 3 Commain' : '🔧 3 كومان',
+            'tab_abdel': this.currentLanguage === 'fr' ? '👨‍💼 Abdel' : '👨‍💼 عبدال',
+            'tab_omar': this.currentLanguage === 'fr' ? '👨‍💻 Omar' : '👨‍💻 عمر',
+            'tab_hicham': this.currentLanguage === 'fr' ? '👨‍🔧 Hicham' : '👨‍🔧 هشام',
+            'tab_transferts': this.currentLanguage === 'fr' ? '🔄 Transferts' : '🔄 التحويلات',
+            'tab_les_deux_groupes': this.currentLanguage === 'fr' ? '👥 Les Deux Groupes' : '👥 المجموعتان',
+
+            // Boutons d'action
+            'btn_edit_mode': this.currentLanguage === 'fr' ? '✏️ Mode Édition' : '✏️ وضع التعديل',
+            'btn_delete_selected': this.currentLanguage === 'fr' ? '🗑️ Supprimer' : '🗑️ حذف',
+            'btn_cancel_edit': this.currentLanguage === 'fr' ? '❌ Annuler' : '❌ إلغاء',
+            'btn_export_complet': this.currentLanguage === 'fr' ? '📊 Export Complet' : '📊 تصدير كامل',
+            'btn_export_vue': this.currentLanguage === 'fr' ? '📈 Export Vue' : '📈 تصدير العرض',
+            'btn_export_detail': this.currentLanguage === 'fr' ? '📋 Rapport Complet' : '📋 تقرير مفصل',
+            'btn_reset_local': this.currentLanguage === 'fr' ? '🗑️ Reset Local' : '🗑️ مسح المحلي',
+            'btn_reset_firebase': this.currentLanguage === 'fr' ? '🔥 Reset Firebase' : '🔥 مسح Firebase',
+            'btn_manual': this.currentLanguage === 'fr' ? '📖 Manuel' : '📖 الدليل',
+
+            // En-têtes de tableau
+            'header_date': this.currentLanguage === 'fr' ? 'Date' : 'التاريخ',
+            'header_operateur': this.currentLanguage === 'fr' ? 'Opérateur' : 'المشغل',
+            'header_type': this.currentLanguage === 'fr' ? 'Type' : 'النوع',
+            'header_groupe': this.currentLanguage === 'fr' ? 'Groupe' : 'المجموعة',
+            'header_transaction': this.currentLanguage === 'fr' ? 'Transaction' : 'المعاملة',
+            'header_caisse': this.currentLanguage === 'fr' ? 'Caisse' : 'الصندوق',
+            'header_montant': this.currentLanguage === 'fr' ? 'Montant' : 'المبلغ',
+            'header_description': this.currentLanguage === 'fr' ? 'Description' : 'الوصف',
+            'header_actions': this.currentLanguage === 'fr' ? 'Actions' : 'الإجراءات',
+
+            // Types d'opération
+            'type_travailleur_global': this.currentLanguage === 'fr' ? 'Travailleur Global' : 'عامل عام',
+            'type_zaitoun': this.currentLanguage === 'fr' ? 'Zaitoun' : 'زيتون',
+            'type_3commain': this.currentLanguage === 'fr' ? '3 Commain' : '3 كومان',
+
+            // Groupes
+            'groupe_les_deux': this.currentLanguage === 'fr' ? 'Les Deux Groupes' : 'المجموعتان',
+            'groupe_zaitoun': this.currentLanguage === 'fr' ? 'Zaitoun' : 'زيتون',
+            'groupe_3commain': this.currentLanguage === 'fr' ? '3 Commain' : '3 كومان',
+
+            // Types de transaction
+            'transaction_revenu': this.currentLanguage === 'fr' ? 'Revenu' : 'دخل',
+            'transaction_frais': this.currentLanguage === 'fr' ? 'Frais' : 'مصاريف',
+
+            // Caisses
+            'caisse_abdel': this.currentLanguage === 'fr' ? 'Caisse Abdel' : 'صندوق عبدال',
+            'caisse_omar': this.currentLanguage === 'fr' ? 'Caisse Omar' : 'صندوق عمر',
+            'caisse_hicham': this.currentLanguage === 'fr' ? 'Caisse Hicham' : 'صندوق هشام',
+            'caisse_zaitoun': this.currentLanguage === 'fr' ? 'Caisse Zaitoun' : 'صندوق زيتون',
+            'caisse_3commain': this.currentLanguage === 'fr' ? 'Caisse 3 Commain' : 'صندوق 3 كومان',
+
+            // Messages
+            'message_no_data': this.currentLanguage === 'fr' ? 'Aucune donnée à afficher' : 'لا توجد بيانات للعرض',
+            'message_loading': this.currentLanguage === 'fr' ? 'Chargement...' : 'جاري التحميل...',
+            'message_connected': this.currentLanguage === 'fr' ? 'Connecté en tant que' : 'متصل باسم',
+            'select_all': this.currentLanguage === 'fr' ? 'Tout sélectionner' : 'تحديد الكل',
+            'read_only': this.currentLanguage === 'fr' ? 'Lecture seule' : 'للقراءة فقط',
+
+            // Totaux
+            'total_revenus': this.currentLanguage === 'fr' ? 'Revenus' : 'الإيرادات',
+            'total_depenses': this.currentLanguage === 'fr' ? 'Dépenses' : 'المصاريف',
+            'total_transferts': this.currentLanguage === 'fr' ? 'Transferts' : 'التحويلات',
+            'total_solde': this.currentLanguage === 'fr' ? 'Solde Net' : 'الرصيد الصافي'
+        };
+    }
+
+    // Changer la langue
+    toggleLanguage() {
+        this.currentLanguage = this.currentLanguage === 'fr' ? 'ar' : 'fr';
+        this.updateLanguage();
+        this.updateAffichage();
+    }
+
+    // Forcer l'affichage de l'écran de connexion
     forceLoginScreenDisplay() {
         const loginScreen = document.getElementById('loginScreen');
         const appContent = document.getElementById('appContent');
@@ -42,11 +198,18 @@ class GestionFermeApp {
     initEventListeners() {
         console.log('🔧 Initialisation des écouteurs d\'événements...');
         
+        // Bouton de changement de langue
+        const btnLang = document.getElementById('btnLang');
+        if (btnLang) {
+            btnLang.addEventListener('click', () => this.toggleLanguage());
+            console.log('✅ Écouteur btnLang ajouté');
+        }
+
         // Écouteurs d'authentification
         window.addEventListener('userAuthenticated', (e) => this.handleUserAuthenticated(e.detail.user));
         window.addEventListener('userSignedOut', () => this.handleUserSignedOut());
 
-        // Formulaire de connexion - CORRECTION : Vérifier si l'élément existe
+        // Formulaire de connexion
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => this.handleLogin(e));
@@ -182,14 +345,19 @@ class GestionFermeApp {
         const password = document.getElementById('loginPassword').value;
         
         if (!email || !password) {
-            this.showMessage('❌ Veuillez saisir email et mot de passe', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ Veuillez saisir email et mot de passe' 
+                    : '❌ يرجى إدخال البريد الإلكتروني وكلمة المرور', 
+                'error'
+            );
             return;
         }
         
         // Afficher message de chargement
         const authMessage = document.createElement('div');
         authMessage.className = 'auth-message auth-loading';
-        authMessage.textContent = '🔐 Connexion en cours...';
+        authMessage.textContent = this.currentLanguage === 'fr' ? '🔐 Connexion en cours...' : '🔐 جاري التسجيل...';
         authMessage.style.cssText = `
             padding: 10px;
             margin: 10px 0;
@@ -212,7 +380,7 @@ class GestionFermeApp {
             
             if (result.success) {
                 authMessage.className = 'auth-message auth-info';
-                authMessage.textContent = '✅ Connexion réussie! Redirection...';
+                authMessage.textContent = this.currentLanguage === 'fr' ? '✅ Connexion réussie! Redirection...' : '✅ تم التسجيل بنجاح! جاري التوجيه...';
                 authMessage.style.background = '#27ae60';
                 console.log('✅ Utilisateur connecté:', result.user.email);
                 
@@ -223,21 +391,22 @@ class GestionFermeApp {
                 
             } else {
                 authMessage.className = 'auth-message auth-error';
-                authMessage.textContent = `❌ Erreur: ${result.error}`;
                 authMessage.style.background = '#e74c3c';
                 console.error('❌ Erreur connexion:', result.error);
                 
                 if (result.code === 'auth/user-not-found') {
-                    authMessage.textContent = '❌ Utilisateur non trouvé';
+                    authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Utilisateur non trouvé' : '❌ المستخدم غير موجود';
                 } else if (result.code === 'auth/wrong-password') {
-                    authMessage.textContent = '❌ Mot de passe incorrect';
+                    authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Mot de passe incorrect' : '❌ كلمة المرور خاطئة';
                 } else if (result.code === 'auth/invalid-email') {
-                    authMessage.textContent = '❌ Email invalide';
+                    authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Email invalide' : '❌ بريد إلكتروني غير صالح';
+                } else {
+                    authMessage.textContent = this.currentLanguage === 'fr' ? `❌ Erreur: ${result.error}` : `❌ خطأ: ${result.error}`;
                 }
             }
         } catch (error) {
             authMessage.className = 'auth-message auth-error';
-            authMessage.textContent = '❌ Erreur de connexion inattendue';
+            authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Erreur de connexion inattendue' : '❌ خطأ غير متوقع في التسجيل';
             authMessage.style.background = '#e74c3c';
             console.error('❌ Erreur connexion:', error);
         }
@@ -251,15 +420,13 @@ class GestionFermeApp {
 
     handleUserAuthenticated(user) {
         console.log('👤 Utilisateur authentifié dans l\'app:', user);
-        console.log('📧 Email:', user.email);
-        console.log('🔑 UID:', user.uid);
         
         this.currentUser = user;
         this.userPermissions = window.firebaseAuthFunctions.getViewPermissions(user);
         
         console.log('🔐 Permissions calculées:', this.userPermissions);
         
-        // CORRECTION : Masquer écran connexion, afficher application
+        // Masquer écran connexion, afficher application
         const loginScreen = document.getElementById('loginScreen');
         const appContent = document.getElementById('appContent');
         
@@ -283,7 +450,7 @@ class GestionFermeApp {
         this.currentUser = null;
         this.userPermissions = {};
         
-        // CORRECTION : Masquer application, afficher écran connexion
+        // Masquer application, afficher écran connexion
         const loginScreen = document.getElementById('loginScreen');
         const appContent = document.getElementById('appContent');
         
@@ -334,11 +501,7 @@ class GestionFermeApp {
                 selectOperateur.disabled = true;
                 console.log(`👤 Opérateur automatiquement défini: ${operateur}`);
             } else {
-                console.warn('⚠️ Impossible de définir l\'opérateur:', {
-                    operateur: operateur,
-                    selectOperateur: !!selectOperateur,
-                    currentUser: !!this.currentUser
-                });
+                console.warn('⚠️ Impossible de définir l\'opérateur');
             }
         }
     }
@@ -367,11 +530,21 @@ class GestionFermeApp {
                 
             } else {
                 console.error('❌ FirebaseSync non disponible');
-                this.showMessage('⚠️ Synchronisation temporairement indisponible', 'warning');
+                this.showMessage(
+                    this.currentLanguage === 'fr' 
+                        ? '⚠️ Synchronisation temporairement indisponible' 
+                        : '⚠️ المزامنة غير متاحة مؤقتًا', 
+                    'warning'
+                );
             }
         } catch (error) {
             console.error('❌ Erreur chargement données:', error);
-            this.showMessage('❌ Erreur de chargement des données', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ Erreur de chargement des données' 
+                    : '❌ خطأ في تحميل البيانات', 
+                'error'
+            );
         }
     }
 
@@ -452,24 +625,27 @@ class GestionFermeApp {
 
     renderDataTable(data, container) {
         if (data.length === 0) {
-            container.innerHTML = '<div class="empty-message">Aucune donnée à afficher</div>';
+            const noDataMessage = this.currentLanguage === 'fr' ? 'Aucune donnée à afficher' : 'لا توجد بيانات للعرض';
+            container.innerHTML = `<div class="empty-message">${noDataMessage}</div>`;
             return;
         }
+        
+        const translations = this.getTranslations();
         
         let html = `
             <table class="data-table">
                 <thead>
                     <tr>
-                        ${this.editMode ? '<th><input type="checkbox" id="selectAll" title="Tout sélectionner"></th>' : ''}
-                        <th>Date</th>
-                        <th>Opérateur</th>
-                        <th>Type</th>
-                        <th>Groupe</th>
-                        <th>Transaction</th>
-                        <th>Caisse</th>
-                        <th>Montant</th>
-                        <th>Description</th>
-                        ${!this.editMode ? '<th>Actions</th>' : ''}
+                        ${this.editMode ? `<th><input type="checkbox" id="selectAll" title="${translations['select_all']}"></th>` : ''}
+                        <th>${translations['header_date']}</th>
+                        <th>${translations['header_operateur']}</th>
+                        <th>${translations['header_type']}</th>
+                        <th>${translations['header_groupe']}</th>
+                        <th>${translations['header_transaction']}</th>
+                        <th>${translations['header_caisse']}</th>
+                        <th>${translations['header_montant']}</th>
+                        <th>${translations['header_description']}</th>
+                        ${!this.editMode ? `<th>${translations['header_actions']}</th>` : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -486,8 +662,8 @@ class GestionFermeApp {
                     ${this.editMode ? `
                         <td style="text-align: center; vertical-align: middle;">
                             ${canEdit ? 
-                                `<input type="checkbox" class="operation-checkbox" value="${itemId}" title="Sélectionner cette opération">` : 
-                                '<span style="color: #999; font-size: 12px;">🔒</span>'
+                                `<input type="checkbox" class="operation-checkbox" value="${itemId}" title="${translations['select_all']}">` : 
+                                `<span style="color: #999; font-size: 12px;">🔒</span>`
                             }
                         </td>
                     ` : ''}
@@ -506,9 +682,9 @@ class GestionFermeApp {
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
-                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="Modifier">✏️</button>
-                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="Supprimer">🗑️</button>
-                            ` : '<span style="color: #999; font-size: 11px; font-style: italic;">Lecture seule</span>'}
+                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="${this.currentLanguage === 'fr' ? 'Modifier' : 'تعديل'}">✏️</button>
+                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="${this.currentLanguage === 'fr' ? 'Supprimer' : 'حذف'}">🗑️</button>
+                            ` : `<span style="color: #999; font-size: 11px; font-style: italic;">${translations['read_only']}</span>`}
                         </td>
                     ` : ''}
                 </tr>
@@ -545,25 +721,26 @@ class GestionFermeApp {
         });
         
         const soldeNet = totalRevenus - totalDepenses;
+        const translations = this.getTranslations();
         
         const htmlTotaux = `
             <div class="vue-header">
-                <h3>📊 Totaux pour la vue "${this.getNomVue(this.currentView)}"</h3>
+                <h3>📊 ${this.currentLanguage === 'fr' ? 'Totaux pour la vue' : 'المجموع للعرض'} "${this.getNomVue(this.currentView)}"</h3>
                 <div class="totals-container">
                     <div class="total-item">
-                        <span class="total-label">💰 Revenus</span>
+                        <span class="total-label">💰 ${translations['total_revenus']}</span>
                         <span class="total-value positive">${totalRevenus.toFixed(2)} DH</span>
                     </div>
                     <div class="total-item">
-                        <span class="total-label">💸 Dépenses</span>
+                        <span class="total-label">💸 ${translations['total_depenses']}</span>
                         <span class="total-value negative">${totalDepenses.toFixed(2)} DH</span>
                     </div>
                     <div class="total-item">
-                        <span class="total-label">🔄 Transferts</span>
+                        <span class="total-label">🔄 ${translations['total_transferts']}</span>
                         <span class="total-value">${totalTransferts.toFixed(2)} DH</span>
                     </div>
                     <div class="total-item">
-                        <span class="total-label">⚖️ Solde Net</span>
+                        <span class="total-label">⚖️ ${translations['total_solde']}</span>
                         <span class="total-value ${soldeNet >= 0 ? 'positive' : 'negative'}">${soldeNet.toFixed(2)} DH</span>
                     </div>
                 </div>
@@ -574,7 +751,7 @@ class GestionFermeApp {
     }
 
     getNomVue(vue) {
-        const noms = {
+        const nomsFr = {
             'global': 'Toutes les opérations',
             'zaitoun': 'Zaitoun',
             '3commain': '3 Commain', 
@@ -584,7 +761,19 @@ class GestionFermeApp {
             'transferts': 'Transferts',
             'les_deux_groupes': 'Les Deux Groupes'
         };
-        return noms[vue] || vue;
+        
+        const nomsAr = {
+            'global': 'جميع العمليات',
+            'zaitoun': 'زيتون',
+            '3commain': '3 كومان', 
+            'abdel': 'عبدال',
+            'omar': 'عمر',
+            'hicham': 'هشام',
+            'transferts': 'التحويلات',
+            'les_deux_groupes': 'المجموعتان'
+        };
+        
+        return this.currentLanguage === 'fr' ? nomsFr[vue] || vue : nomsAr[vue] || vue;
     }
 
     setupCheckboxListeners() {
@@ -628,7 +817,8 @@ class GestionFermeApp {
     updateSelectedCount() {
         const btnDeleteSelected = document.getElementById('btnDeleteSelected');
         if (btnDeleteSelected && this.editMode) {
-            btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+            const translations = this.getTranslations();
+            btnDeleteSelected.textContent = `🗑️ ${translations['btn_delete_selected']} (${this.selectedOperations.size})`;
         }
     }
 
@@ -671,7 +861,7 @@ class GestionFermeApp {
         const statsContainer = document.getElementById('statsContainer');
         if (!statsContainer) return;
 
-        const nomsCaisses = {
+        const nomsCaissesFr = {
             'abdel_caisse': '👨‍💼 Caisse Abdel',
             'omar_caisse': '👨‍💻 Caisse Omar', 
             'hicham_caisse': '👨‍🔧 Caisse Hicham',
@@ -679,18 +869,31 @@ class GestionFermeApp {
             '3commain_caisse': '🔧 Caisse 3 Commain'
         };
 
+        const nomsCaissesAr = {
+            'abdel_caisse': '👨‍💼 صندوق عبدال',
+            'omar_caisse': '👨‍💻 صندوق عمر', 
+            'hicham_caisse': '👨‍🔧 صندوق هشام',
+            'zaitoun_caisse': '🫒 صندوق زيتون',
+            '3commain_caisse': '🔧 صندوق 3 كومان'
+        };
+
+        const nomsCaisses = this.currentLanguage === 'fr' ? nomsCaissesFr : nomsCaissesAr;
+
         let html = '';
         
         Object.keys(soldes).forEach(caisse => {
             const solde = soldes[caisse];
             const classeSolde = solde >= 0 ? 'solde-positif' : 'solde-negatif';
             const icone = solde >= 0 ? '📈' : '📉';
+            const trendText = this.currentLanguage === 'fr' 
+                ? (solde >= 0 ? 'Positif' : 'Négatif')
+                : (solde >= 0 ? 'إيجابي' : 'سلبي');
             
             html += `
                 <div class="stat-card ${classeSolde}" onclick="gestionFermeApp.showDetailsCaisse('${caisse}')">
                     <div class="stat-label">${nomsCaisses[caisse] || caisse}</div>
                     <div class="stat-value">${solde.toFixed(2)} DH</div>
-                    <div class="stat-trend">${icone} ${solde >= 0 ? 'Positif' : 'Négatif'}</div>
+                    <div class="stat-trend">${icone} ${trendText}</div>
                 </div>
             `;
         });
@@ -753,22 +956,25 @@ class GestionFermeApp {
             z-index: 1000;
         `;
         
+        const translations = this.getTranslations();
+        const caisseName = this.getNomCaisse(caisse);
+        
         modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <h3 style="margin-top: 0; color: #2c3e50;">📊 Détails de ${this.getNomCaisse(caisse)}</h3>
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}">
+                <h3 style="margin-top: 0; color: #2c3e50;">📊 ${this.currentLanguage === 'fr' ? 'Détails de' : 'تفاصيل'} ${caisseName}</h3>
                 <div style="margin: 15px 0;">
-                    <div style="margin-bottom: 8px;"><strong>📝 Opérations:</strong> ${details.operations}</div>
-                    <div style="margin-bottom: 8px;"><strong>💰 Revenus:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>💸 Dépenses:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts sortants:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                    <div style="margin-bottom: 8px;"><strong>🔄 Transferts entrants:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '📝 Opérations:' : '📝 العمليات:'}</strong> ${details.operations}</div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '💰 Revenus:' : '💰 الإيرادات:'}</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '💸 Dépenses:' : '💸 المصاريف:'}</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '🔄 Transferts sortants:' : '🔄 التحويلات الصادرة:'}</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '🔄 Transferts entrants:' : '🔄 التحويلات الواردة:'}</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
                 </div>
                 <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                    <div style="margin-bottom: 8px;"><strong>⚖️ Solde calculé:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
-                    <div><strong>📋 Total mouvements:</strong> ${details.totalMouvements}</div>
+                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '⚖️ Solde calculé:' : '⚖️ الرصيد المحسوب:'}</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                    <div><strong>${this.currentLanguage === 'fr' ? '📋 Total mouvements:' : '📋 إجمالي الحركات:'}</strong> ${details.totalMouvements}</div>
                 </div>
                 <button onclick="gestionFermeApp.closeCaisseDetailsModal()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
-                    Fermer
+                    ${this.currentLanguage === 'fr' ? 'Fermer' : 'إغلاق'}
                 </button>
             </div>
         `;
@@ -790,14 +996,23 @@ class GestionFermeApp {
     }
 
     getNomCaisse(caisse) {
-        const noms = {
+        const nomsFr = {
             'abdel_caisse': 'Caisse Abdel',
             'omar_caisse': 'Caisse Omar',
             'hicham_caisse': 'Caisse Hicham',
             'zaitoun_caisse': 'Caisse Zaitoun',
             '3commain_caisse': 'Caisse 3 Commain'
         };
-        return noms[caisse] || caisse;
+        
+        const nomsAr = {
+            'abdel_caisse': 'صندوق عبدال',
+            'omar_caisse': 'صندوق عمر',
+            'hicham_caisse': 'صندوق هشام',
+            'zaitoun_caisse': 'صندوق زيتون',
+            '3commain_caisse': 'صندوق 3 كومان'
+        };
+        
+        return this.currentLanguage === 'fr' ? nomsFr[caisse] || caisse : nomsAr[caisse] || caisse;
     }
 
     updateRepartition() {
@@ -815,27 +1030,31 @@ class GestionFermeApp {
             zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
             commainPart = parseFloat((montant * (2/3)).toFixed(2));
             
+            const infoText = this.currentLanguage === 'fr' 
+                ? '<strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes'
+                : '<strong>ℹ️ معلومة :</strong> سيتم دفع المبلغ الإجمالي من الصندوق المحدد وتوزيعه بين المجموعتين';
+            
             repartitionDetails.innerHTML = `
                 <div class="repartition-details">
                     <div class="repartition-item zaitoun">
-                        <strong>🫒 Zaitoun</strong><br>
-                        Part: 1/3<br>
+                        <strong>🫒 ${this.currentLanguage === 'fr' ? 'Zaitoun' : 'زيتون'}</strong><br>
+                        ${this.currentLanguage === 'fr' ? 'Part: 1/3' : 'الحصة: 1/3'}<br>
                         ${zaitounPart.toFixed(2)} DH<br>
                         <small>33.3%</small>
                     </div>
                     <div class="repartition-item commain">
-                        <strong>🔧 3 Commain</strong><br>
-                        Part: 2/3<br>
+                        <strong>🔧 ${this.currentLanguage === 'fr' ? '3 Commain' : '3 كومان'}</strong><br>
+                        ${this.currentLanguage === 'fr' ? 'Part: 2/3' : 'الحصة: 2/3'}<br>
                         ${commainPart.toFixed(2)} DH<br>
                         <small>66.7%</small>
                     </div>
                     <div class="repartition-total">
-                        <strong>💰 Total payé</strong><br>
+                        <strong>💰 ${this.currentLanguage === 'fr' ? 'Total payé' : 'المبلغ الإجمالي'}</strong><br>
                         ${montant.toFixed(2)} DH
                     </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                    <strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes
+                    ${infoText}
                 </div>
             `;
             repartitionInfo.style.display = 'block';
@@ -849,7 +1068,10 @@ class GestionFermeApp {
         console.log('➕ Nouvelle opération en cours...');
         
         if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
+                'error'
+            );
             return;
         }
         
@@ -861,13 +1083,20 @@ class GestionFermeApp {
         const montantTotal = parseFloat(document.getElementById('montant').value);
         const description = document.getElementById('description').value.trim();
         
+        // Validation
         if (!montantTotal || montantTotal <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Le montant doit être supérieur à 0' : '❌ يجب أن يكون المبلغ أكبر من 0', 
+                'error'
+            );
             return;
         }
         
         if (!description) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Veuillez saisir une description' : '❌ يرجى إدخال وصف', 
+                'error'
+            );
             return;
         }
         
@@ -875,6 +1104,7 @@ class GestionFermeApp {
             if (window.firebaseSync) {
                 let operationsACreer = [];
 
+                // CAS SPÉCIAL : TRAVAILLEUR GLOBAL + LES DEUX GROUPES
                 if (typeOperation === 'travailleur_global' && groupe === 'les_deux_groupes') {
                     const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
                     const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
@@ -887,7 +1117,7 @@ class GestionFermeApp {
                             typeTransaction: typeTransaction,
                             caisse: caisse,
                             montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                            description: `${description} (Part Zaitoun - 1/3 = ${montantZaitoun} DH)`,
+                            description: `${description} (${this.currentLanguage === 'fr' ? 'Part Zaitoun' : 'حصة زيتون'} - 1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -900,7 +1130,7 @@ class GestionFermeApp {
                             typeTransaction: typeTransaction,
                             caisse: caisse,
                             montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
-                            description: `${description} (Part 3 Commain - 2/3 = ${montantCommain} DH)`,
+                            description: `${description} (${this.currentLanguage === 'fr' ? 'Part 3 Commain' : 'حصة 3 كومان'} - 2/3 = ${montantCommain} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -909,6 +1139,7 @@ class GestionFermeApp {
                     ];
                     
                 } else {
+                    // CAS NORMAL (un seul groupe)
                     operationsACreer = [{
                         operateur: operateur,
                         groupe: groupe,
@@ -924,25 +1155,43 @@ class GestionFermeApp {
                     }];
                 }
 
+                // ENREGISTREMENT DES OPÉRATIONS
                 for (const operation of operationsACreer) {
                     await window.firebaseSync.addDocument('operations', operation);
                 }
                 
                 if (operationsACreer.length === 2) {
-                    this.showMessage(`✅ OPÉRATION RÉPARTIE! ${caisse} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`, 'success');
+                    const successMsg = this.currentLanguage === 'fr' 
+                        ? `✅ OPÉRATION RÉPARTIE! ${caisse} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`
+                        : `✅ تم توزيع العملية! ${this.getNomCaisse(caisse)} → زيتون: ${(montantTotal/3).toFixed(2)} درهم + 3 كومان: ${((montantTotal*2)/3).toFixed(2)} درهم`;
+                    this.showMessage(successMsg, 'success');
                 } else {
-                    this.showMessage(`✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`, 'success');
+                    const successMsg = this.currentLanguage === 'fr' 
+                        ? `✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`
+                        : `✅ تم تسجيل العملية! ${montantTotal} درهم على ${this.getNomCaisse(caisse)}`;
+                    this.showMessage(successMsg, 'success');
                 }
 
+                // Réinitialisation du formulaire
                 this.resetForm();
+                
+                // Rechargement des données
                 this.loadInitialData();
                 
             } else {
-                this.showMessage('❌ Erreur de synchronisation', 'error');
+                this.showMessage(
+                    this.currentLanguage === 'fr' ? '❌ Erreur de synchronisation' : '❌ خطأ في المزامنة', 
+                    'error'
+                );
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement opération:', error);
-            this.showMessage('❌ Erreur lors de l\'enregistrement: ' + error.message, 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ Erreur lors de l\'enregistrement: ' + error.message 
+                    : '❌ خطأ أثناء التسجيل: ' + error.message, 
+                'error'
+            );
         }
     }
 
@@ -951,7 +1200,10 @@ class GestionFermeApp {
         console.log('🔄 Transfert en cours...');
         
         if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
+                'error'
+            );
             return;
         }
         
@@ -959,7 +1211,12 @@ class GestionFermeApp {
         const caisseDestination = document.getElementById('caisseDestination').value;
         
         if (caisseSource === caisseDestination) {
-            this.showMessage('❌ La caisse source et destination doivent être différentes', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ La caisse source et destination doivent être différentes' 
+                    : '❌ يجب أن يكون الصندوق المصدر والوجهة مختلفين', 
+                'error'
+            );
             return;
         }
         
@@ -977,13 +1234,19 @@ class GestionFermeApp {
         try {
             if (window.firebaseSync) {
                 await window.firebaseSync.addDocument('transferts', transfert);
-                this.showMessage('✅ Transfert effectué avec succès', 'success');
+                this.showMessage(
+                    this.currentLanguage === 'fr' ? '✅ Transfert effectué avec succès' : '✅ تم التحويل بنجاح', 
+                    'success'
+                );
                 e.target.reset();
                 this.loadInitialData();
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement transfert:', error);
-            this.showMessage('❌ Erreur lors du transfert', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors du transfert' : '❌ خطأ أثناء التحويل', 
+                'error'
+            );
         }
     }
 
@@ -1006,11 +1269,12 @@ class GestionFermeApp {
         const btnCancelEdit = document.getElementById('btnCancelEdit');
         
         if (btnEditMode) {
+            const translations = this.getTranslations();
             if (this.editMode) {
-                btnEditMode.textContent = '💾 Quitter Édition';
+                btnEditMode.textContent = this.currentLanguage === 'fr' ? '💾 Quitter Édition' : '💾 خروج من التعديل';
                 btnEditMode.className = 'btn btn-success';
             } else {
-                btnEditMode.textContent = '✏️ Mode Édition';
+                btnEditMode.textContent = translations['btn_edit_mode'];
                 btnEditMode.className = 'btn btn-warning';
             }
         }
@@ -1018,7 +1282,7 @@ class GestionFermeApp {
         if (btnDeleteSelected) {
             btnDeleteSelected.style.display = this.editMode ? 'inline-block' : 'none';
             if (this.editMode) {
-                btnDeleteSelected.textContent = `🗑️ Supprimer (${this.selectedOperations.size})`;
+                this.updateSelectedCount();
             }
         }
         
@@ -1029,9 +1293,17 @@ class GestionFermeApp {
         this.updateAffichage();
         
         if (this.editMode) {
-            this.showMessage('✏️ Mode édition activé - Sélectionnez les opérations à modifier', 'info');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '✏️ Mode édition activé - Sélectionnez les opérations à modifier' 
+                    : '✏️ تم تفعيل وضع التعديل - حدد العمليات للتعديل', 
+                'info'
+            );
         } else {
-            this.showMessage('✅ Mode édition désactivé', 'success');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '✅ Mode édition désactivé' : '✅ تم تعطيل وضع التعديل', 
+                'success'
+            );
         }
     }
 
@@ -1039,33 +1311,57 @@ class GestionFermeApp {
         console.log('🗑️ Suppression opération:', operationId);
         
         if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
+                'error'
+            );
             return;
         }
         
+        // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Opération non trouvée' : '❌ العملية غير موجودة', 
+                'error'
+            );
             return;
         }
         
+        // Vérifier les permissions
         const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canDelete) {
-            this.showMessage('❌ Vous n\'avez pas la permission de supprimer cette opération', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ Vous n\'avez pas la permission de supprimer cette opération' 
+                    : '❌ ليس لديك إذن لحذف هذه العملية', 
+                'error'
+            );
             return;
         }
         
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette opération ?')) {
+        // Confirmation
+        const confirmMsg = this.currentLanguage === 'fr' 
+            ? 'Êtes-vous sûr de vouloir supprimer cette opération ?'
+            : 'هل أنت متأكد من أنك تريد حذف هذه العملية؟';
+        
+        if (!confirm(confirmMsg)) {
             return;
         }
         
         try {
             await window.firebaseSync.deleteDocument('operations', operationId);
-            this.showMessage('✅ Opération supprimée avec succès', 'success');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '✅ Opération supprimée avec succès' : '✅ تم حذف العملية بنجاح', 
+                'success'
+            );
             this.loadInitialData();
         } catch (error) {
             console.error('❌ Erreur suppression:', error);
-            this.showMessage('❌ Erreur lors de la suppression', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors de la suppression' : '❌ خطأ أثناء الحذف', 
+                'error'
+            );
         }
     }
 
@@ -1073,26 +1369,41 @@ class GestionFermeApp {
         console.log('✏️ Modification opération:', operationId);
         
         if (!this.currentUser) {
-            this.showMessage('❌ Vous devez être connecté', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
+                'error'
+            );
             return;
         }
         
+        // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
-            this.showMessage('❌ Opération non trouvée', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Opération non trouvée' : '❌ العملية غير موجودة', 
+                'error'
+            );
             return;
         }
         
+        // Vérifier les permissions
         const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canEdit) {
-            this.showMessage('❌ Vous n\'avez pas la permission de modifier cette opération', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' 
+                    ? '❌ Vous n\'avez pas la permission de modifier cette opération' 
+                    : '❌ ليس لديك إذن لتعديل هذه العملية', 
+                'error'
+            );
             return;
         }
         
+        // Afficher le formulaire de modification
         this.showEditForm(operation);
     }
 
     showEditForm(operation) {
+        // Créer une modale de modification
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.cssText = `
@@ -1108,70 +1419,72 @@ class GestionFermeApp {
             z-index: 1000;
         `;
         
+        const translations = this.getTranslations();
+        
         modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
-                <h3 style="margin-top: 0;">✏️ Modifier l'opération</h3>
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}">
+                <h3 style="margin-top: 0;">✏️ ${this.currentLanguage === 'fr' ? 'Modifier l\'opération' : 'تعديل العملية'}</h3>
                 <form id="editForm">
                     <input type="hidden" id="editId" value="${operation.id}">
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Opérateur:</label>
+                        <label>${translations['operateur_label']}:</label>
                         <input type="text" id="editOperateur" value="${operation.operateur || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" readonly>
                     </div>
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Type d'opération:</label>
+                        <label>${translations['type_operation_label']}:</label>
                         <select id="editTypeOperation" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>Travailleur Global</option>
-                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>3 Commain</option>
+                            <option value="travailleur_global" ${operation.typeOperation === 'travailleur_global' ? 'selected' : ''}>${translations['type_travailleur_global']}</option>
+                            <option value="zaitoun" ${operation.typeOperation === 'zaitoun' ? 'selected' : ''}>${translations['type_zaitoun']}</option>
+                            <option value="3commain" ${operation.typeOperation === '3commain' ? 'selected' : ''}>${translations['type_3commain']}</option>
                         </select>
                     </div>
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Groupe:</label>
+                        <label>${translations['groupe_label']}:</label>
                         <select id="editGroupe" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>Les Deux Groupes</option>
-                            <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>Zaitoun</option>
-                            <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>3 Commain</option>
+                            <option value="les_deux_groupes" ${operation.groupe === 'les_deux_groupes' ? 'selected' : ''}>${translations['groupe_les_deux']}</option>
+                            <option value="zaitoun" ${operation.groupe === 'zaitoun' ? 'selected' : ''}>${translations['groupe_zaitoun']}</option>
+                            <option value="3commain" ${operation.groupe === '3commain' ? 'selected' : ''}>${translations['groupe_3commain']}</option>
                         </select>
                     </div>
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Type de transaction:</label>
+                        <label>${translations['type_transaction_label']}:</label>
                         <select id="editTypeTransaction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>Revenu</option>
-                            <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>Frais</option>
+                            <option value="revenu" ${operation.typeTransaction === 'revenu' ? 'selected' : ''}>${translations['transaction_revenu']}</option>
+                            <option value="frais" ${operation.typeTransaction === 'frais' ? 'selected' : ''}>${translations['transaction_frais']}</option>
                         </select>
                     </div>
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Caisse:</label>
+                        <label>${translations['caisse_label']}:</label>
                         <select id="editCaisse" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>Caisse Abdel</option>
-                            <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>Caisse Omar</option>
-                            <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>Caisse Hicham</option>
-                            <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>Caisse Zaitoun</option>
-                            <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>Caisse 3 Commain</option>
+                            <option value="abdel_caisse" ${operation.caisse === 'abdel_caisse' ? 'selected' : ''}>${translations['caisse_abdel']}</option>
+                            <option value="omar_caisse" ${operation.caisse === 'omar_caisse' ? 'selected' : ''}>${translations['caisse_omar']}</option>
+                            <option value="hicham_caisse" ${operation.caisse === 'hicham_caisse' ? 'selected' : ''}>${translations['caisse_hicham']}</option>
+                            <option value="zaitoun_caisse" ${operation.caisse === 'zaitoun_caisse' ? 'selected' : ''}>${translations['caisse_zaitoun']}</option>
+                            <option value="3commain_caisse" ${operation.caisse === '3commain_caisse' ? 'selected' : ''}>${translations['caisse_3commain']}</option>
                         </select>
                     </div>
                     
                     <div style="margin-bottom: 10px;">
-                        <label>Montant (DH):</label>
+                        <label>${translations['montant_label']}:</label>
                         <input type="number" id="editMontant" value="${Math.abs(operation.montant)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" required>
                     </div>
                     
                     <div style="margin-bottom: 15px;">
-                        <label>Description:</label>
+                        <label>${translations['description_label']}:</label>
                         <textarea id="editDescription" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;" required>${operation.description || ''}</textarea>
                     </div>
                     
                     <div style="display: flex; gap: 10px;">
                         <button type="submit" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            💾 Enregistrer
+                            💾 ${this.currentLanguage === 'fr' ? 'Enregistrer' : 'حفظ'}
                         </button>
                         <button type="button" onclick="gestionFermeApp.closeEditModal()" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            ❌ Annuler
+                            ❌ ${this.currentLanguage === 'fr' ? 'Annuler' : 'إلغاء'}
                         </button>
                     </div>
                 </form>
@@ -1180,6 +1493,7 @@ class GestionFermeApp {
         
         document.body.appendChild(modal);
         
+        // Gérer la soumission du formulaire
         const editForm = document.getElementById('editForm');
         editForm.addEventListener('submit', (e) => this.handleEditSubmit(e));
         
@@ -1198,12 +1512,18 @@ class GestionFermeApp {
         const description = document.getElementById('editDescription').value.trim();
         
         if (!montant || montant <= 0) {
-            this.showMessage('❌ Le montant doit être supérieur à 0', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Le montant doit être supérieur à 0' : '❌ يجب أن يكون المبلغ أكبر من 0', 
+                'error'
+            );
             return;
         }
         
         if (!description) {
-            this.showMessage('❌ Veuillez saisir une description', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Veuillez saisir une description' : '❌ يرجى إدخال وصف', 
+                'error'
+            );
             return;
         }
         
@@ -1221,13 +1541,19 @@ class GestionFermeApp {
             };
             
             await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-            this.showMessage('✅ Opération modifiée avec succès', 'success');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '✅ Opération modifiée avec succès' : '✅ تم تعديل العملية بنجاح', 
+                'success'
+            );
             this.closeEditModal();
             this.loadInitialData();
             
         } catch (error) {
             console.error('❌ Erreur modification:', error);
-            this.showMessage('❌ Erreur lors de la modification', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors de la modification' : '❌ خطأ أثناء التعديل', 
+                'error'
+            );
         }
     }
 
@@ -1242,11 +1568,18 @@ class GestionFermeApp {
         console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
         
         if (this.selectedOperations.size === 0) {
-            this.showMessage('❌ Aucune opération sélectionnée', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Aucune opération sélectionnée' : '❌ لم يتم اختيار أي عمليات', 
+                'error'
+            );
             return;
         }
         
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`)) {
+        const confirmMsg = this.currentLanguage === 'fr' 
+            ? `Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`
+            : `هل أنت متأكد من أنك تريد حذف ${this.selectedOperations.size} عملية؟`;
+        
+        if (!confirm(confirmMsg)) {
             return;
         }
         
@@ -1269,55 +1602,87 @@ class GestionFermeApp {
                 }
             }
             
-            this.showMessage(`✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`, 'success');
+            const successMsg = this.currentLanguage === 'fr' 
+                ? `✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`
+                : `✅ تم حذف ${successCount} عملية، ${errorCount} خطأ`;
+            
+            this.showMessage(successMsg, 'success');
             this.selectedOperations.clear();
             this.cancelEditMode();
             this.loadInitialData();
             
         } catch (error) {
             console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage('❌ Erreur lors de la suppression multiple', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors de la suppression multiple' : '❌ خطأ أثناء الحذف المتعدد', 
+                'error'
+            );
         }
     }
 
     async resetLocalData() {
-        if (!confirm('Êtes-vous sûr de vouloir vider les données locales ? Les données Firebase resteront intactes.')) {
+        const confirmMsg = this.currentLanguage === 'fr' 
+            ? 'Êtes-vous sûr de vouloir vider les données locales ? Les données Firebase resteront intactes.'
+            : 'هل أنت متأكد من أنك تريد مسح البيانات المحلية؟ بيانات Firebase ستبقى سليمة.';
+        
+        if (!confirm(confirmMsg)) {
             return;
         }
 
         console.log('🗑️ Réinitialisation des données locales...');
         
         try {
+            // Vider le localStorage
             localStorage.removeItem('gestion_ferme_data');
             
+            // Réinitialiser les données locales
             this.operations = [];
             this.transferts = [];
             this.selectedOperations.clear();
             
+            // Mettre à jour l'affichage
             this.updateAffichage();
             this.updateStats();
             
-            this.showMessage('✅ Données locales réinitialisées avec succès', 'success');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '✅ Données locales réinitialisées avec succès' : '✅ تمت إعادة تعيين البيانات المحلية بنجاح', 
+                'success'
+            );
             
         } catch (error) {
             console.error('❌ Erreur réinitialisation locale:', error);
-            this.showMessage('❌ Erreur lors de la réinitialisation locale', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors de la réinitialisation locale' : '❌ خطأ أثناء إعادة تعيين البيانات المحلية', 
+                'error'
+            );
         }
     }
 
     async resetFirebaseData() {
-        if (!confirm('🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?')) {
+        const confirmMsg1 = this.currentLanguage === 'fr' 
+            ? '🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?'
+            : '🚨 انتبه! هذا الإجراء سيمسح جميع بيانات Firebase نهائياً.\n\nلا يمكن التراجع عن هذا الإجراء. متابعة؟';
+        
+        const confirmMsg2 = this.currentLanguage === 'fr' 
+            ? 'Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues sur tous les appareils !'
+            : 'هل أنت متأكد تماماً؟ جميع العمليات ستفقد على جميع الأجهزة!';
+        
+        if (!confirm(confirmMsg1)) {
             return;
         }
 
-        if (!confirm('Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues sur tous les appareils !')) {
+        if (!confirm(confirmMsg2)) {
             return;
         }
 
         console.log('🗑️ Début de la réinitialisation Firebase...');
-        this.showMessage('Réinitialisation en cours...', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? 'Réinitialisation en cours...' : 'جاري إعادة التعيين...', 
+            'info'
+        );
 
         try {
+            // Supprimer toutes les opérations de Firebase
             if (window.firebaseSync) {
                 const operations = await window.firebaseSync.getCollection('operations');
                 for (const op of operations) {
@@ -1330,21 +1695,30 @@ class GestionFermeApp {
                 }
             }
 
+            // Vider le localStorage
             localStorage.removeItem('gestion_ferme_data');
 
+            // Réinitialiser les données locales
             this.operations = [];
             this.transferts = [];
             this.selectedOperations.clear();
 
+            // Mettre à jour l'affichage
             this.updateAffichage();
             this.updateStats();
 
             console.log('✅ Réinitialisation complète terminée');
-            this.showMessage('✅ Données Firebase réinitialisées avec succès !', 'success');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '✅ Données Firebase réinitialisées avec succès !' : '✅ تمت إعادة تعيين بيانات Firebase بنجاح!', 
+                'success'
+            );
 
         } catch (error) {
             console.error('❌ Erreur réinitialisation Firebase:', error);
-            this.showMessage('❌ Erreur lors de la réinitialisation Firebase', 'error');
+            this.showMessage(
+                this.currentLanguage === 'fr' ? '❌ Erreur lors de la réinitialisation Firebase' : '❌ خطأ أثناء إعادة تعيين Firebase', 
+                'error'
+            );
         }
     }
 
@@ -1352,7 +1726,10 @@ class GestionFermeApp {
         this.editMode = false;
         this.selectedOperations.clear();
         this.toggleEditMode();
-        this.showMessage('❌ Mode édition annulé', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? '❌ Mode édition annulé' : '❌ تم إلغاء وضع التعديل', 
+            'info'
+        );
     }
 
     showMessage(message, type = 'info') {
@@ -1370,8 +1747,10 @@ class GestionFermeApp {
             z-index: 10000;
             max-width: 400px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}
         `;
         
+        // Couleurs selon le type
         if (type === 'success') {
             messageDiv.style.background = '#27ae60';
         } else if (type === 'error') {
@@ -1384,6 +1763,7 @@ class GestionFermeApp {
         
         document.body.appendChild(messageDiv);
         
+        // Supprimer après 5 secondes
         setTimeout(() => {
             if (messageDiv.parentNode) {
                 messageDiv.remove();
@@ -1396,11 +1776,14 @@ class GestionFermeApp {
         const repartitionInfo = document.getElementById('repartitionInfo');
         
         if (saisieForm) {
+            // Sauvegarder la valeur de l'opérateur actuel
             const selectOperateur = document.getElementById('operateur');
             const operateurActuel = selectOperateur ? selectOperateur.value : '';
             
+            // Réinitialiser le formulaire
             saisieForm.reset();
             
+            // Remettre l'opérateur automatiquement
             if (this.currentUser) {
                 const operateur = window.firebaseAuthFunctions.getOperateurFromEmail(this.currentUser.email);
                 if (operateur && selectOperateur) {
@@ -1408,6 +1791,7 @@ class GestionFermeApp {
                     selectOperateur.disabled = true;
                 }
             } else {
+                // Si pas d'utilisateur connecté, remettre l'ancienne valeur
                 if (selectOperateur && operateurActuel) {
                     selectOperateur.value = operateurActuel;
                 }
@@ -1427,22 +1811,34 @@ class GestionFermeApp {
 
     exportExcelComplet() {
         console.log('📊 Export Excel complet...');
-        this.showMessage('🔄 Export Excel en cours de développement...', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? '🔄 Export Excel en cours de développement...' : '🔄 جاري تطوير تصدير Excel...', 
+            'info'
+        );
     }
 
     exportVueActuelle() {
         console.log('📊 Export vue actuelle...');
-        this.showMessage('🔄 Export vue actuelle en cours de développement...', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? '🔄 Export vue actuelle en cours de développement...' : '🔄 جاري تطوير تصدير العرض الحالي...', 
+            'info'
+        );
     }
 
     exportRapportComplet() {
         console.log('📊 Export rapport complet...');
-        this.showMessage('🔄 Export rapport complet en cours de développement...', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? '🔄 Export rapport complet en cours de développement...' : '🔄 جاري تطوير تصدير التقرير الكامل...', 
+            'info'
+        );
     }
 
     showManual() {
         console.log('📖 Affichage manuel...');
-        this.showMessage('📖 Manuel utilisateur en cours de développement...', 'info');
+        this.showMessage(
+            this.currentLanguage === 'fr' ? '📖 Manuel utilisateur en cours de développement...' : '📖 جاري تطوير دليل المستخدم...', 
+            'info'
+        );
     }
 }
 
