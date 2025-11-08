@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE AVEC TRADUCTION
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE AVEC TRADUCTION TOTALE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -48,6 +48,9 @@ class GestionFermeApp {
             }
         });
 
+        // Mettre à jour les options des select
+        this.updateSelectOptions();
+
         // Mettre à jour le bouton de langue
         const btnLang = document.getElementById('btnLang');
         if (btnLang) {
@@ -65,7 +68,71 @@ class GestionFermeApp {
         console.log(`🌐 Langue mise à jour: ${this.currentLanguage}`);
     }
 
-    // Traductions
+    // Mettre à jour les options des menus déroulants
+    updateSelectOptions() {
+        const translations = this.getTranslations();
+        
+        // Mettre à jour les options des selects
+        const updateSelect = (selectId, options) => {
+            const select = document.getElementById(selectId);
+            if (select) {
+                Array.from(select.options).forEach(option => {
+                    const translationKey = option.value;
+                    if (options[translationKey]) {
+                        option.textContent = options[translationKey];
+                    }
+                });
+            }
+        };
+
+        // Types d'opération
+        updateSelect('typeOperation', {
+            'travailleur_global': translations['type_travailleur_global'],
+            'zaitoun': translations['type_zaitoun'],
+            '3commain': translations['type_3commain']
+        });
+
+        // Groupes
+        updateSelect('groupe', {
+            'les_deux_groupes': translations['groupe_les_deux'],
+            'zaitoun': translations['groupe_zaitoun'],
+            '3commain': translations['groupe_3commain']
+        });
+
+        // Types de transaction
+        updateSelect('typeTransaction', {
+            'revenu': translations['transaction_revenu'],
+            'frais': translations['transaction_frais']
+        });
+
+        // Caisses
+        updateSelect('caisse', {
+            'abdel_caisse': translations['caisse_abdel'],
+            'omar_caisse': translations['caisse_omar'],
+            'hicham_caisse': translations['caisse_hicham'],
+            'zaitoun_caisse': translations['caisse_zaitoun'],
+            '3commain_caisse': translations['caisse_3commain']
+        });
+
+        // Caisses source et destination
+        updateSelect('caisseSource', {
+            'abdel_caisse': translations['caisse_abdel'],
+            'omar_caisse': translations['caisse_omar'],
+            'hicham_caisse': translations['caisse_hicham'],
+            'zaitoun_caisse': translations['caisse_zaitoun'],
+            '3commain_caisse': translations['caisse_3commain']
+        });
+
+        updateSelect('caisseDestination', {
+            'abdel_caisse': translations['caisse_abdel'],
+            'omar_caisse': translations['caisse_omar'],
+            'hicham_caisse': translations['caisse_hicham'],
+            'zaitoun_caisse': translations['caisse_zaitoun'],
+            '3commain_caisse': translations['caisse_3commain']
+        });
+    }
+
+    // Traductions COMPLÈTES
     getTranslations() {
         return {
             // Titres principaux
@@ -81,6 +148,10 @@ class GestionFermeApp {
             'login_password': this.currentLanguage === 'fr' ? 'Mot de Passe' : 'كلمة المرور',
             'login_button': this.currentLanguage === 'fr' ? 'Se Connecter' : 'تسجيل الدخول',
             'logout_button': this.currentLanguage === 'fr' ? 'Déconnexion' : 'تسجيل الخروج',
+
+            // Informations utilisateur
+            'user_connected': this.currentLanguage === 'fr' ? 'Connecté en tant que' : 'متصل باسم',
+            'user_operator': this.currentLanguage === 'fr' ? 'Opérateur' : 'المشغل',
 
             // Formulaire opération
             'operateur_label': this.currentLanguage === 'fr' ? 'Opérateur' : 'المشغل',
@@ -100,7 +171,7 @@ class GestionFermeApp {
             'description_transfert': this.currentLanguage === 'fr' ? 'Description du Transfert' : 'وصف التحويل',
             'submit_transfert': this.currentLanguage === 'fr' ? 'Effectuer le Transfert' : 'تنفيذ التحويل',
 
-            // Navigation
+            // Navigation par onglets
             'tab_global': this.currentLanguage === 'fr' ? '🌍 Global' : '🌍 الكل',
             'tab_zaitoun': this.currentLanguage === 'fr' ? '🫒 Zaitoun' : '🫒 زيتون',
             'tab_3commain': this.currentLanguage === 'fr' ? '🔧 3 Commain' : '🔧 3 كومان',
@@ -164,7 +235,58 @@ class GestionFermeApp {
             'total_revenus': this.currentLanguage === 'fr' ? 'Revenus' : 'الإيرادات',
             'total_depenses': this.currentLanguage === 'fr' ? 'Dépenses' : 'المصاريف',
             'total_transferts': this.currentLanguage === 'fr' ? 'Transferts' : 'التحويلات',
-            'total_solde': this.currentLanguage === 'fr' ? 'Solde Net' : 'الرصيد الصافي'
+            'total_solde': this.currentLanguage === 'fr' ? 'Solde Net' : 'الرصيد الصافي',
+
+            // Types de transaction dans le tableau
+            'transaction_type_revenu': this.currentLanguage === 'fr' ? '💰 Revenu' : '💰 دخل',
+            'transaction_type_frais': this.currentLanguage === 'fr' ? '💸 Frais' : '💸 مصاريف',
+            'transaction_type_transfert': this.currentLanguage === 'fr' ? '🔄 Transfert' : '🔄 تحويل',
+
+            // Boutons d'action dans le tableau
+            'btn_edit': this.currentLanguage === 'fr' ? 'Modifier' : 'تعديل',
+            'btn_delete': this.currentLanguage === 'fr' ? 'Supprimer' : 'حذف',
+
+            // Messages de confirmation
+            'confirm_delete': this.currentLanguage === 'fr' ? 'Êtes-vous sûr de vouloir supprimer cette opération ?' : 'هل أنت متأكد من أنك تريد حذف هذه العملية؟',
+            'confirm_delete_multiple': this.currentLanguage === 'fr' ? 'Êtes-vous sûr de vouloir supprimer ces opérations ?' : 'هل أنت متأكد من أنك تريد حذف هذه العمليات؟',
+            'confirm_reset_local': this.currentLanguage === 'fr' ? 'Êtes-vous sûr de vouloir vider les données locales ?' : 'هل أنت متأكد من أنك تريد مسح البيانات المحلية؟',
+            'confirm_reset_firebase': this.currentLanguage === 'fr' ? 'Êtes-vous ABSOLUMENT SÛR ? Toutes les données seront perdues !' : 'هل أنت متأكد تماماً؟ جميع البيانات ستفقد!',
+
+            // Messages de succès
+            'success_operation': this.currentLanguage === 'fr' ? 'Opération enregistrée avec succès' : 'تم تسجيل العملية بنجاح',
+            'success_transfert': this.currentLanguage === 'fr' ? 'Transfert effectué avec succès' : 'تم التحويل بنجاح',
+            'success_edit': this.currentLanguage === 'fr' ? 'Opération modifiée avec succès' : 'تم تعديل العملية بنجاح',
+            'success_delete': this.currentLanguage === 'fr' ? 'Opération supprimée avec succès' : 'تم حذف العملية بنجاح',
+            'success_delete_multiple': this.currentLanguage === 'fr' ? 'opérations supprimées avec succès' : 'تم حذف العمليات بنجاح',
+
+            // Messages d'erreur
+            'error_login': this.currentLanguage === 'fr' ? 'Erreur de connexion' : 'خطأ في التسجيل',
+            'error_operation': this.currentLanguage === 'fr' ? 'Erreur lors de l\'enregistrement' : 'خطأ أثناء التسجيل',
+            'error_transfert': this.currentLanguage === 'fr' ? 'Erreur lors du transfert' : 'خطأ أثناء التحويل',
+            'error_edit': this.currentLanguage === 'fr' ? 'Erreur lors de la modification' : 'خطأ أثناء التعديل',
+            'error_delete': this.currentLanguage === 'fr' ? 'Erreur lors de la suppression' : 'خطأ أثناء الحذف',
+            'error_permission': this.currentLanguage === 'fr' ? 'Vous n\'avez pas la permission' : 'ليس لديك الإذن',
+            'error_validation_montant': this.currentLanguage === 'fr' ? 'Le montant doit être supérieur à 0' : 'يجب أن يكون المبلغ أكبر من 0',
+            'error_validation_description': this.currentLanguage === 'fr' ? 'Veuillez saisir une description' : 'يرجى إدخال وصف',
+            'error_validation_caisse': this.currentLanguage === 'fr' ? 'Les caisses doivent être différentes' : 'يجب أن تكون الصناديق مختلفة',
+
+            // Textes de répartition
+            'repartition_title': this.currentLanguage === 'fr' ? 'Répartition Automatique' : 'التوزيع التلقائي',
+            'repartition_zaitoun': this.currentLanguage === 'fr' ? 'Part Zaitoun' : 'حصة زيتون',
+            'repartition_3commain': this.currentLanguage === 'fr' ? 'Part 3 Commain' : 'حصة 3 كومان',
+            'repartition_total': this.currentLanguage === 'fr' ? 'Total payé' : 'المبلغ الإجمالي',
+            'repartition_info': this.currentLanguage === 'fr' ? 'Le montant sera réparti automatiquement' : 'سيتم توزيع المبلغ تلقائياً',
+
+            // Textes des statistiques
+            'stats_operations': this.currentLanguage === 'fr' ? 'Opérations' : 'العمليات',
+            'stats_revenus': this.currentLanguage === 'fr' ? 'Revenus' : 'الإيرادات',
+            'stats_depenses': this.currentLanguage === 'fr' ? 'Dépenses' : 'المصاريف',
+            'stats_transferts_sortants': this.currentLanguage === 'fr' ? 'Transferts sortants' : 'التحويلات الصادرة',
+            'stats_transferts_entrants': this.currentLanguage === 'fr' ? 'Transferts entrants' : 'التحويلات الواردة',
+            'stats_solde_calcule': this.currentLanguage === 'fr' ? 'Solde calculé' : 'الرصيد المحسوب',
+            'stats_total_mouvements': this.currentLanguage === 'fr' ? 'Total mouvements' : 'إجمالي الحركات',
+            'stats_positif': this.currentLanguage === 'fr' ? 'Positif' : 'إيجابي',
+            'stats_negatif': this.currentLanguage === 'fr' ? 'Négatif' : 'سلبي'
         };
     }
 
@@ -345,12 +467,7 @@ class GestionFermeApp {
         const password = document.getElementById('loginPassword').value;
         
         if (!email || !password) {
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ Veuillez saisir email et mot de passe' 
-                    : '❌ يرجى إدخال البريد الإلكتروني وكلمة المرور', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_description'), 'error');
             return;
         }
         
@@ -401,12 +518,12 @@ class GestionFermeApp {
                 } else if (result.code === 'auth/invalid-email') {
                     authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Email invalide' : '❌ بريد إلكتروني غير صالح';
                 } else {
-                    authMessage.textContent = this.currentLanguage === 'fr' ? `❌ Erreur: ${result.error}` : `❌ خطأ: ${result.error}`;
+                    authMessage.textContent = this.getTranslation('error_login') + ': ' + result.error;
                 }
             }
         } catch (error) {
             authMessage.className = 'auth-message auth-error';
-            authMessage.textContent = this.currentLanguage === 'fr' ? '❌ Erreur de connexion inattendue' : '❌ خطأ غير متوقع في التسجيل';
+            authMessage.textContent = this.getTranslation('error_login');
             authMessage.style.background = '#e74c3c';
             console.error('❌ Erreur connexion:', error);
         }
@@ -416,6 +533,12 @@ class GestionFermeApp {
                 authMessage.remove();
             }
         }, 5000);
+    }
+
+    // Méthode utilitaire pour obtenir une traduction
+    getTranslation(key) {
+        const translations = this.getTranslations();
+        return translations[key] || key;
     }
 
     handleUserAuthenticated(user) {
@@ -530,21 +653,11 @@ class GestionFermeApp {
                 
             } else {
                 console.error('❌ FirebaseSync non disponible');
-                this.showMessage(
-                    this.currentLanguage === 'fr' 
-                        ? '⚠️ Synchronisation temporairement indisponible' 
-                        : '⚠️ المزامنة غير متاحة مؤقتًا', 
-                    'warning'
-                );
+                this.showMessage('⚠️ Synchronisation temporairement indisponible', 'warning');
             }
         } catch (error) {
             console.error('❌ Erreur chargement données:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ Erreur de chargement des données' 
-                    : '❌ خطأ في تحميل البيانات', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
         }
     }
 
@@ -625,8 +738,7 @@ class GestionFermeApp {
 
     renderDataTable(data, container) {
         if (data.length === 0) {
-            const noDataMessage = this.currentLanguage === 'fr' ? 'Aucune donnée à afficher' : 'لا توجد بيانات للعرض';
-            container.innerHTML = `<div class="empty-message">${noDataMessage}</div>`;
+            container.innerHTML = `<div class="empty-message">${this.getTranslation('message_no_data')}</div>`;
             return;
         }
         
@@ -657,6 +769,14 @@ class GestionFermeApp {
             
             const itemId = item.id;
             
+            // Déterminer le type de transaction affiché
+            let transactionType = '';
+            if (isOperation) {
+                transactionType = item.typeTransaction === 'revenu' ? translations['transaction_type_revenu'] : translations['transaction_type_frais'];
+            } else {
+                transactionType = translations['transaction_type_transfert'];
+            }
+            
             html += `
                 <tr class="${!canEdit ? 'operation-readonly' : ''}" data-id="${itemId}">
                     ${this.editMode ? `
@@ -671,9 +791,7 @@ class GestionFermeApp {
                     <td>${item.operateur || 'N/A'}</td>
                     <td>${item.typeOperation || 'Transfert'}</td>
                     <td>${item.groupe || 'N/A'}</td>
-                    <td class="type-${item.typeTransaction || 'transfert'}">
-                        ${isOperation ? (item.typeTransaction === 'revenu' ? '💰 Revenu' : '💸 Frais') : '🔄 Transfert'}
-                    </td>
+                    <td class="type-${item.typeTransaction || 'transfert'}">${transactionType}</td>
                     <td>${item.caisse || `${item.caisseSource} → ${item.caisseDestination}`}</td>
                     <td style="font-weight: bold; color: ${(item.typeTransaction === 'revenu' || !isOperation) ? '#27ae60' : '#e74c3c'}">
                         ${item.montant ? `${parseFloat(item.montant).toFixed(2)} DH` : (item.montantTransfert ? `${parseFloat(item.montantTransfert).toFixed(2)} DH` : 'N/A')}
@@ -682,8 +800,8 @@ class GestionFermeApp {
                     ${!this.editMode ? `
                         <td class="operation-actions">
                             ${canEdit ? `
-                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="${this.currentLanguage === 'fr' ? 'Modifier' : 'تعديل'}">✏️</button>
-                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="${this.currentLanguage === 'fr' ? 'Supprimer' : 'حذف'}">🗑️</button>
+                                <button onclick="gestionFermeApp.editOperation('${itemId}')" class="btn-small btn-warning" title="${translations['btn_edit']}">✏️</button>
+                                <button onclick="gestionFermeApp.deleteOperation('${itemId}')" class="btn-small btn-danger" title="${translations['btn_delete']}">🗑️</button>
                             ` : `<span style="color: #999; font-size: 11px; font-style: italic;">${translations['read_only']}</span>`}
                         </td>
                     ` : ''}
@@ -723,9 +841,11 @@ class GestionFermeApp {
         const soldeNet = totalRevenus - totalDepenses;
         const translations = this.getTranslations();
         
+        const vueTitle = this.currentLanguage === 'fr' ? 'Totaux pour la vue' : 'المجموع للعرض';
+        
         const htmlTotaux = `
             <div class="vue-header">
-                <h3>📊 ${this.currentLanguage === 'fr' ? 'Totaux pour la vue' : 'المجموع للعرض'} "${this.getNomVue(this.currentView)}"</h3>
+                <h3>📊 ${vueTitle} "${this.getNomVue(this.currentView)}"</h3>
                 <div class="totals-container">
                     <div class="total-item">
                         <span class="total-label">💰 ${translations['total_revenus']}</span>
@@ -878,6 +998,7 @@ class GestionFermeApp {
         };
 
         const nomsCaisses = this.currentLanguage === 'fr' ? nomsCaissesFr : nomsCaissesAr;
+        const translations = this.getTranslations();
 
         let html = '';
         
@@ -885,9 +1006,7 @@ class GestionFermeApp {
             const solde = soldes[caisse];
             const classeSolde = solde >= 0 ? 'solde-positif' : 'solde-negatif';
             const icone = solde >= 0 ? '📈' : '📉';
-            const trendText = this.currentLanguage === 'fr' 
-                ? (solde >= 0 ? 'Positif' : 'Négatif')
-                : (solde >= 0 ? 'إيجابي' : 'سلبي');
+            const trendText = solde >= 0 ? translations['stats_positif'] : translations['stats_negatif'];
             
             html += `
                 <div class="stat-card ${classeSolde}" onclick="gestionFermeApp.showDetailsCaisse('${caisse}')">
@@ -960,18 +1079,18 @@ class GestionFermeApp {
         const caisseName = this.getNomCaisse(caisse);
         
         modal.innerHTML = `
-            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}">
+            <div style="background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}">
                 <h3 style="margin-top: 0; color: #2c3e50;">📊 ${this.currentLanguage === 'fr' ? 'Détails de' : 'تفاصيل'} ${caisseName}</h3>
                 <div style="margin: 15px 0;">
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '📝 Opérations:' : '📝 العمليات:'}</strong> ${details.operations}</div>
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '💰 Revenus:' : '💰 الإيرادات:'}</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '💸 Dépenses:' : '💸 المصاريف:'}</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '🔄 Transferts sortants:' : '🔄 التحويلات الصادرة:'}</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '🔄 Transferts entrants:' : '🔄 التحويلات الواردة:'}</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_operations']}:</strong> ${details.operations}</div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_revenus']}:</strong> <span style="color: green">${details.revenus.toFixed(2)} DH</span></div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_depenses']}:</strong> <span style="color: red">${details.depenses.toFixed(2)} DH</span></div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_transferts_sortants']}:</strong> ${details.transfertsSortants.toFixed(2)} DH</div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_transferts_entrants']}:</strong> ${details.transfertsEntrants.toFixed(2)} DH</div>
                 </div>
                 <div style="border-top: 1px solid #ccc; padding-top: 10px;">
-                    <div style="margin-bottom: 8px;"><strong>${this.currentLanguage === 'fr' ? '⚖️ Solde calculé:' : '⚖️ الرصيد المحسوب:'}</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
-                    <div><strong>${this.currentLanguage === 'fr' ? '📋 Total mouvements:' : '📋 إجمالي الحركات:'}</strong> ${details.totalMouvements}</div>
+                    <div style="margin-bottom: 8px;"><strong>${translations['stats_solde_calcule']}:</strong> <span style="color: ${details.solde >= 0 ? 'green' : 'red'}; font-weight: bold">${details.solde.toFixed(2)} DH</span></div>
+                    <div><strong>${translations['stats_total_mouvements']}:</strong> ${details.totalMouvements}</div>
                 </div>
                 <button onclick="gestionFermeApp.closeCaisseDetailsModal()" style="margin-top: 15px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">
                     ${this.currentLanguage === 'fr' ? 'Fermer' : 'إغلاق'}
@@ -1030,31 +1149,29 @@ class GestionFermeApp {
             zaitounPart = parseFloat((montant * (1/3)).toFixed(2));
             commainPart = parseFloat((montant * (2/3)).toFixed(2));
             
-            const infoText = this.currentLanguage === 'fr' 
-                ? '<strong>ℹ️ Information :</strong> Le montant total sera payé par la caisse sélectionnée et réparti entre les deux groupes'
-                : '<strong>ℹ️ معلومة :</strong> سيتم دفع المبلغ الإجمالي من الصندوق المحدد وتوزيعه بين المجموعتين';
+            const translations = this.getTranslations();
             
             repartitionDetails.innerHTML = `
                 <div class="repartition-details">
                     <div class="repartition-item zaitoun">
-                        <strong>🫒 ${this.currentLanguage === 'fr' ? 'Zaitoun' : 'زيتون'}</strong><br>
+                        <strong>🫒 ${translations['repartition_zaitoun']}</strong><br>
                         ${this.currentLanguage === 'fr' ? 'Part: 1/3' : 'الحصة: 1/3'}<br>
                         ${zaitounPart.toFixed(2)} DH<br>
                         <small>33.3%</small>
                     </div>
                     <div class="repartition-item commain">
-                        <strong>🔧 ${this.currentLanguage === 'fr' ? '3 Commain' : '3 كومان'}</strong><br>
+                        <strong>🔧 ${translations['repartition_3commain']}</strong><br>
                         ${this.currentLanguage === 'fr' ? 'Part: 2/3' : 'الحصة: 2/3'}<br>
                         ${commainPart.toFixed(2)} DH<br>
                         <small>66.7%</small>
                     </div>
                     <div class="repartition-total">
-                        <strong>💰 ${this.currentLanguage === 'fr' ? 'Total payé' : 'المبلغ الإجمالي'}</strong><br>
+                        <strong>💰 ${translations['repartition_total']}</strong><br>
                         ${montant.toFixed(2)} DH
                     </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                    ${infoText}
+                    <strong>ℹ️ ${translations['repartition_info']}</strong>
                 </div>
             `;
             repartitionInfo.style.display = 'block';
@@ -1068,10 +1185,7 @@ class GestionFermeApp {
         console.log('➕ Nouvelle opération en cours...');
         
         if (!this.currentUser) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
@@ -1085,18 +1199,12 @@ class GestionFermeApp {
         
         // Validation
         if (!montantTotal || montantTotal <= 0) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Le montant doit être supérieur à 0' : '❌ يجب أن يكون المبلغ أكبر من 0', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_montant'), 'error');
             return;
         }
         
         if (!description) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Veuillez saisir une description' : '❌ يرجى إدخال وصف', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_description'), 'error');
             return;
         }
         
@@ -1109,6 +1217,8 @@ class GestionFermeApp {
                     const montantZaitoun = parseFloat((montantTotal * (1/3)).toFixed(2));
                     const montantCommain = parseFloat((montantTotal * (2/3)).toFixed(2));
                     
+                    const translations = this.getTranslations();
+                    
                     operationsACreer = [
                         {
                             operateur: operateur,
@@ -1117,7 +1227,7 @@ class GestionFermeApp {
                             typeTransaction: typeTransaction,
                             caisse: caisse,
                             montant: typeTransaction === 'frais' ? -montantZaitoun : montantZaitoun,
-                            description: `${description} (${this.currentLanguage === 'fr' ? 'Part Zaitoun' : 'حصة زيتون'} - 1/3 = ${montantZaitoun} DH)`,
+                            description: `${description} (${translations['repartition_zaitoun']} - 1/3 = ${montantZaitoun} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -1130,7 +1240,7 @@ class GestionFermeApp {
                             typeTransaction: typeTransaction,
                             caisse: caisse,
                             montant: typeTransaction === 'frais' ? -montantCommain : montantCommain,
-                            description: `${description} (${this.currentLanguage === 'fr' ? 'Part 3 Commain' : 'حصة 3 كومان'} - 2/3 = ${montantCommain} DH)`,
+                            description: `${description} (${translations['repartition_3commain']} - 2/3 = ${montantCommain} DH)`,
                             timestamp: new Date().toISOString(),
                             userId: this.currentUser.uid,
                             userEmail: this.currentUser.email,
@@ -1162,13 +1272,13 @@ class GestionFermeApp {
                 
                 if (operationsACreer.length === 2) {
                     const successMsg = this.currentLanguage === 'fr' 
-                        ? `✅ OPÉRATION RÉPARTIE! ${caisse} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`
+                        ? `✅ OPÉRATION RÉPARTIE! ${this.getNomCaisse(caisse)} → Zaitoun: ${(montantTotal/3).toFixed(2)} DH + 3 Commain: ${((montantTotal*2)/3).toFixed(2)} DH`
                         : `✅ تم توزيع العملية! ${this.getNomCaisse(caisse)} → زيتون: ${(montantTotal/3).toFixed(2)} درهم + 3 كومان: ${((montantTotal*2)/3).toFixed(2)} درهم`;
                     this.showMessage(successMsg, 'success');
                 } else {
                     const successMsg = this.currentLanguage === 'fr' 
-                        ? `✅ OPÉRATION ENREGISTRÉE! ${montantTotal} DH sur ${caisse}`
-                        : `✅ تم تسجيل العملية! ${montantTotal} درهم على ${this.getNomCaisse(caisse)}`;
+                        ? `✅ ${this.getTranslation('success_operation')}! ${montantTotal} DH sur ${this.getNomCaisse(caisse)}`
+                        : `✅ ${this.getTranslation('success_operation')}! ${montantTotal} درهم على ${this.getNomCaisse(caisse)}`;
                     this.showMessage(successMsg, 'success');
                 }
 
@@ -1179,19 +1289,11 @@ class GestionFermeApp {
                 this.loadInitialData();
                 
             } else {
-                this.showMessage(
-                    this.currentLanguage === 'fr' ? '❌ Erreur de synchronisation' : '❌ خطأ في المزامنة', 
-                    'error'
-                );
+                this.showMessage(this.getTranslation('error_operation'), 'error');
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement opération:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ Erreur lors de l\'enregistrement: ' + error.message 
-                    : '❌ خطأ أثناء التسجيل: ' + error.message, 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation') + ': ' + error.message, 'error');
         }
     }
 
@@ -1200,10 +1302,7 @@ class GestionFermeApp {
         console.log('🔄 Transfert en cours...');
         
         if (!this.currentUser) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
@@ -1211,12 +1310,7 @@ class GestionFermeApp {
         const caisseDestination = document.getElementById('caisseDestination').value;
         
         if (caisseSource === caisseDestination) {
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ La caisse source et destination doivent être différentes' 
-                    : '❌ يجب أن يكون الصندوق المصدر والوجهة مختلفين', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_caisse'), 'error');
             return;
         }
         
@@ -1234,19 +1328,13 @@ class GestionFermeApp {
         try {
             if (window.firebaseSync) {
                 await window.firebaseSync.addDocument('transferts', transfert);
-                this.showMessage(
-                    this.currentLanguage === 'fr' ? '✅ Transfert effectué avec succès' : '✅ تم التحويل بنجاح', 
-                    'success'
-                );
+                this.showMessage(this.getTranslation('success_transfert'), 'success');
                 e.target.reset();
                 this.loadInitialData();
             }
         } catch (error) {
             console.error('❌ Erreur enregistrement transfert:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors du transfert' : '❌ خطأ أثناء التحويل', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_transfert'), 'error');
         }
     }
 
@@ -1311,57 +1399,36 @@ class GestionFermeApp {
         console.log('🗑️ Suppression opération:', operationId);
         
         if (!this.currentUser) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
         // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Opération non trouvée' : '❌ العملية غير موجودة', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
             return;
         }
         
         // Vérifier les permissions
         const canDelete = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canDelete) {
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ Vous n\'avez pas la permission de supprimer cette opération' 
-                    : '❌ ليس لديك إذن لحذف هذه العملية', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
         // Confirmation
-        const confirmMsg = this.currentLanguage === 'fr' 
-            ? 'Êtes-vous sûr de vouloir supprimer cette opération ?'
-            : 'هل أنت متأكد من أنك تريد حذف هذه العملية؟';
-        
-        if (!confirm(confirmMsg)) {
+        if (!confirm(this.getTranslation('confirm_delete'))) {
             return;
         }
         
         try {
             await window.firebaseSync.deleteDocument('operations', operationId);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '✅ Opération supprimée avec succès' : '✅ تم حذف العملية بنجاح', 
-                'success'
-            );
+            this.showMessage(this.getTranslation('success_delete'), 'success');
             this.loadInitialData();
         } catch (error) {
             console.error('❌ Erreur suppression:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors de la suppression' : '❌ خطأ أثناء الحذف', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_delete'), 'error');
         }
     }
 
@@ -1369,32 +1436,21 @@ class GestionFermeApp {
         console.log('✏️ Modification opération:', operationId);
         
         if (!this.currentUser) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Vous devez être connecté' : '❌ يجب أن تكون مسجلاً', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
         // Trouver l'opération
         const operation = this.operations.find(op => op.id === operationId);
         if (!operation) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Opération non trouvée' : '❌ العملية غير موجودة', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
             return;
         }
         
         // Vérifier les permissions
         const canEdit = window.firebaseAuthFunctions.canModifyOperation(operation, this.currentUser);
         if (!canEdit) {
-            this.showMessage(
-                this.currentLanguage === 'fr' 
-                    ? '❌ Vous n\'avez pas la permission de modifier cette opération' 
-                    : '❌ ليس لديك إذن لتعديل هذه العملية', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_permission'), 'error');
             return;
         }
         
@@ -1512,18 +1568,12 @@ class GestionFermeApp {
         const description = document.getElementById('editDescription').value.trim();
         
         if (!montant || montant <= 0) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Le montant doit être supérieur à 0' : '❌ يجب أن يكون المبلغ أكبر من 0', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_montant'), 'error');
             return;
         }
         
         if (!description) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Veuillez saisir une description' : '❌ يرجى إدخال وصف', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_validation_description'), 'error');
             return;
         }
         
@@ -1541,19 +1591,13 @@ class GestionFermeApp {
             };
             
             await window.firebaseSync.updateDocument('operations', operationId, updatedOperation);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '✅ Opération modifiée avec succès' : '✅ تم تعديل العملية بنجاح', 
-                'success'
-            );
+            this.showMessage(this.getTranslation('success_edit'), 'success');
             this.closeEditModal();
             this.loadInitialData();
             
         } catch (error) {
             console.error('❌ Erreur modification:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors de la modification' : '❌ خطأ أثناء التعديل', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_edit'), 'error');
         }
     }
 
@@ -1568,16 +1612,11 @@ class GestionFermeApp {
         console.log('🗑️ Suppression des opérations sélectionnées:', this.selectedOperations.size);
         
         if (this.selectedOperations.size === 0) {
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Aucune opération sélectionnée' : '❌ لم يتم اختيار أي عمليات', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
             return;
         }
         
-        const confirmMsg = this.currentLanguage === 'fr' 
-            ? `Êtes-vous sûr de vouloir supprimer ${this.selectedOperations.size} opération(s) ?`
-            : `هل أنت متأكد من أنك تريد حذف ${this.selectedOperations.size} عملية؟`;
+        const confirmMsg = this.getTranslation('confirm_delete_multiple').replace('${this.selectedOperations.size}', this.selectedOperations.size);
         
         if (!confirm(confirmMsg)) {
             return;
@@ -1603,8 +1642,8 @@ class GestionFermeApp {
             }
             
             const successMsg = this.currentLanguage === 'fr' 
-                ? `✅ ${successCount} opération(s) supprimée(s), ${errorCount} erreur(s)`
-                : `✅ تم حذف ${successCount} عملية، ${errorCount} خطأ`;
+                ? `✅ ${successCount} ${this.getTranslation('success_delete_multiple')}, ${errorCount} erreur(s)`
+                : `✅ ${successCount} ${this.getTranslation('success_delete_multiple')}, ${errorCount} خطأ`;
             
             this.showMessage(successMsg, 'success');
             this.selectedOperations.clear();
@@ -1613,19 +1652,12 @@ class GestionFermeApp {
             
         } catch (error) {
             console.error('❌ Erreur suppression multiple:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors de la suppression multiple' : '❌ خطأ أثناء الحذف المتعدد', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_delete'), 'error');
         }
     }
 
     async resetLocalData() {
-        const confirmMsg = this.currentLanguage === 'fr' 
-            ? 'Êtes-vous sûr de vouloir vider les données locales ? Les données Firebase resteront intactes.'
-            : 'هل أنت متأكد من أنك تريد مسح البيانات المحلية؟ بيانات Firebase ستبقى سليمة.';
-        
-        if (!confirm(confirmMsg)) {
+        if (!confirm(this.getTranslation('confirm_reset_local'))) {
             return;
         }
 
@@ -1651,21 +1683,13 @@ class GestionFermeApp {
             
         } catch (error) {
             console.error('❌ Erreur réinitialisation locale:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors de la réinitialisation locale' : '❌ خطأ أثناء إعادة تعيين البيانات المحلية', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
         }
     }
 
     async resetFirebaseData() {
-        const confirmMsg1 = this.currentLanguage === 'fr' 
-            ? '🚨 ATTENTION ! Cette action va supprimer TOUTES les données Firebase définitivement.\n\nCette action ne peut pas être annulée. Continuer ?'
-            : '🚨 انتبه! هذا الإجراء سيمسح جميع بيانات Firebase نهائياً.\n\nلا يمكن التراجع عن هذا الإجراء. متابعة؟';
-        
-        const confirmMsg2 = this.currentLanguage === 'fr' 
-            ? 'Êtes-vous ABSOLUMENT SÛR ? Toutes les opérations seront perdues sur tous les appareils !'
-            : 'هل أنت متأكد تماماً؟ جميع العمليات ستفقد على جميع الأجهزة!';
+        const confirmMsg1 = this.getTranslation('confirm_reset_firebase');
+        const confirmMsg2 = this.getTranslation('confirm_reset_firebase');
         
         if (!confirm(confirmMsg1)) {
             return;
@@ -1715,10 +1739,7 @@ class GestionFermeApp {
 
         } catch (error) {
             console.error('❌ Erreur réinitialisation Firebase:', error);
-            this.showMessage(
-                this.currentLanguage === 'fr' ? '❌ Erreur lors de la réinitialisation Firebase' : '❌ خطأ أثناء إعادة تعيين Firebase', 
-                'error'
-            );
+            this.showMessage(this.getTranslation('error_operation'), 'error');
         }
     }
 
