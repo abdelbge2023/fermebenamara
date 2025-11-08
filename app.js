@@ -1,4 +1,4 @@
-// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE AVEC TRADUCTION TOTALE
+// app.js - Application principale Gestion Ferme Ben Amara - VERSION COMPLÈTE
 console.log('🚀 Chargement de l\'application principale...');
 
 class GestionFermeApp {
@@ -11,6 +11,7 @@ class GestionFermeApp {
         this.currentUser = null;
         this.userPermissions = {};
         this.currentEditModal = null;
+        this.currentManualModal = null;
         this.currentLanguage = 'fr'; // 'fr' ou 'ar'
         
         // S'assurer que l'écran de connexion est visible au démarrage
@@ -286,7 +287,22 @@ class GestionFermeApp {
             'stats_solde_calcule': this.currentLanguage === 'fr' ? 'Solde calculé' : 'الرصيد المحسوب',
             'stats_total_mouvements': this.currentLanguage === 'fr' ? 'Total mouvements' : 'إجمالي الحركات',
             'stats_positif': this.currentLanguage === 'fr' ? 'Positif' : 'إيجابي',
-            'stats_negatif': this.currentLanguage === 'fr' ? 'Négatif' : 'سلبي'
+            'stats_negatif': this.currentLanguage === 'fr' ? 'Négatif' : 'سلبي',
+
+            // Manuel
+            'manual_title': this.currentLanguage === 'fr' ? 'Manuel d\'Utilisation' : 'دليل الاستخدام',
+            'manual_close': this.currentLanguage === 'fr' ? 'Fermer le Manuel' : 'إغلاق الدليل',
+            'manual_guide': this.currentLanguage === 'fr' ? 'Guide d\'Utilisation' : 'دليل الاستخدام',
+            'manual_welcome': this.currentLanguage === 'fr' ? 'Bienvenue dans l\'application' : 'مرحباً بك في التطبيق',
+            'manual_auth': this.currentLanguage === 'fr' ? 'Connexion et Sécurité' : 'التسجيل والأمان',
+            'manual_operations': this.currentLanguage === 'fr' ? 'Saisie d\'Opérations' : 'إدخال العمليات',
+            'manual_transferts': this.currentLanguage === 'fr' ? 'Transferts entre Caisses' : 'التحويلات بين الصناديق',
+            'manual_navigation': this.currentLanguage === 'fr' ? 'Navigation et Vues' : 'التنقل والعروض',
+            'manual_edition': this.currentLanguage === 'fr' ? 'Mode Édition' : 'وضع التعديل',
+            'manual_stats': this.currentLanguage === 'fr' ? 'Statistiques et Soldes' : 'الإحصائيات والأرصدة',
+            'manual_lang': this.currentLanguage === 'fr' ? 'Fonctionnalités Multilingues' : 'ميزات متعددة اللغات',
+            'manual_best_practices': this.currentLanguage === 'fr' ? 'Bonnes Pratiques' : 'الممارسات الجيدة',
+            'manual_tips': this.currentLanguage === 'fr' ? 'Astuces' : 'نصائح'
         };
     }
 
@@ -1856,10 +1872,257 @@ class GestionFermeApp {
 
     showManual() {
         console.log('📖 Affichage manuel...');
-        this.showMessage(
-            this.currentLanguage === 'fr' ? '📖 Manuel utilisateur en cours de développement...' : '📖 جاري تطوير دليل المستخدم...', 
-            'info'
-        );
+        
+        const translations = this.getTranslations();
+        
+        // Créer une modale pour le manuel
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        `;
+        
+        const manualContent = this.currentLanguage === 'fr' ? this.getManualContentFR() : this.getManualContentAR();
+        
+        modal.innerHTML = `
+            <div style="background: white; padding: 30px; border-radius: 10px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; ${this.currentLanguage === 'ar' ? 'text-align: right;' : 'text-align: left;'}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; color: #2c3e50;">📖 ${translations['manual_title']}</h2>
+                    <button onclick="gestionFermeApp.closeManual()" style="background: #e74c3c; color: white; border: none; border-radius: 5px; padding: 8px 15px; cursor: pointer; font-size: 16px;">
+                        ✕
+                    </button>
+                </div>
+                <div style="line-height: 1.6;">
+                    ${manualContent}
+                </div>
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <button onclick="gestionFermeApp.closeManual()" style="background: #007bff; color: white; border: none; border-radius: 5px; padding: 10px 20px; cursor: pointer; width: 100%; font-size: 16px;">
+                        ${translations['manual_close']}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.currentManualModal = modal;
+    }
+
+    getManualContentFR() {
+        return `
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #3498db;">🎯 Guide d'Utilisation - Gestion Ferme Ben Amara</h3>
+                <p>Bienvenue dans l'application de gestion de la ferme Ben Amara. Ce guide vous aidera à utiliser toutes les fonctionnalités.</p>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #27ae60;">🔐 Connexion et Sécurité</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Authentification :</strong> Utilisez votre email et mot de passe pour vous connecter</li>
+                    <li><strong>Permissions :</strong> Chaque utilisateur a des droits spécifiques selon son profil</li>
+                    <li><strong>Déconnexion :</strong> Toujours vous déconnecter après utilisation</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #e74c3c;">➕ Saisie d'Opérations</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Opérateur :</strong> Automatiquement défini selon votre compte</li>
+                    <li><strong>Type d'opération :</strong> Travailleur Global, Zaitoun ou 3 Commain</li>
+                    <li><strong>Groupe :</strong> Sélectionnez le groupe concerné</li>
+                    <li><strong>Type de transaction :</strong> Revenu (entrée) ou Frais (sortie)</li>
+                    <li><strong>Caisse :</strong> Choisissez la caisse impactée</li>
+                    <li><strong>Répartition automatique :</strong> Pour "Travailleur Global + Les Deux Groupes", le montant est automatiquement réparti 1/3 Zaitoun, 2/3 3 Commain</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #9b59b6;">🔄 Transferts entre Caisses</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Caisse source :</strong> Caisse qui envoie l'argent</li>
+                    <li><strong>Caisse destination :</strong> Caisse qui reçoit l'argent</li>
+                    <li><strong>Validation :</strong> Les deux caisses doivent être différentes</li>
+                    <li><strong>Impact :</strong> Réduction de la source, augmentation de la destination</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #f39c12;">📊 Navigation et Vues</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>🌍 Global :</strong> Toutes les opérations et transferts</li>
+                    <li><strong>🫒 Zaitoun :</strong> Opérations spécifiques à Zaitoun</li>
+                    <li><strong>🔧 3 Commain :</strong> Opérations spécifiques à 3 Commain</li>
+                    <li><strong>👨‍💼 Abdel / 👨‍💻 Omar / 👨‍🔧 Hicham :</strong> Vues par opérateur</li>
+                    <li><strong>🔄 Transferts :</strong> Tous les transferts entre caisses</li>
+                    <li><strong>👥 Les Deux Groupes :</strong> Opérations concernant les deux groupes</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #1abc9c;">✏️ Mode Édition</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Activation :</strong> Cliquez sur "Mode Édition"</li>
+                    <li><strong>Sélection multiple :</strong> Cochez les opérations à modifier/supprimer</li>
+                    <li><strong>Suppression groupée :</strong> Supprimez plusieurs opérations en une fois</li>
+                    <li><strong>Permissions :</strong> Seules vos opérations sont modifiables</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #34495e;">📈 Statistiques et Soldes</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Soldes en temps réel :</strong> Calcul automatique des soldes de chaque caisse</li>
+                    <li><strong>Détails :</strong> Cliquez sur une caisse pour voir le détail des mouvements</li>
+                    <li><strong>Totaux par vue :</strong> Revenus, dépenses et solde net pour chaque filtre</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #e67e22;">🌍 Fonctionnalités Multilingues</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Changement de langue :</strong> Bouton "العربية" / "Français"</li>
+                    <li><strong>Interface complète :</strong> Tous les textes sont traduits</li>
+                    <li><strong>Direction :</strong> Adaptation automatique RTL/LTR</li>
+                    <li><strong>Sauvegarde :</strong> Votre préférence est mémorisée</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #c0392b;">⚠️ Bonnes Pratiques</h4>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Descriptions claires :</strong> Toujours décrire l'opération</li>
+                    <li><strong>Vérification :</strong> Contrôlez les montants avant validation</li>
+                    <li><strong>Regularité :</strong> Saisissez les opérations au fur et à mesure</li>
+                    <li><strong>Sécurité :</strong> Ne partagez pas vos identifiants</li>
+                </ul>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db;">
+                <h4 style="margin-top: 0; color: #3498db;">💡 Astuces</h4>
+                <ul style="padding-left: 20px; margin-bottom: 0;">
+                    <li>Utilisez les filtres pour analyser des périodes spécifiques</li>
+                    <li>Exportez les données pour vos archives</li>
+                    <li>Consultez régulièrement les soldes des caisses</li>
+                    <li>Contactez l'administrateur pour toute question</li>
+                </ul>
+            </div>
+        `;
+    }
+
+    getManualContentAR() {
+        return `
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: #3498db;">🎯 دليل الاستخدام - إدارة مزرعة بن عمرة</h3>
+                <p>مرحباً بك في تطبيق إدارة مزرعة بن عمرة. هذا الدليل سيساعدك على استخدام جميع الميزات.</p>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #27ae60;">🔐 التسجيل والأمان</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>المصادقة:</strong> استخدم بريدك الإلكتروني وكلمة المرور لتسجيل الدخول</li>
+                    <li><strong>الصلاحيات:</strong> كل مستخدم لديه صلاحيات محددة حسب ملفه</li>
+                    <li><strong>تسجيل الخروج:</strong> دائماً سجل الخروج بعد الاستخدام</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #e74c3c;">➕ إدخال العمليات</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>المشغل:</strong> يتم تحديده تلقائياً حسب حسابك</li>
+                    <li><strong>نوع العملية:</strong> عامل عام، زيتون أو 3 كومان</li>
+                    <li><strong>المجموعة:</strong> اختر المجموعة المعنية</li>
+                    <li><strong>نوع المعاملة:</strong> دخل (إدخال) أو مصاريف (إخراج)</li>
+                    <li><strong>الصندوق:</strong> اختر الصندوق المتأثر</li>
+                    <li><strong>التوزيع التلقائي:</strong> لـ"عامل عام + المجموعتان"، يتم توزيع المبلغ تلقائياً 1/3 زيتون، 2/3 3 كومان</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #9b59b6;">🔄 التحويلات بين الصناديق</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>الصندوق المصدر:</strong> الصندوق الذي يرسل الأموال</li>
+                    <li><strong>الصندوق الوجهة:</strong> الصندوق الذي يستلم الأموال</li>
+                    <li><strong>التحقق:</strong> يجب أن يكون الصندوقان مختلفين</li>
+                    <li><strong>التأثير:</strong> نقصان في المصدر، زيادة في الوجهة</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #f39c12;">📊 التنقل والعروض</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>🌍 الكل:</strong> جميع العمليات والتحويلات</li>
+                    <li><strong>🫒 زيتون:</strong> العمليات الخاصة بزيتون</li>
+                    <li><strong>🔧 3 كومان:</strong> العمليات الخاصة بـ3 كومان</li>
+                    <li><strong>👨‍💼 عبدال / 👨‍💻 عمر / 👨‍🔧 هشام:</strong> عروض حسب المشغل</li>
+                    <li><strong>🔄 التحويلات:</strong> جميع التحويلات بين الصناديق</li>
+                    <li><strong>👥 المجموعتان:</strong> العمليات التي تهم المجموعتين</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #1abc9c;">✏️ وضع التعديل</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>التفعيل:</strong> انقر على "وضع التعديل"</li>
+                    <li><strong>اختيار متعدد:</strong> حدد العمليات للتعديل/الحذف</li>
+                    <li><strong>حذف جماعي:</strong> احذف عدة عمليات في مرة واحدة</li>
+                    <li><strong>الصلاحيات:</strong> فقط عملياتك قابلة للتعديل</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #34495e;">📈 الإحصائيات والأرصدة</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>أرصدة في الوقت الحقيقي:</strong> حساب تلقائي لأرصدة كل صندوق</li>
+                    <li><strong>التفاصيل:</strong> انقر على صندوق لرؤية تفاصيل الحركات</li>
+                    <li><strong>المجموع حسب العرض:</strong> الإيرادات، المصاريف والرصيد الصافي لكل تصفية</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #e67e22;">🌍 ميزات متعددة اللغات</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>تغيير اللغة:</strong> زر "العربية" / "Français"</li>
+                    <li><strong>واجهة كاملة:</strong> جميع النصوص مترجمة</li>
+                    <li><strong>الاتجاه:</strong> تكيف تلقائي RTL/LTR</li>
+                    <li><strong>الحفظ:</strong> تفضيلك محفوظ</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #c0392b;">⚠️ الممارسات الجيدة</h4>
+                <ul style="padding-right: 20px;">
+                    <li><strong>أوصاف واضحة:</strong> دائماً صف العملية</li>
+                    <li><strong>التحقق:</strong> راجع المبالغ قبل التأكيد</li>
+                    <li><strong>الانتظام:</strong> أدخل العمليات على التوالي</li>
+                    <li><strong>الأمان:</strong> لا تشارك بيانات الدخول الخاصة بك</li>
+                </ul>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-right: 4px solid #3498db;">
+                <h4 style="margin-top: 0; color: #3498db;">💡 نصائح</h4>
+                <ul style="padding-right: 20px; margin-bottom: 0;">
+                    <li>استخدم الفلاتر لتحليل فترات محددة</li>
+                    <li>صدر البيانات لأرشيفك</li>
+                    <li>راجع أرصدة الصناديق بانتظام</li>
+                    <li>اتصل بالمسؤول لأي سؤال</li>
+                </ul>
+            </div>
+        `;
+    }
+
+    closeManual() {
+        if (this.currentManualModal) {
+            this.currentManualModal.remove();
+            this.currentManualModal = null;
+        }
     }
 }
 
